@@ -1,0 +1,252 @@
+<?xml version="1.0" encoding="utf-8"?>
+<xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+    <file source-language="en" datatype="plaintext" original="messages" date="2026-03-16T00:00:00Z" product-name="aim">
+        <header/>
+        <body>
+            <trans-unit id="aim.title" resname="aim.title">
+                <source>AiM</source>
+            </trans-unit>
+            <trans-unit id="aim.description" resname="aim.description">
+                <source>Intelligent AI proxy for TYPO3 — provider management, request routing, and usage analytics.</source>
+            </trans-unit>
+            <trans-unit id="aim.shortDescription" resname="aim.shortDescription">
+                <source>AI proxy and provider management</source>
+            </trans-unit>
+            <trans-unit id="aim.providers.title" resname="aim.providers.title">
+                <source>Providers</source>
+            </trans-unit>
+            <trans-unit id="aim.providers.description" resname="aim.providers.description">
+                <source>Manage AI provider configurations, API keys and models.</source>
+            </trans-unit>
+            <trans-unit id="aim.providers.shortDescription" resname="aim.providers.shortDescription">
+                <source>Manage AI providers</source>
+            </trans-unit>
+            <trans-unit id="aim.requestLog.title" resname="aim.requestLog.title">
+                <source>Request Log</source>
+            </trans-unit>
+            <trans-unit id="aim.requestLog.description" resname="aim.requestLog.description">
+                <source>View and analyze all AI requests processed through the AiM pipeline.</source>
+            </trans-unit>
+            <trans-unit id="aim.requestLog.shortDescription" resname="aim.requestLog.shortDescription">
+                <source>AI request history and statistics</source>
+            </trans-unit>
+            <trans-unit id="overview.title" resname="overview.title">
+                <source>Providers</source>
+            </trans-unit>
+            <trans-unit id="overview.description" resname="overview.description">
+                <source>Manage AI provider configurations, API keys and models.</source>
+            </trans-unit>
+            <trans-unit id="overview.newConfiguration" resname="overview.newConfiguration">
+                <source>New Configuration</source>
+            </trans-unit>
+            <trans-unit id="overview.noConfigurations" resname="overview.noConfigurations">
+                <source>No provider configurations found. Create one to get started.</source>
+            </trans-unit>
+            <trans-unit id="overview.availableProviders" resname="overview.availableProviders">
+                <source>Available Providers</source>
+            </trans-unit>
+            <trans-unit id="overview.showAvailableProviders" resname="overview.showAvailableProviders">
+                <source>Available providers</source>
+            </trans-unit>
+            <trans-unit id="overview.capabilities" resname="overview.capabilities">
+                <source>Capabilities</source>
+            </trans-unit>
+            <trans-unit id="capability.vision" resname="capability.vision">
+                <source>Vision</source>
+            </trans-unit>
+            <trans-unit id="capability.conversation" resname="capability.conversation">
+                <source>Conversation</source>
+            </trans-unit>
+            <trans-unit id="capability.textGeneration" resname="capability.textGeneration">
+                <source>Text Generation</source>
+            </trans-unit>
+            <trans-unit id="capability.translation" resname="capability.translation">
+                <source>Translation</source>
+            </trans-unit>
+            <trans-unit id="capability.toolCalling" resname="capability.toolCalling">
+                <source>Tool Calling</source>
+            </trans-unit>
+            <trans-unit id="overview.provider" resname="overview.provider">
+                <source>Provider</source>
+            </trans-unit>
+            <trans-unit id="overview.models" resname="overview.models">
+                <source>Models</source>
+            </trans-unit>
+            <trans-unit id="overview.noProviders.title" resname="overview.noProviders.title">
+                <source>No providers</source>
+            </trans-unit>
+            <trans-unit id="overview.noProviders.message" resname="overview.noProviders.message">
+                <source>No AI providers registered. Install an extension that provides AI capabilities.</source>
+            </trans-unit>
+            <trans-unit id="overview.configurations" resname="overview.configurations">
+                <source>Configurations</source>
+            </trans-unit>
+            <trans-unit id="overview.configurations.title" resname="overview.configurations.title">
+                <source>Title</source>
+            </trans-unit>
+            <trans-unit id="overview.configurations.model" resname="overview.configurations.model">
+                <source>Model</source>
+            </trans-unit>
+            <trans-unit id="overview.configurations.default" resname="overview.configurations.default">
+                <source>Default</source>
+            </trans-unit>
+            <trans-unit id="overview.configurations.totalCost" resname="overview.configurations.totalCost">
+                <source>Total Cost</source>
+            </trans-unit>
+            <trans-unit id="overview.configurations.lastUsed" resname="overview.configurations.lastUsed">
+                <source>Last used</source>
+            </trans-unit>
+            <trans-unit id="overview.configurations.lastUsed.never" resname="overview.configurations.lastUsed.never">
+                <source>never</source>
+            </trans-unit>
+            <trans-unit id="overview.configurations.status" resname="overview.configurations.status">
+                <source>Status</source>
+            </trans-unit>
+            <trans-unit id="overview.noConfigurations.title" resname="overview.noConfigurations.title">
+                <source>No configurations</source>
+            </trans-unit>
+            <trans-unit id="filter.title" resname="filter.title">
+                <source>Title</source>
+            </trans-unit>
+            <trans-unit id="filter.aiProvider" resname="filter.aiProvider">
+                <source>AI Provider</source>
+            </trans-unit>
+            <trans-unit id="filter.aiProvider.showAll" resname="filter.aiProvider.showAll">
+                <source>Show all</source>
+            </trans-unit>
+            <trans-unit id="filter.submit" resname="filter.submit">
+                <source>Filter</source>
+            </trans-unit>
+            <trans-unit id="filter.reset" resname="filter.reset">
+                <source>Reset</source>
+            </trans-unit>
+            <trans-unit id="overview.noConfigurations.filtered" resname="overview.noConfigurations.filtered">
+                <source>No configurations match the current filter.</source>
+            </trans-unit>
+            <trans-unit id="pagination.first" resname="pagination.first">
+                <source>First</source>
+            </trans-unit>
+            <trans-unit id="pagination.previous" resname="pagination.previous">
+                <source>Previous</source>
+            </trans-unit>
+            <trans-unit id="pagination.next" resname="pagination.next">
+                <source>Next</source>
+            </trans-unit>
+            <trans-unit id="pagination.last" resname="pagination.last">
+                <source>Last</source>
+            </trans-unit>
+            <trans-unit id="pagination.records" resname="pagination.records">
+                <source>Records</source>
+            </trans-unit>
+            <trans-unit id="pagination.page" resname="pagination.page">
+                <source>Page</source>
+            </trans-unit>
+            <trans-unit id="pagination.refresh" resname="pagination.refresh">
+                <source>Refresh</source>
+            </trans-unit>
+
+            <trans-unit id="requestLog.title" resname="requestLog.title">
+                <source>AI Request Log</source>
+            </trans-unit>
+            <trans-unit id="requestLog.description" resname="requestLog.description">
+                <source>View and analyze all AI requests processed through the LLM proxy pipeline.</source>
+            </trans-unit>
+            <trans-unit id="requestLog.shortDescription" resname="requestLog.shortDescription">
+                <source>AI request history and statistics</source>
+            </trans-unit>
+            <trans-unit id="requestLog.noEntries.title" resname="requestLog.noEntries.title">
+                <source>No requests logged</source>
+            </trans-unit>
+            <trans-unit id="requestLog.noEntries" resname="requestLog.noEntries">
+                <source>No AI requests have been processed yet. Requests will appear here once extensions start using the AI pipeline.</source>
+            </trans-unit>
+            <trans-unit id="requestLog.noEntries.filtered" resname="requestLog.noEntries.filtered">
+                <source>No requests match the current filter.</source>
+            </trans-unit>
+            <trans-unit id="requestLog.column.timestamp" resname="requestLog.column.timestamp">
+                <source>Timestamp</source>
+            </trans-unit>
+            <trans-unit id="requestLog.column.extension" resname="requestLog.column.extension">
+                <source>Extension</source>
+            </trans-unit>
+            <trans-unit id="requestLog.column.user" resname="requestLog.column.user">
+                <source>User</source>
+            </trans-unit>
+            <trans-unit id="requestLog.column.requestType" resname="requestLog.column.requestType">
+                <source>Type</source>
+            </trans-unit>
+            <trans-unit id="requestLog.column.provider" resname="requestLog.column.provider">
+                <source>Provider</source>
+            </trans-unit>
+            <trans-unit id="requestLog.column.model" resname="requestLog.column.model">
+                <source>Model</source>
+            </trans-unit>
+            <trans-unit id="requestLog.column.tokens" resname="requestLog.column.tokens">
+                <source>Tokens</source>
+            </trans-unit>
+            <trans-unit id="requestLog.column.cost" resname="requestLog.column.cost">
+                <source>Cost</source>
+            </trans-unit>
+            <trans-unit id="requestLog.column.duration" resname="requestLog.column.duration">
+                <source>Duration</source>
+            </trans-unit>
+            <trans-unit id="requestLog.column.status" resname="requestLog.column.status">
+                <source>Status</source>
+            </trans-unit>
+            <trans-unit id="requestLog.status.success" resname="requestLog.status.success">
+                <source>Success</source>
+            </trans-unit>
+            <trans-unit id="requestLog.status.failed" resname="requestLog.status.failed">
+                <source>Failed</source>
+            </trans-unit>
+            <trans-unit id="requestLog.status.rerouted" resname="requestLog.status.rerouted">
+                <source>Rerouted</source>
+            </trans-unit>
+            <trans-unit id="requestLog.status.fallback" resname="requestLog.status.fallback">
+                <source>Fallback</source>
+            </trans-unit>
+            <trans-unit id="requestLog.filter.provider" resname="requestLog.filter.provider">
+                <source>Provider</source>
+            </trans-unit>
+            <trans-unit id="requestLog.filter.extension" resname="requestLog.filter.extension">
+                <source>Extension</source>
+            </trans-unit>
+            <trans-unit id="requestLog.filter.requestType" resname="requestLog.filter.requestType">
+                <source>Request Type</source>
+            </trans-unit>
+            <trans-unit id="requestLog.filter.status" resname="requestLog.filter.status">
+                <source>Status</source>
+            </trans-unit>
+            <trans-unit id="requestLog.filter.status.all" resname="requestLog.filter.status.all">
+                <source>All</source>
+            </trans-unit>
+            <trans-unit id="requestLog.filter.status.success" resname="requestLog.filter.status.success">
+                <source>Success only</source>
+            </trans-unit>
+            <trans-unit id="requestLog.filter.status.failed" resname="requestLog.filter.status.failed">
+                <source>Failed only</source>
+            </trans-unit>
+            <trans-unit id="requestLog.filter.showAll" resname="requestLog.filter.showAll">
+                <source>Show all</source>
+            </trans-unit>
+            <trans-unit id="requestLog.stats.totalRequests" resname="requestLog.stats.totalRequests">
+                <source>Total Requests</source>
+            </trans-unit>
+            <trans-unit id="requestLog.stats.totalCost" resname="requestLog.stats.totalCost">
+                <source>Total Cost</source>
+            </trans-unit>
+            <trans-unit id="requestLog.stats.totalTokens" resname="requestLog.stats.totalTokens">
+                <source>Total Tokens</source>
+            </trans-unit>
+            <trans-unit id="requestLog.stats.successRate" resname="requestLog.stats.successRate">
+                <source>Success Rate</source>
+            </trans-unit>
+            <trans-unit id="requestLog.stats.avgDuration" resname="requestLog.stats.avgDuration">
+                <source>Avg Duration</source>
+            </trans-unit>
+            <trans-unit id="overview.modelToggleHint" resname="overview.modelToggleHint">
+                <source>Click a model to enable/disable it. Disabled models are excluded on all ai requests and also won't appear in the model selection configurations.</source>
+            </trans-unit>
+        </body>
+    </file>
+</xliff>

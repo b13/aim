@@ -1,0 +1,21 @@
+#b13_loves_typo3 {
+    display: flex;
+    justify-content: flex-end;
+}
+
+#b13_loves_typo3 a {
+    background-color: rgb(84,84,84);
+    color: #fff;
+    padding: 5px;
+    display: inline-block;
+    text-decoration: none;
+}
+
+#b13_loves_typo3 a:hover {
+    background-color: rgb(170,58,80);
+}
+
+aim-available-providers .btn {
+    --typo3-btn-bg: rgb(255,200,87);
+    --typo3-btn-hover-bg: rgb(255, 180, 0);
+}

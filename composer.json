@@ -1,0 +1,49 @@
+{
+	"name": "b13/aim",
+	"type": "typo3-cms-extension",
+	"description": "AiM - Intelligent AI proxy for TYPO3",
+	"license": "GPL-2.0-or-later",
+	"require": {
+		"php": "^8.1",
+		"typo3/cms-core": "^12.4 || ^13.4 || ^14.0",
+		"typo3/cms-backend": "^12.4 || ^13.4 || ^14.0"
+	},
+	"require-dev": {
+		"phpunit/phpunit": "^11.0",
+		"typo3/testing-framework": "^9.0"
+	},
+	"suggest": {
+		"symfony/ai-platform": "Required to use Symfony AI bridges as providers (OpenAI, Anthropic, Gemini, Mistral, Ollama, etc.)"
+	},
+	"autoload": {
+		"psr-4": {
+			"B13\\Aim\\": "Classes/"
+		}
+	},
+	"autoload-dev": {
+		"psr-4": {
+			"B13\\Aim\\Tests\\": "Tests/"
+		}
+	},
+	"extra": {
+		"typo3/cms": {
+			"extension-key": "aim"
+		}
+	},
+	"authors": [
+		{
+			"name": "Oli Bartsch",
+			"role": "Developer",
+			"email": "oliver.bartsch@b13.com",
+			"homepage": "https://b13.com/"
+		}
+	],
+	"config": {
+		"vendor-dir": ".Build/vendor",
+		"bin-dir": ".Build/vendor/bin",
+		"allow-plugins": {
+			"typo3/class-alias-loader": true,
+			"typo3/cms-composer-installers": true
+		}
+	}
+}

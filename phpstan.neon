@@ -1,0 +1,38 @@
+includes:
+    - vendor/phpstan/phpstan/conf/bleedingEdge.neon
+    - vendor/saschaegerer/phpstan-typo3/extension.neon
+
+parameters:
+  level: 5
+
+  treatPhpDocTypesAsCertain: false
+
+  paths:
+    - %currentWorkingDirectory%/
+
+  excludePaths:
+    analyseAndScan:
+      - */node_modules/*
+      - vendor/*
+      - public/*
+      - ./.php-cs-fixer.php
+
+  ignoreErrors:
+    -
+      '#Variable \$_EXTKEY might not be defined#'
+    -
+      identifier: method.internal
+    -
+      identifier: method.internalClass
+    -
+      identifier: new.internalClass
+    -
+      identifier: parameter.internalClass
+    -
+      identifier: property.internalClass
+    -
+      identifier: staticMethod.internal
+    -
+      identifier: property.internal
+    -
+      identifier: classConstant.internalClass

@@ -1,0 +1,19 @@
+<phpunit
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/11.0/phpunit.xsd"
+    bootstrap="UnitTestsBootstrap.php"
+    cacheDirectory="../../.phpunit.cache"
+    backupGlobals="true"
+    colors="true"
+    failOnWarning="true"
+>
+    <testsuites>
+        <testsuite name="Unit tests">
+            <directory>../../Tests/Unit/</directory>
+        </testsuite>
+    </testsuites>
+    <php>
+        <ini name="display_errors" value="1"/>
+        <env name="TYPO3_CONTEXT" value="Testing"/>
+    </php>
+</phpunit>

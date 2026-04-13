@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="utf-8"?>
+<xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+    <file source-language="en" datatype="plaintext" original="messages" date="2026-03-16T00:00:00Z" product-name="aim">
+        <header/>
+        <body>
+            <trans-unit id="tx_aim_configuration.title" resname="tx_aim_configuration.title">
+                <source>AI Provider Configuration</source>
+            </trans-unit>
+            <trans-unit id="tx_aim_configuration.palette.config.label" resname="tx_aim_configuration.palette.config.label">
+                <source>Configuration</source>
+            </trans-unit>
+            <trans-unit id="tx_aim_configuration.palette.cost.label" resname="tx_aim_configuration.palette.cost.label">
+                <source>Cost Tracking</source>
+            </trans-unit>
+            <trans-unit id="tx_aim_configuration.palette.tokenCosts.label" resname="tx_aim_configuration.palette.tokenCosts.label">
+                <source>Token Costs</source>
+            </trans-unit>
+            <trans-unit id="tx_aim_configuration.palette.governance.label" resname="tx_aim_configuration.palette.governance.label">
+                <source>Access Control and Privacy</source>
+            </trans-unit>
+            <trans-unit id="tx_aim_configuration.columns.ai_provider.label" resname="tx_aim_configuration.columns.ai_provider.label">
+                <source>AI Provider</source>
+            </trans-unit>
+            <trans-unit id="tx_aim_configuration.columns.title.label" resname="tx_aim_configuration.columns.title.label">
+                <source>Title</source>
+            </trans-unit>
+            <trans-unit id="tx_aim_configuration.columns.description.label" resname="tx_aim_configuration.columns.description.label">
+                <source>Description</source>
+            </trans-unit>
+            <trans-unit id="tx_aim_configuration.columns.default.label" resname="tx_aim_configuration.columns.default.label">
+                <source>Default</source>
+            </trans-unit>
+            <trans-unit id="tx_aim_configuration.columns.api_key.label" resname="tx_aim_configuration.columns.api_key.label">
+                <source>API Key</source>
+            </trans-unit>
+            <trans-unit id="tx_aim_configuration.columns.model.label" resname="tx_aim_configuration.columns.model.label">
+                <source>Model</source>
+            </trans-unit>
+            <trans-unit id="tx_aim_configuration.columns.total_cost.label" resname="tx_aim_configuration.columns.total_cost.label">
+                <source>Total Cost</source>
+            </trans-unit>
+            <trans-unit id="tx_aim_configuration.columns.cost_currency.label" resname="tx_aim_configuration.columns.cost_currency.label">
+                <source>Currency</source>
+            </trans-unit>
+            <trans-unit id="tx_aim_configuration.columns.be_groups.label" resname="tx_aim_configuration.columns.be_groups.label">
+                <source>Restrict to user groups</source>
+            </trans-unit>
+            <trans-unit id="tx_aim_configuration.columns.privacy_level.label" resname="tx_aim_configuration.columns.privacy_level.label">
+                <source>Privacy level</source>
+            </trans-unit>
+            <trans-unit id="tx_aim_configuration.columns.privacy_level.standard" resname="tx_aim_configuration.columns.privacy_level.standard">
+                <source>Standard (full logging)</source>
+            </trans-unit>
+            <trans-unit id="tx_aim_configuration.columns.privacy_level.reduced" resname="tx_aim_configuration.columns.privacy_level.reduced">
+                <source>Reduced (no prompt/response content)</source>
+            </trans-unit>
+            <trans-unit id="tx_aim_configuration.columns.privacy_level.none" resname="tx_aim_configuration.columns.privacy_level.none">
+                <source>None (no logging at all)</source>
+            </trans-unit>
+            <trans-unit id="tx_aim_configuration.columns.rerouting_allowed.label" resname="tx_aim_configuration.columns.rerouting_allowed.label">
+                <source>Allow smart rerouting</source>
+            </trans-unit>
+            <trans-unit id="tx_aim_configuration.columns.rerouting_allowed.description" resname="tx_aim_configuration.columns.rerouting_allowed.description">
+                <source>When disabled, the smart router will never reroute requests away from this configuration, and will never reroute other requests to it. Use this for configurations that handle sensitive data (e.g. a local model for HR) to prevent data from being sent to a different provider.</source>
+            </trans-unit>
+            <trans-unit id="tx_aim_configuration.columns.auto_model_switch.label" resname="tx_aim_configuration.columns.auto_model_switch.label">
+                <source>Allow auto model switch</source>
+            </trans-unit>
+            <trans-unit id="tx_aim_configuration.columns.auto_model_switch.description" resname="tx_aim_configuration.columns.auto_model_switch.description">
+                <source>When enabled, AiM can automatically switch to a specialized model (e.g. an embedding model) using this configuration's API key when the configured model does not support the requested capability.</source>
+            </trans-unit>
+            <trans-unit id="tx_aim_configuration.columns.max_tokens.label" resname="tx_aim_configuration.columns.max_tokens.label">
+                <source>Max Tokens</source>
+            </trans-unit>
+            <trans-unit id="tx_aim_configuration.columns.input_token_cost.label" resname="tx_aim_configuration.columns.input_token_cost.label">
+                <source>Input Token Cost (per 1M)</source>
+            </trans-unit>
+            <trans-unit id="tx_aim_configuration.columns.output_token_cost.label" resname="tx_aim_configuration.columns.output_token_cost.label">
+                <source>Output Token Cost (per 1M)</source>
+            </trans-unit>
+            <trans-unit id="permissions.header" resname="permissions.header">
+                <source>AI Management</source>
+            </trans-unit>
+            <trans-unit id="permissions.capability.text" resname="permissions.capability.text">
+                <source>Text Generation</source>
+            </trans-unit>
+            <trans-unit id="permissions.capability.vision" resname="permissions.capability.vision">
+                <source>Vision</source>
+            </trans-unit>
+            <trans-unit id="permissions.capability.translation" resname="permissions.capability.translation">
+                <source>Translation</source>
+            </trans-unit>
+            <trans-unit id="permissions.capability.conversation" resname="permissions.capability.conversation">
+                <source>Conversation</source>
+            </trans-unit>
+            <trans-unit id="permissions.capability.embedding" resname="permissions.capability.embedding">
+                <source>Embedding</source>
+            </trans-unit>
+            <trans-unit id="permissions.capability.toolcalling" resname="permissions.capability.toolcalling">
+                <source>Tool Calling</source>
+            </trans-unit>
+        </body>
+    </file>
+</xliff>

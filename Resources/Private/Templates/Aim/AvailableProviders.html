@@ -1,0 +1,50 @@
+<html xmlns:f="http://typo3.org/ns/TYPO3/CMS/Fluid/ViewHelpers"
+      xmlns:core="http://typo3.org/ns/TYPO3/CMS/Core/ViewHelpers"
+      data-namespace-typo3-fluid="true">
+
+<div data-toggle-url="{toggleUrl}">
+    <div class="table-fit">
+        <table class="table table-striped table-hover">
+            <thead>
+                <tr>
+                    <th><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:overview.provider" /></th>
+                    <th><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:overview.capabilities" /></th>
+                    <th><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:overview.models" /></th>
+                </tr>
+            </thead>
+            <tbody>
+                <f:for each="{providers}" as="provider">
+                    <tr>
+                        <td style="white-space: nowrap">
+                            <f:if condition="{provider.iconIdentifier}">
+                                <core:icon identifier="{provider.iconIdentifier}" size="small" />
+                            </f:if>
+                            {provider.name}
+                        </td>
+                        <td>
+                            <f:for each="{provider.capabilities}" as="capability">
+                                <span class="badge badge-info">{capability}</span>
+                            </f:for>
+                        </td>
+                        <td>
+                            <f:for each="{provider.models}" as="model">
+                                <button type="button"
+                                        class="badge {f:if(condition: model.disabled, then: 'badge-notice', else: 'badge-success')}"
+                                        style="cursor:pointer;border:none;"
+                                        data-model-toggle
+                                        data-provider="{provider.identifier}"
+                                        data-model="{model.id}">{model.id}</button>
+                            </f:for>
+                        </td>
+                    </tr>
+                </f:for>
+            </tbody>
+        </table>
+    </div>
+    <p class="text-body-secondary mt-2" style="font-size: 12px;">
+        <core:icon identifier="actions-info" size="small" />
+        <f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:overview.modelToggleHint" />
+    </p>
+</div>
+
+</html>
