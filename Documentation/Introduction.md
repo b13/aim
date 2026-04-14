@@ -192,9 +192,13 @@ Every AI request is tracked in the **AiM > Request Log** module:
 
 Filter by provider, extension, request type, or success/failure. Statistics dashboard shows totals at a glance.
 
+![Request Log](Images/request-log.png)
+
 ### Provider verification
 
 Click the verify button next to any provider configuration to test the connection. See "connected" or "disconnected" with the exact error message. Results are persisted so you see the last check status on every page load.
+
+![Provider Management](Images/provider-management.png)
 
 ### Disabled models
 
@@ -214,6 +218,8 @@ If the TYPO3 Dashboard extension is installed, AiM adds five widgets you can pla
 - **Extension Usage**: doughnut chart showing which extensions use AI the most
 
 A pre-configured dashboard preset ("AiM: AI Analytics") is available when creating a new dashboard, placing all five widgets at once.
+
+![Dashboard Widgets](Images/dashboard-widgets.png)
 
 ---
 

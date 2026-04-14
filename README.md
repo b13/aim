@@ -4,6 +4,10 @@ AiM is the central AI layer for TYPO3. Extensions describe what they need. AiM d
 
 > **New to AiM?** Read the [Introduction](Documentation/Introduction.md) for a non-technical overview of what AiM does, why it exists, and how it works for administrators and extension developers.
 
+> **Alpha state.** AiM is under active development. The API is functional but may change before 1.0. We'd love your feedback: [open an issue](https://github.com/b13/aim/issues) or reach out at [b13.com](https://b13.com).
+
+![AiM Request Log](Documentation/Images/request-log.png)
+
 ## Quick start
 
 ```php
@@ -487,6 +491,8 @@ Manage AI provider configurations:
 - **Provider verification**: test connectivity with a minimal probe request, results persisted
 - **Last used**: timestamp per configuration with link to request log
 
+![Provider Management](Documentation/Images/provider-management.png)
+
 ### Request Log
 
 Monitor all AI requests:
@@ -511,6 +517,8 @@ When `typo3/cms-dashboard` is installed, AiM registers five widgets and a pre-co
 | Extension Usage | Doughnut chart | Which extensions generate the most requests |
 
 All widgets are refreshable and grouped under "AiM" in the widget picker. The recent requests widget includes a button to open the full request log module.
+
+![Dashboard Widgets](Documentation/Images/dashboard-widgets.png)
 
 ## Database Tables
 
