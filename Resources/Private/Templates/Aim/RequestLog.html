@@ -40,7 +40,12 @@
                                         <td>{entry.crdate -> f:format.date(format: 'Y-m-d H:i:s')}</td>
                                         <td>
                                             <f:if condition="{entry.extension_key}">
-                                                <f:then><span class="badge badge-info">{entry.extension_key}</span></f:then>
+                                                <f:then>
+                                                    <f:if condition="{extensionIcons.{entry.extension_key}}">
+                                                        <f:then><img src="{extensionIcons.{entry.extension_key}}" width="16" height="16" alt="" /></f:then>
+                                                    </f:if>
+                                                    {entry.extension_key}
+                                                </f:then>
                                                 <f:else><span class="text-body-secondary">-</span></f:else>
                                             </f:if>
                                         </td>

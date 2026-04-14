@@ -29,8 +29,10 @@ use TYPO3\CMS\Core\Imaging\IconFactory;
 use TYPO3\CMS\Core\Imaging\IconSize;
 use TYPO3\CMS\Core\Http\JsonResponse;
 use TYPO3\CMS\Core\Localization\LanguageService;
+use TYPO3\CMS\Core\Package\PackageManager;
 use TYPO3\CMS\Core\Pagination\SimplePagination;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
+use TYPO3\CMS\Core\Utility\PathUtility;
 
 #[AsController]
 class RequestLogController
@@ -40,6 +42,7 @@ class RequestLogController
         private readonly UriBuilder $uriBuilder,
         private readonly RequestLogRepository $logRepository,
         private readonly ModuleTemplateFactory $moduleTemplateFactory,
+        private readonly PackageManager $packageManager,
     ) {}
 
     public function logAction(ServerRequestInterface $request): ResponseInterface
@@ -107,7 +110,8 @@ class RequestLogController
             'statistics' => $statistics,
             'userMap' => $userMap,
             'providers' => $this->logRepository->getDistinctProviders(),
-            'extensionKeys' => $this->logRepository->getDistinctExtensionKeys(),
+            'extensionKeys' => $extensionKeys = $this->logRepository->getDistinctExtensionKeys(),
+            'extensionIcons' => $this->resolveExtensionIcons($extensionKeys),
             'requestTypes' => $this->logRepository->getDistinctRequestTypes(),
             'models' => $this->logRepository->getDistinctModels(),
         ])->renderResponse('Aim/RequestLog');
@@ -153,6 +157,29 @@ class RequestLogController
             'rows' => $rows,
             'totalCount' => $totalCount,
         ]);
+    }
+
+    /**
+     * Resolve extension icon paths for all active packages.
+     *
+     * @return array<string, string> extensionKey => relative icon path
+     * @param list<string> $extensionKeys Only resolve icons for these extensions
+     */
+    private function resolveExtensionIcons(array $extensionKeys): array
+    {
+        $icons = [];
+        foreach ($extensionKeys as $key) {
+            if (!$this->packageManager->isPackageActive($key)) {
+                continue;
+            }
+            $iconPath = $this->packageManager->getPackage($key)->getPackageIcon();
+            if ($iconPath !== null) {
+                $icons[$key] = PathUtility::getAbsoluteWebPath(
+                    $this->packageManager->getPackage($key)->getPackagePath() . $iconPath
+                );
+            }
+        }
+        return $icons;
     }
 
     private function getLanguageService(): LanguageService
