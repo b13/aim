@@ -1,8 +1,12 @@
 <?php
 
+use TYPO3\CMS\Core\Information\Typo3Version;
+
+$parent = (new Typo3Version())->getMajorVersion() >= 14 ? 'admin' : 'tools';
+
 return [
     'aim' => [
-        'parent' => 'admin',
+        'parent' => $parent,
         'position' => ['before' => '*'],
         'appearance' => [
             'dependsOnSubmodules' => true,
