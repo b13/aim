@@ -203,6 +203,18 @@ In the Available Providers modal, click any model badge to disable it. Disabled 
 - Are never picked by the resolver, smart router, or auto model switch
 - Are blocked by the capability validation middleware as a safety net
 
+### Dashboard widgets
+
+If the TYPO3 Dashboard extension is installed, AiM adds five widgets you can place on any dashboard:
+
+- **Recent Requests**: a live table of the latest AI requests with model, tokens, cost, and status
+- **Provider Usage**: doughnut chart showing how requests are distributed across providers
+- **Model Usage**: bar chart showing request counts per model
+- **Success Rate**: doughnut chart of successful vs failed requests
+- **Extension Usage**: doughnut chart showing which extensions use AI the most
+
+A pre-configured dashboard preset ("AiM: AI Analytics") is available when creating a new dashboard, placing all five widgets at once.
+
 ---
 
 ## For extension developers

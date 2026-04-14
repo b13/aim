@@ -498,6 +498,20 @@ Monitor all AI requests:
 - **Token details**: prompt, completion, cached, and reasoning token breakdowns
 - **Rerouting info**: fallback and capability rerouting details
 
+## Dashboard Widgets
+
+When `typo3/cms-dashboard` is installed, AiM registers five widgets and a pre-configured dashboard preset ("AiM: AI Analytics"):
+
+| Widget | Type | Shows |
+|---|---|---|
+| Recent Requests | Table | Last 10 requests with extension, model, tokens, cost, status |
+| Provider Usage | Doughnut chart | Request distribution across providers |
+| Model Usage | Bar chart | Request count per model |
+| Success Rate | Doughnut chart | Successful vs failed requests |
+| Extension Usage | Doughnut chart | Which extensions generate the most requests |
+
+All widgets are refreshable and grouped under "AiM" in the widget picker. The recent requests widget includes a button to open the full request log module.
+
 ## Database Tables
 
 | Table | Purpose |
