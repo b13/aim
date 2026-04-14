@@ -1,0 +1,49 @@
+<html xmlns:f="http://typo3.org/ns/TYPO3/CMS/Fluid/ViewHelpers"
+      data-namespace-typo3-fluid="true">
+<f:layout name="Widget/Widget" />
+<f:section name="main">
+
+    <f:if condition="{items}">
+        <f:then>
+            <div class="widget-table-wrapper">
+                <table class="widget-table table table-striped">
+                    <thead>
+                        <tr>
+                            <th><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.column.timestamp" /></th>
+                            <th><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.column.extension" /></th>
+                            <th><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.column.model" /></th>
+                            <th><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.column.tokens" /></th>
+                            <th><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.column.cost" /></th>
+                            <th><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.column.status" /></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <f:for each="{items}" as="item">
+                            <tr>
+                                <td class="text-nowrap">{item.crdate}</td>
+                                <td>{item.extension_key}</td>
+                                <td><span class="badge badge-secondary">{item.model}</span></td>
+                                <td>{item.tokens}</td>
+                                <td>{item.cost}</td>
+                                <td>
+                                    <f:if condition="{item.success}">
+                                        <f:then><span class="badge badge-success">OK</span></f:then>
+                                        <f:else><span class="badge badge-danger">Fail</span></f:else>
+                                    </f:if>
+                                </td>
+                            </tr>
+                        </f:for>
+                    </tbody>
+                </table>
+            </div>
+        </f:then>
+        <f:else>
+            <p class="text-body-secondary"><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:widgets.recentRequests.empty" /></p>
+        </f:else>
+    </f:if>
+
+</f:section>
+<f:section name="footer">
+    <f:render partial="Widget/Button" arguments="{button: button}" />
+</f:section>
+</html>

@@ -262,6 +262,51 @@
             <trans-unit id="overview.modelToggleHint" resname="overview.modelToggleHint">
                 <source>Click a model to enable/disable it. Disabled models are excluded on all ai requests and also won't appear in the model selection configurations.</source>
             </trans-unit>
+            <trans-unit id="widgets.button.requestLog" resname="widgets.button.requestLog">
+                <source>Open Request Log</source>
+            </trans-unit>
+            <trans-unit id="widgets.group.title" resname="widgets.group.title">
+                <source>AiM</source>
+            </trans-unit>
+            <trans-unit id="widgets.recentRequests.title" resname="widgets.recentRequests.title">
+                <source>AiM: Recent Requests</source>
+            </trans-unit>
+            <trans-unit id="widgets.recentRequests.description" resname="widgets.recentRequests.description">
+                <source>Shows the most recent AI requests processed through the AiM pipeline.</source>
+            </trans-unit>
+            <trans-unit id="widgets.recentRequests.empty" resname="widgets.recentRequests.empty">
+                <source>No AI requests logged yet.</source>
+            </trans-unit>
+            <trans-unit id="widgets.providerUsage.title" resname="widgets.providerUsage.title">
+                <source>AiM: Provider Usage</source>
+            </trans-unit>
+            <trans-unit id="widgets.providerUsage.description" resname="widgets.providerUsage.description">
+                <source>Distribution of AI requests across providers.</source>
+            </trans-unit>
+            <trans-unit id="widgets.modelUsage.title" resname="widgets.modelUsage.title">
+                <source>AiM: Model Usage</source>
+            </trans-unit>
+            <trans-unit id="widgets.modelUsage.description" resname="widgets.modelUsage.description">
+                <source>Number of requests per AI model.</source>
+            </trans-unit>
+            <trans-unit id="widgets.successRate.title" resname="widgets.successRate.title">
+                <source>AiM: Success Rate</source>
+            </trans-unit>
+            <trans-unit id="widgets.successRate.description" resname="widgets.successRate.description">
+                <source>Ratio of successful vs failed AI requests.</source>
+            </trans-unit>
+            <trans-unit id="widgets.extensionUsage.title" resname="widgets.extensionUsage.title">
+                <source>AiM: Extension Usage</source>
+            </trans-unit>
+            <trans-unit id="widgets.extensionUsage.description" resname="widgets.extensionUsage.description">
+                <source>Which extensions generate the most AI requests.</source>
+            </trans-unit>
+            <trans-unit id="widgets.preset.title" resname="widgets.preset.title">
+                <source>AiM: AI Analytics</source>
+            </trans-unit>
+            <trans-unit id="widgets.preset.description" resname="widgets.preset.description">
+                <source>Pre-configured dashboard with AI request monitoring: recent requests, provider and model usage, success rate, and extension statistics.</source>
+            </trans-unit>
         </body>
     </file>
 </xliff>

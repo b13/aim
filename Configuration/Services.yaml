@@ -6,7 +6,9 @@ services:
 
   B13\Aim\:
     resource: '../Classes/*'
-    exclude: '../Classes/Provider/SymfonyAi/*'
+    exclude:
+      - '../Classes/Provider/SymfonyAi/*'
+      - '../Classes/Widgets/*'
 
   B13\Aim\Domain\Repository\ProviderConfigurationRepository:
     public: true
