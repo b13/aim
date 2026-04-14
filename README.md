@@ -32,6 +32,7 @@ A few lines to add AI to any TYPO3 extension. No API keys in your code, no provi
 
 **For administrators:**
 - Backend modules for provider management and request monitoring
+- Disable specific models per provider via clickable badges
 - Budget limits and rate limiting per user (including admins as a safety net)
 - Privacy levels (standard / reduced / none) per provider
 - Provider group restrictions and capability permissions via native TYPO3 mechanisms

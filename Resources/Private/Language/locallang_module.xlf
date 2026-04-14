@@ -214,6 +214,9 @@
             <trans-unit id="requestLog.filter.requestType" resname="requestLog.filter.requestType">
                 <source>Request Type</source>
             </trans-unit>
+            <trans-unit id="requestLog.filter.model" resname="requestLog.filter.model">
+                <source>Model</source>
+            </trans-unit>
             <trans-unit id="requestLog.filter.status" resname="requestLog.filter.status">
                 <source>Status</source>
             </trans-unit>
@@ -232,8 +235,14 @@
             <trans-unit id="requestLog.stats.totalRequests" resname="requestLog.stats.totalRequests">
                 <source>Total Requests</source>
             </trans-unit>
+            <trans-unit id="requestLog.stats.totalRequests.info" resname="requestLog.stats.totalRequests.info">
+                <source>Total number of AI requests processed through the pipeline, including failed attempts and fallbacks.</source>
+            </trans-unit>
             <trans-unit id="requestLog.stats.totalCost" resname="requestLog.stats.totalCost">
                 <source>Total Cost</source>
+            </trans-unit>
+            <trans-unit id="requestLog.stats.totalCost.info" resname="requestLog.stats.totalCost.info">
+                <source>Accumulated cost across all requests, calculated from token usage and the configured token costs per provider.</source>
             </trans-unit>
             <trans-unit id="requestLog.stats.totalTokens" resname="requestLog.stats.totalTokens">
                 <source>Total Tokens</source>
@@ -241,8 +250,14 @@
             <trans-unit id="requestLog.stats.successRate" resname="requestLog.stats.successRate">
                 <source>Success Rate</source>
             </trans-unit>
+            <trans-unit id="requestLog.stats.successRate.info" resname="requestLog.stats.successRate.info">
+                <source>Percentage of requests that returned a successful response. Failed requests include provider errors, timeouts, and access denials.</source>
+            </trans-unit>
             <trans-unit id="requestLog.stats.avgDuration" resname="requestLog.stats.avgDuration">
                 <source>Avg Duration</source>
+            </trans-unit>
+            <trans-unit id="requestLog.stats.avgDuration.info" resname="requestLog.stats.avgDuration.info">
+                <source>Average wall-clock time per request in milliseconds. Includes network latency and provider processing time.</source>
             </trans-unit>
             <trans-unit id="overview.modelToggleHint" resname="overview.modelToggleHint">
                 <source>Click a model to enable/disable it. Disabled models are excluded on all ai requests and also won't appear in the model selection configurations.</source>

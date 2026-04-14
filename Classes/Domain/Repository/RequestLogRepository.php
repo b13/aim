@@ -199,6 +199,18 @@ class RequestLogRepository
             ->fetchFirstColumn();
     }
 
+    public function getDistinctModels(): array
+    {
+        $qb = $this->getQueryBuilder();
+        return $qb
+            ->select('model_used')
+            ->where($qb->expr()->neq('model_used', $qb->createNamedParameter('')))
+            ->groupBy('model_used')
+            ->orderBy('model_used')
+            ->executeQuery()
+            ->fetchFirstColumn();
+    }
+
     protected function getQueryBuilderForDemand(RequestLogDemand $demand): QueryBuilder
     {
         $qb = $this->getQueryBuilder();
@@ -224,6 +236,12 @@ class RequestLogRepository
             $constraints[] = $qb->expr()->eq(
                 'request_type',
                 $qb->createNamedParameter($demand->getRequestType())
+            );
+        }
+        if ($demand->hasModelUsed()) {
+            $constraints[] = $qb->expr()->eq(
+                'model_used',
+                $qb->createNamedParameter($demand->getModelUsed())
             );
         }
         if ($demand->hasSuccess()) {

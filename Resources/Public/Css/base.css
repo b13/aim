@@ -15,6 +15,18 @@
     background-color: rgb(170,58,80);
 }
 
+.card-info-icon {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    opacity: 0.5;
+    cursor: help;
+}
+
+.card-info-icon:hover {
+    opacity: 1;
+}
+
 aim-available-providers .btn {
     --typo3-btn-bg: rgb(255,200,87);
     --typo3-btn-hover-bg: rgb(255, 180, 0);

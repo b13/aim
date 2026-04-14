@@ -109,6 +109,7 @@ class RequestLogController
             'providers' => $this->logRepository->getDistinctProviders(),
             'extensionKeys' => $this->logRepository->getDistinctExtensionKeys(),
             'requestTypes' => $this->logRepository->getDistinctRequestTypes(),
+            'models' => $this->logRepository->getDistinctModels(),
         ])->renderResponse('Aim/RequestLog');
     }
 

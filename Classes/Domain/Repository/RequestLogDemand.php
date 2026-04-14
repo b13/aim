@@ -30,6 +30,7 @@ class RequestLogDemand
         protected string $providerIdentifier = '',
         protected string $extensionKey = '',
         protected string $requestType = '',
+        protected string $modelUsed = '',
         protected ?bool $success = null,
         protected int $dateFrom = 0,
         protected int $dateTo = 0,
@@ -60,6 +61,7 @@ class RequestLogDemand
             (string)($demand['provider_identifier'] ?? ''),
             (string)($demand['extension_key'] ?? ''),
             (string)($demand['request_type'] ?? ''),
+            (string)($demand['model_used'] ?? ''),
             isset($demand['success']) && $demand['success'] !== '' ? (bool)(int)$demand['success'] : null,
             (int)($demand['date_from'] ?? 0),
             (int)($demand['date_to'] ?? 0),
@@ -116,6 +118,16 @@ class RequestLogDemand
         return $this->requestType !== '';
     }
 
+    public function getModelUsed(): string
+    {
+        return $this->modelUsed;
+    }
+
+    public function hasModelUsed(): bool
+    {
+        return $this->modelUsed !== '';
+    }
+
     public function getSuccess(): ?bool
     {
         return $this->success;
@@ -151,6 +163,7 @@ class RequestLogDemand
         return $this->hasProviderIdentifier()
             || $this->hasExtensionKey()
             || $this->hasRequestType()
+            || $this->hasModelUsed()
             || $this->hasSuccess()
             || $this->hasDateFrom()
             || $this->hasDateTo();
@@ -182,6 +195,9 @@ class RequestLogDemand
         }
         if ($this->hasRequestType()) {
             $parameters['request_type'] = $this->getRequestType();
+        }
+        if ($this->hasModelUsed()) {
+            $parameters['model_used'] = $this->getModelUsed();
         }
         if ($this->hasSuccess()) {
             $parameters['success'] = $this->getSuccess() ? '1' : '0';
