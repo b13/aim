@@ -47,6 +47,13 @@ class StreamChunkIterator implements \IteratorAggregate
                     yield $chunk;
                     continue;
                 }
+                // Symfony AI yields Stringable TextDelta objects, not raw strings
+                if ($chunk instanceof \Stringable) {
+                    $text = (string)$chunk;
+                    $this->accumulated .= $text;
+                    yield $text;
+                    continue;
+                }
                 // Capture TokenUsage objects from the stream
                 if (is_object($chunk) && method_exists($chunk, 'getPromptTokens')) {
                     $this->usage = new AiUsageStatistics(
