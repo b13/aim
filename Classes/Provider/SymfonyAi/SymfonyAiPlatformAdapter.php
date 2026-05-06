@@ -24,6 +24,8 @@ use B13\Aim\Provider\AiProviderInterface;
 use B13\Aim\Request\ConversationRequest;
 use B13\Aim\Request\EmbeddingRequest;
 use B13\Aim\Request\Message\AbstractMessage;
+use B13\Aim\Request\Message\AssistantMessage as AimAssistantMessage;
+use B13\Aim\Request\Message\ToolMessage;
 use B13\Aim\Request\TextGenerationRequest;
 use B13\Aim\Request\ToolCallingRequest;
 use B13\Aim\Request\TranslationRequest;
@@ -39,6 +41,7 @@ use Symfony\AI\Platform\Message\Content\Image;
 use Symfony\AI\Platform\Message\Message;
 use Symfony\AI\Platform\Message\MessageBag;
 use Symfony\AI\Platform\PlatformInterface;
+use Symfony\AI\Platform\Result\ToolCall as SymfonyToolCall;
 use Symfony\AI\Platform\TokenUsage\TokenUsageInterface;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
@@ -441,6 +444,32 @@ class SymfonyAiPlatformAdapter implements
         }
         foreach ($aiMessages as $msg) {
             $content = is_string($msg->content) ? $msg->content : '';
+            // Assistant messages with tool calls must carry the calls into the
+            // Symfony AI message so the wire format includes them. Otherwise
+            // OpenAI-style providers (Mistral, OpenAI) reject the next round
+            // with "Assistant message must have either content or tool_calls".
+            if ($msg instanceof AimAssistantMessage && $msg->toolCalls !== []) {
+                $symfonyToolCalls = array_map(
+                    static fn(ToolCall $tc): SymfonyToolCall => new SymfonyToolCall(
+                        $tc->id,
+                        $tc->name,
+                        $tc->getDecodedArguments(),
+                    ),
+                    $msg->toolCalls,
+                );
+                $messages[] = Message::ofAssistant($content !== '' ? $content : null, $symfonyToolCalls);
+                continue;
+            }
+            // Tool result messages need the dedicated ToolCallMessage so the
+            // wire format uses role=tool with tool_call_id (OpenAI/Mistral)
+            // or maps to Anthropic's tool_result content blocks.
+            if ($msg instanceof ToolMessage) {
+                $messages[] = Message::ofToolCall(
+                    new SymfonyToolCall($msg->toolCallId, '', []),
+                    $content,
+                );
+                continue;
+            }
             $messages[] = match ($msg->role) {
                 'system' => Message::forSystem($content),
                 'assistant' => Message::ofAssistant($content),
