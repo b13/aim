@@ -190,7 +190,24 @@ class SymfonyAiPlatformAdapter implements
         $platform = $this->getPlatform($request->configuration);
         $messages = $this->buildMessageBag($request->messages, $request->systemPrompt);
 
-        $tools = array_map(static fn($tool) => $tool->toArray(), $request->tools);
+        // Convert ToolDefinitions to the format expected by the target provider.
+        // Anthropic uses {name, description, input_schema}.
+        // OpenAI / Mistral / Gemini / Ollama use the OpenAI function-calling
+        // schema {type: function, function: {name, description, parameters}}.
+        $tools = $request->configuration->providerIdentifier === 'anthropic'
+            ? array_map(static fn($tool) => [
+                'name' => $tool->name,
+                'description' => $tool->description,
+                'input_schema' => $tool->parameters ?: ['type' => 'object'],
+            ], $request->tools)
+            : array_map(static fn($tool) => [
+                'type' => 'function',
+                'function' => [
+                    'name' => $tool->name,
+                    'description' => $tool->description,
+                    'parameters' => $tool->parameters ?: ['type' => 'object'],
+                ],
+            ], $request->tools);
 
         $options = $this->buildOptions($request->configuration->model, $request->maxTokens, $request->temperature, [
             'tools' => $tools,
