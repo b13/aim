@@ -172,11 +172,13 @@ class RequestLogController
             if (!$this->packageManager->isPackageActive($key)) {
                 continue;
             }
-            $iconPath = $this->packageManager->getPackage($key)->getPackageIcon();
-            if ($iconPath !== null) {
-                $icons[$key] = PathUtility::getAbsoluteWebPath(
-                    $this->packageManager->getPackage($key)->getPackagePath() . $iconPath
-                );
+            $packagePath = $this->packageManager->getPackage($key)->getPackagePath();
+            foreach (['svg', 'png', 'gif'] as $extension) {
+                $relativeIconPath = 'Resources/Public/Icons/Extension.' . $extension;
+                if (file_exists($packagePath . $relativeIconPath)) {
+                    $icons[$key] = PathUtility::getAbsoluteWebPath($packagePath . $relativeIconPath);
+                    break;
+                }
             }
         }
         return $icons;
