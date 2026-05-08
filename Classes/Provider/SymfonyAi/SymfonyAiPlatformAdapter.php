@@ -64,6 +64,8 @@ class SymfonyAiPlatformAdapter implements
     /** @var array<string, PlatformInterface> Platforms cached by configuration key */
     private array $platforms = [];
 
+    private readonly string $maxTokensKey;
+
     /**
      * @param string $factoryClass Fully-qualified class name of the bridge's PlatformFactory
      * @param string $factoryParam Name of the factory parameter to pass the config value to ('apiKey' or 'endpoint')
@@ -71,7 +73,9 @@ class SymfonyAiPlatformAdapter implements
     public function __construct(
         private readonly string $factoryClass,
         private readonly string $factoryParam = 'apiKey',
-    ) {}
+    ) {
+        $this->maxTokensKey = self::resolveMaxTokensKey($factoryClass);
+    }
 
     public function processVisionRequest(VisionRequest $request): TextResponse
     {
@@ -433,11 +437,24 @@ class SymfonyAiPlatformAdapter implements
      */
     private function buildOptions(string $model, int $maxTokens, float $temperature, array $extra = []): array
     {
-        $options = ['max_output_tokens' => $maxTokens] + $extra;
+        $options = [$this->maxTokensKey => $maxTokens] + $extra;
         if (!$this->isReasoningModel($model)) {
             $options['temperature'] = $temperature;
         }
         return $options;
+    }
+
+    /**
+     * Resolve the max-tokens option key expected by a Symfony AI bridge based on the used bridge
+     */
+    public static function resolveMaxTokensKey(string $factoryClass): string
+    {
+        if (str_contains($factoryClass, '\\Bridge\\OpenAi\\')
+            || str_contains($factoryClass, '\\Bridge\\OpenResponses\\')
+        ) {
+            return 'max_output_tokens';
+        }
+        return 'max_tokens';
     }
 
     /**
