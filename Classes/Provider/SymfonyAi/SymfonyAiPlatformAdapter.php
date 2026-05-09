@@ -14,6 +14,7 @@ namespace B13\Aim\Provider\SymfonyAi;
 
 use B13\Aim\Capability\ConversationCapableInterface;
 use B13\Aim\Capability\EmbeddingCapableInterface;
+use B13\Aim\Domain\Repository\RequestLogRepository;
 use B13\Aim\Capability\TextGenerationCapableInterface;
 use B13\Aim\Capability\ToolCallingCapableInterface;
 use B13\Aim\Capability\TranslationCapableInterface;
@@ -23,6 +24,8 @@ use B13\Aim\Provider\AiProviderInterface;
 use B13\Aim\Request\ConversationRequest;
 use B13\Aim\Request\EmbeddingRequest;
 use B13\Aim\Request\Message\AbstractMessage;
+use B13\Aim\Request\Message\AssistantMessage as AimAssistantMessage;
+use B13\Aim\Request\Message\ToolMessage;
 use B13\Aim\Request\TextGenerationRequest;
 use B13\Aim\Request\ToolCallingRequest;
 use B13\Aim\Request\TranslationRequest;
@@ -38,7 +41,10 @@ use Symfony\AI\Platform\Message\Content\Image;
 use Symfony\AI\Platform\Message\Message;
 use Symfony\AI\Platform\Message\MessageBag;
 use Symfony\AI\Platform\PlatformInterface;
+use Symfony\AI\Platform\Result\ToolCall as SymfonyToolCall;
 use Symfony\AI\Platform\TokenUsage\TokenUsageInterface;
+use TYPO3\CMS\Core\Database\ConnectionPool;
+use TYPO3\CMS\Core\Utility\GeneralUtility;
 
 /**
  * Bridges any Symfony AI Platform bridge to AiM's provider system.
@@ -159,6 +165,7 @@ class SymfonyAiPlatformAdapter implements
         }
         $options = $this->buildOptions($request->configuration->model, $request->maxTokens, $request->temperature, $extra);
 
+        $start = hrtime(true);
         try {
             $result = $platform->invoke($request->configuration->model, $messages, $options);
 
@@ -166,6 +173,9 @@ class SymfonyAiPlatformAdapter implements
                 $streamIterator = new StreamChunkIterator(
                     $result->asStream(),
                     $request->configuration,
+                    onComplete: function (AiUsageStatistics $usage, string $fullContent) use ($request, $start): void {
+                        $this->logStreamingRequest($request, $usage, $fullContent, $start);
+                    },
                 );
                 return new ConversationResponse('', streamIterator: $streamIterator);
             }
@@ -187,12 +197,30 @@ class SymfonyAiPlatformAdapter implements
         $platform = $this->getPlatform($request->configuration);
         $messages = $this->buildMessageBag($request->messages, $request->systemPrompt);
 
-        $tools = array_map(static fn($tool) => $tool->toArray(), $request->tools);
+        // Convert ToolDefinitions to the format expected by the target provider.
+        // Anthropic uses {name, description, input_schema}.
+        // OpenAI / Mistral / Gemini / Ollama use the OpenAI function-calling
+        // schema {type: function, function: {name, description, parameters}}.
+        $tools = $request->configuration->providerIdentifier === 'anthropic'
+            ? array_map(static fn($tool) => [
+                'name' => $tool->name,
+                'description' => $tool->description,
+                'input_schema' => $tool->parameters ?: ['type' => 'object'],
+            ], $request->tools)
+            : array_map(static fn($tool) => [
+                'type' => 'function',
+                'function' => [
+                    'name' => $tool->name,
+                    'description' => $tool->description,
+                    'parameters' => $tool->parameters ?: ['type' => 'object'],
+                ],
+            ], $request->tools);
 
         $options = $this->buildOptions($request->configuration->model, $request->maxTokens, $request->temperature, [
             'tools' => $tools,
         ]);
 
+        $start = hrtime(true);
         try {
             $result = $platform->invoke($request->configuration->model, $messages, $options);
             $usage = $this->extractUsage($result, $request->configuration);
@@ -200,8 +228,10 @@ class SymfonyAiPlatformAdapter implements
             $content = $this->resolveTextContent($result);
             $toolCalls = $this->extractToolCallsFromRawResponse($rawResponse);
 
+            $this->logToolCallingRequest($request, $usage, $content, $toolCalls, $start, null);
             return new ToolCallingResponse($content, $toolCalls, $usage, $rawResponse);
         } catch (\Throwable $e) {
+            $this->logToolCallingRequest($request, new AiUsageStatistics(), '', [], $start, $e);
             return new ToolCallingResponse('', [], errors: ['Symfony AI error: ' . $e->getMessage()]);
         }
     }
@@ -418,6 +448,32 @@ class SymfonyAiPlatformAdapter implements
         }
         foreach ($aiMessages as $msg) {
             $content = is_string($msg->content) ? $msg->content : '';
+            // Assistant messages with tool calls must carry the calls into the
+            // Symfony AI message so the wire format includes them. Otherwise
+            // OpenAI-style providers (Mistral, OpenAI) reject the next round
+            // with "Assistant message must have either content or tool_calls".
+            if ($msg instanceof AimAssistantMessage && $msg->toolCalls !== []) {
+                $symfonyToolCalls = array_map(
+                    static fn(ToolCall $tc): SymfonyToolCall => new SymfonyToolCall(
+                        $tc->id,
+                        $tc->name,
+                        $tc->getDecodedArguments(),
+                    ),
+                    $msg->toolCalls,
+                );
+                $messages[] = Message::ofAssistant($content !== '' ? $content : null, $symfonyToolCalls);
+                continue;
+            }
+            // Tool result messages need the dedicated ToolCallMessage so the
+            // wire format uses role=tool with tool_call_id (OpenAI/Mistral)
+            // or maps to Anthropic's tool_result content blocks.
+            if ($msg instanceof ToolMessage) {
+                $messages[] = Message::ofToolCall(
+                    new SymfonyToolCall($msg->toolCallId, '', []),
+                    $content,
+                );
+                continue;
+            }
             $messages[] = match ($msg->role) {
                 'system' => Message::forSystem($content),
                 'assistant' => Message::ofAssistant($content),
@@ -470,5 +526,120 @@ class SymfonyAiPlatformAdapter implements
             }
         }
         return false;
+    }
+
+    /**
+     * Persist a request log entry after a streaming conversation completes.
+     *
+     * Streaming bypasses the synchronous middleware pipeline (see Ai::conversationStream),
+     * so RequestLoggingMiddleware never sees the response. This callback fills the gap.
+     * Tracks: https://github.com/b13/aim/issues/7
+     */
+    private function logStreamingRequest(
+        ConversationRequest $request,
+        AiUsageStatistics $usage,
+        string $fullContent,
+        float $start,
+    ): void {
+        $userMessages = [];
+        foreach ($request->messages as $msg) {
+            if (is_object($msg) && property_exists($msg, 'role') && $msg->role === 'user'
+                && property_exists($msg, 'content') && is_string($msg->content) && $msg->content !== '') {
+                $userMessages[] = $msg->content;
+            }
+        }
+
+        $this->writeRequestLog($request->configuration, [
+            'request_type' => 'ConversationRequest',
+            'usage' => $usage,
+            'metadata' => is_array($request->metadata ?? null) ? $request->metadata : [],
+            'duration_ms' => (int)((hrtime(true) - $start) / 1_000_000),
+            'success' => 1,
+            'error_message' => '',
+            'request_prompt' => implode("\n", $userMessages),
+            'request_system_prompt' => $request->systemPrompt,
+            'response_content' => $fullContent,
+        ]);
+    }
+
+    /**
+     * Persist a request log entry for a tool-calling request.
+     *
+     * Callers like Dkd\LlmChat\Agent\AgentDispatcher invoke processToolCallingRequest()
+     * directly via getCapability() and bypass the middleware pipeline, so logging
+     * has to happen here. Tracks: https://github.com/b13/aim/issues/7
+     *
+     * @param list<ToolCall> $toolCalls
+     */
+    private function logToolCallingRequest(
+        ToolCallingRequest $request,
+        AiUsageStatistics $usage,
+        string $content,
+        array $toolCalls,
+        float $start,
+        ?\Throwable $error,
+    ): void {
+        $userMessages = [];
+        foreach ($request->messages as $msg) {
+            if (is_object($msg) && property_exists($msg, 'role') && $msg->role === 'user'
+                && property_exists($msg, 'content') && is_string($msg->content) && $msg->content !== '') {
+                $userMessages[] = $msg->content;
+            }
+        }
+
+        $metadata = is_array($request->metadata ?? null) ? $request->metadata : [];
+        if ($toolCalls !== []) {
+            $metadata['tool_calls'] = array_map(static fn(ToolCall $tc): array => [
+                'name' => $tc->name,
+                'arguments' => $tc->arguments,
+            ], $toolCalls);
+        }
+
+        $this->writeRequestLog($request->configuration, [
+            'request_type' => 'ToolCallingRequest',
+            'usage' => $usage,
+            'metadata' => $metadata,
+            'duration_ms' => (int)((hrtime(true) - $start) / 1_000_000),
+            'success' => $error === null ? 1 : 0,
+            'error_message' => $error?->getMessage() ?? '',
+            'request_prompt' => implode("\n", $userMessages),
+            'request_system_prompt' => $request->systemPrompt,
+            'response_content' => $content,
+        ]);
+    }
+
+    /**
+     * @param array{request_type:string, usage:AiUsageStatistics, metadata:array, duration_ms:int, success:int, error_message:string, request_prompt:string, request_system_prompt:string, response_content:string} $payload
+     */
+    private function writeRequestLog(ProviderConfiguration $configuration, array $payload): void
+    {
+        $usage = $payload['usage'];
+        try {
+            GeneralUtility::makeInstance(RequestLogRepository::class, GeneralUtility::makeInstance(ConnectionPool::class))->log([
+                'request_type' => $payload['request_type'],
+                'provider_identifier' => $configuration->providerIdentifier,
+                'configuration_uid' => $configuration->uid,
+                'model_requested' => $configuration->model,
+                'model_used' => $usage->modelUsed !== '' ? $usage->modelUsed : $configuration->model,
+                'extension_key' => (string)($payload['metadata']['extension_key'] ?? $payload['metadata']['extension'] ?? ''),
+                'duration_ms' => $payload['duration_ms'],
+                'success' => $payload['success'],
+                'prompt_tokens' => $usage->promptTokens,
+                'completion_tokens' => $usage->completionTokens,
+                'cached_tokens' => $usage->cachedTokens,
+                'reasoning_tokens' => $usage->reasoningTokens,
+                'total_tokens' => $usage->getTotalTokens(),
+                'cost' => $usage->cost,
+                'system_fingerprint' => $usage->systemFingerprint,
+                'raw_usage' => $usage->rawUsage !== [] ? json_encode($usage->rawUsage, JSON_THROW_ON_ERROR) : '',
+                'metadata' => json_encode($payload['metadata'], JSON_THROW_ON_ERROR),
+                'error_message' => $payload['error_message'],
+                'request_prompt' => $payload['request_prompt'],
+                'request_system_prompt' => $payload['request_system_prompt'],
+                'response_content' => $payload['response_content'],
+            ]);
+        } catch (\Throwable) {
+            // Logging failures must never break the response path.
+        }
     }
 }
