@@ -5,6 +5,7 @@
 	"license": "GPL-2.0-or-later",
 	"require": {
 		"php": "^8.1",
+		"ext-sodium": "*",
 		"typo3/cms-core": "^12.4 || ^13.4 || ^14.0",
 		"typo3/cms-backend": "^12.4 || ^13.4 || ^14.0"
 	},
@@ -12,8 +13,11 @@
 		"phpunit/phpunit": "^11.0",
 		"typo3/testing-framework": "^9.0"
 	},
+	"conflict": {
+		"symfony/ai-platform": "<0.8"
+	},
 	"suggest": {
-		"symfony/ai-platform": "Required to use Symfony AI bridges as providers (OpenAI, Anthropic, Gemini, Mistral, Ollama, etc.)",
+		"symfony/ai-platform": "^0.8 — required to use Symfony AI bridges as providers (OpenAI, Anthropic, Gemini, Mistral, Ollama, etc.)",
 		"typo3/cms-dashboard": "Enables dashboard widgets for AI usage analytics"
 	},
 	"autoload": {

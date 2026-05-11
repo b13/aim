@@ -37,7 +37,7 @@ use B13\Aim\Response\ToolCallingResponse;
 use Symfony\AI\Platform\Message\Content\Image;
 use Symfony\AI\Platform\Message\Message;
 use Symfony\AI\Platform\Message\MessageBag;
-use Symfony\AI\Platform\PlatformInterface;
+use Symfony\AI\Platform\ProviderInterface;
 use Symfony\AI\Platform\TokenUsage\TokenUsageInterface;
 
 /**
@@ -61,13 +61,13 @@ class SymfonyAiPlatformAdapter implements
     ToolCallingCapableInterface,
     EmbeddingCapableInterface
 {
-    /** @var array<string, PlatformInterface> Platforms cached by configuration key */
+    /** @var array<string, ProviderInterface> Providers cached by configuration key */
     private array $platforms = [];
 
     private readonly string $maxTokensKey;
 
     /**
-     * @param string $factoryClass Fully-qualified class name of the bridge's PlatformFactory
+     * @param string $factoryClass Fully-qualified class name of the bridge's Factory
      * @param string $factoryParam Name of the factory parameter to pass the config value to ('apiKey' or 'endpoint')
      */
     public function __construct(
@@ -237,16 +237,16 @@ class SymfonyAiPlatformAdapter implements
     }
 
     /**
-     * Lazily create and cache a Platform instance per provider configuration.
+     * Lazily create and cache a Provider instance per provider configuration.
      */
-    private function getPlatform(ProviderConfiguration $config): PlatformInterface
+    private function getPlatform(ProviderConfiguration $config): ProviderInterface
     {
         $cacheKey = $config->uid > 0 ? (string)$config->uid : md5($config->apiKey . $config->model);
         if (!isset($this->platforms[$cacheKey])) {
             $factoryClass = $this->factoryClass;
             $this->platforms[$cacheKey] = match ($this->factoryParam) {
-                'endpoint' => $factoryClass::create(endpoint: $config->apiKey),
-                default => $factoryClass::create(apiKey: $config->apiKey),
+                'endpoint' => $factoryClass::createProvider(endpoint: $config->apiKey),
+                default => $factoryClass::createProvider(apiKey: $config->apiKey),
             };
         }
         return $this->platforms[$cacheKey];

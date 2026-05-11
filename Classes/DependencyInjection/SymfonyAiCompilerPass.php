@@ -195,7 +195,7 @@ final class SymfonyAiCompilerPass implements CompilerPassInterface
     private function buildBridgeDefinition(array $package): ?array
     {
         $namespace = $package['namespace'];
-        $factoryClass = $namespace . '\\PlatformFactory';
+        $factoryClass = $namespace . '\\Factory';
 
         if (!class_exists($factoryClass)) {
             return null;
@@ -397,7 +397,7 @@ final class SymfonyAiCompilerPass implements CompilerPassInterface
     }
 
     /**
-     * Detect the primary authentication parameter of a PlatformFactory::create() method.
+     * Detect the primary authentication parameter of a Factory::createProvider() method.
      *
      * Most bridges use `apiKey`. Some (Ollama, LM Studio) use `endpoint`.
      * We check the first parameter name via reflection.
@@ -405,7 +405,7 @@ final class SymfonyAiCompilerPass implements CompilerPassInterface
     private function detectFactoryParam(string $factoryClass): string
     {
         try {
-            $method = new \ReflectionMethod($factoryClass, 'create');
+            $method = new \ReflectionMethod($factoryClass, 'createProvider');
             foreach ($method->getParameters() as $param) {
                 $name = $param->getName();
                 if ($name === 'endpoint' || $name === 'hostUrl' || $name === 'baseUrl') {
