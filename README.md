@@ -75,6 +75,8 @@ Any installed `symfony/ai-*-platform` package is **auto-discovered** at containe
 
 After installation, create a provider configuration in the backend (Admin Tools > AiM > Providers) with your API key and preferred model.
 
+> **Local providers (Ollama, LM Studio):** The *API Key* field doubles as the endpoint URL. Enter `http://localhost:11434` (Ollama) or `http://localhost:1234` (LM Studio) instead of a key. The available models are then fetched live from that endpoint.
+
 ## Usage
 
 ### Tier 1: Proxy (recommended)

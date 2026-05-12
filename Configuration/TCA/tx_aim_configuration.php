@@ -96,6 +96,7 @@ return [
         ],
         'api_key' => [
             'label' => 'LLL:EXT:aim/Resources/Private/Language/locallang_tca.xlf:tx_aim_configuration.columns.api_key.label',
+            'description' => 'LLL:EXT:aim/Resources/Private/Language/locallang_tca.xlf:tx_aim_configuration.columns.api_key.description',
             'onChange' => 'reload',
             'config' => [
                 'type' => 'input',
