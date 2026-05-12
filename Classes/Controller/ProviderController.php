@@ -20,6 +20,7 @@ use B13\Aim\Domain\Repository\ProviderConfigurationDemand;
 use B13\Aim\Domain\Repository\ProviderConfigurationRepository;
 use B13\Aim\Domain\Repository\RequestLogRepository;
 use B13\Aim\Pagination\DemandedArrayPaginator;
+use B13\Aim\Provider\LiveModelDiscovery;
 use B13\Aim\Registry\AiProviderRegistry;
 use B13\Aim\Registry\DisabledModelRegistry;
 use B13\Aim\Request\ConversationRequest;
@@ -56,6 +57,7 @@ class ProviderController
         private readonly DisabledModelRegistry $disabledModelRegistry,
         private readonly RequestLogRepository $requestLogRepository,
         private readonly Registry $registry,
+        private readonly LiveModelDiscovery $liveModelDiscovery,
     ) {}
 
     public function overviewAction(ServerRequestInterface $request): ResponseInterface
@@ -172,7 +174,7 @@ class ProviderController
                         'id' => $modelId,
                         'disabled' => $this->disabledModelRegistry->isDisabled($manifest->identifier, $modelId),
                     ],
-                    array_keys($manifest->supportedModels),
+                    $this->collectModelIds($manifest),
                 ),
                 'capabilities' => $this->resolveCapabilityLabels($manifest->capabilities),
             ],
@@ -205,6 +207,40 @@ class ProviderController
             'model' => $model,
             'disabled' => $nowDisabled,
         ]);
+    }
+
+    /**
+     * Collect the model IDs to surface for a provider in the Available
+     * Providers modal.
+     *
+     * For static catalogs (OpenAI, Anthropic, …) this is just the manifest's
+     * supportedModels. For dynamic catalogs (Ollama, LM Studio, …) the
+     * manifest is empty at compile time; instead we walk every saved
+     * configuration record for the provider, live-fetch the model list from
+     * each unique endpoint, and merge the results so the admin can disable
+     * specific models even on dynamic backends.
+     *
+     * @return list<string>
+     */
+    private function collectModelIds(AiProviderManifest $manifest): array
+    {
+        if ($manifest->supportedModels !== []) {
+            return array_keys($manifest->supportedModels);
+        }
+
+        $models = [];
+        $seenEndpoints = [];
+        foreach ($this->configurationRepository->findByProviderIdentifier($manifest->identifier) as $configuration) {
+            $endpoint = $configuration->apiKey;
+            if ($endpoint === '' || isset($seenEndpoints[$endpoint]) || !$this->liveModelDiscovery->isHttpEndpoint($endpoint)) {
+                continue;
+            }
+            $seenEndpoints[$endpoint] = true;
+            foreach ($this->liveModelDiscovery->fetchModelNames($endpoint) as $modelId) {
+                $models[$modelId] = true;
+            }
+        }
+        return array_keys($models);
     }
 
     /**

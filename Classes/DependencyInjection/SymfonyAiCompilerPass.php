@@ -210,28 +210,43 @@ final class SymfonyAiCompilerPass implements CompilerPassInterface
         // Detect factory auth parameter via reflection
         $factoryParam = $this->detectFactoryParam($factoryClass);
 
-        // Read models + capabilities from ModelCatalog
+        // Read models + capabilities from ModelCatalog.
+        //
+        // Some bridges (Ollama, LM Studio, …) ship a ModelCatalog that requires
+        // runtime context (an HTTP client pointing at the user's endpoint) and
+        // queries the live server for the model list. We can't do that at
+        // container-compile time as the endpoint URL lives in a TCA record we
+        // don't have access to here. For those bridges we register the provider
+        // with an empty model list.
         $catalogClass = $namespace . '\\ModelCatalog';
         $models = [];
         $modelCapabilities = [];
         $features = ['supportsStreaming' => true];
+        $catalogIsDynamic = false;
 
         if (class_exists($catalogClass)) {
-            try {
-                $catalog = new $catalogClass();
-                if (method_exists($catalog, 'getModels')) {
-                    [$models, $modelCapabilities, $features] = $this->extractModelsFromCatalog(
-                        $catalog->getModels(),
-                        $features,
-                    );
+            $constructor = (new \ReflectionClass($catalogClass))->getConstructor();
+            if ($constructor === null || $constructor->getNumberOfRequiredParameters() === 0) {
+                try {
+                    $catalog = new $catalogClass();
+                    if (method_exists($catalog, 'getModels')) {
+                        [$models, $modelCapabilities, $features] = $this->extractModelsFromCatalog(
+                            $catalog->getModels(),
+                            $features,
+                        );
+                    }
+                } catch (\Throwable) {
+                    // Catalog instantiation failed for an unexpected reason —
+                    // fall through with empty models.
                 }
-            } catch (\Throwable) {
-                // Catalog instantiation failed — continue with empty models
+            } else {
+                $catalogIsDynamic = true;
             }
         }
 
-        // Skip bridges with no discoverable models (e.g. shared/internal packages)
-        if ($models === []) {
+        // Skip bridges that have neither a static catalog nor a dynamic one
+        // (the package matches the naming pattern but isn't a real bridge).
+        if ($models === [] && !$catalogIsDynamic) {
             return null;
         }
 
