@@ -31,7 +31,10 @@
                 <source>Default</source>
             </trans-unit>
             <trans-unit id="tx_aim_configuration.columns.api_key.label" resname="tx_aim_configuration.columns.api_key.label">
-                <source>API Key</source>
+                <source>API Key / Endpoint URL</source>
+            </trans-unit>
+            <trans-unit id="tx_aim_configuration.columns.api_key.description" resname="tx_aim_configuration.columns.api_key.description">
+                <source>For local/self-hosted providers like Ollama or LM Studio, enter the endpoint URL (e.g. http://localhost:11434) instead of an API key.</source>
             </trans-unit>
             <trans-unit id="tx_aim_configuration.columns.model.label" resname="tx_aim_configuration.columns.model.label">
                 <source>Model</source>
