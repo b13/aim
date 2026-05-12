@@ -40,4 +40,12 @@ final class TranslationRequest implements AiRequestInterface
             ['configuration' => $configuration],
         ));
     }
+
+    public function withMetadata(array $additional): static
+    {
+        return new static(...array_merge(
+            get_object_vars($this),
+            ['metadata' => [...$this->metadata, ...$additional]],
+        ));
+    }
 }

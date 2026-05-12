@@ -1,0 +1,60 @@
+<html xmlns:f="http://typo3.org/ns/TYPO3/CMS/Fluid/ViewHelpers" data-namespace-typo3-fluid="true">
+
+<tr>
+    <td>{entry.crdate -> f:format.date(format: 'Y-m-d H:i:s')}</td>
+    <td>
+        <f:if condition="{entry.extension_key}">
+            <f:then>
+                <f:if condition="{extensionIcons.{entry.extension_key}}">
+                    <f:then><img src="{extensionIcons.{entry.extension_key}}" width="16" height="16" alt="" /></f:then>
+                </f:if>
+                {entry.extension_key}
+            </f:then>
+            <f:else><span class="text-body-secondary">-</span></f:else>
+        </f:if>
+    </td>
+    <td>
+        <f:if condition="{userMap.{entry.user_id}}">
+            <f:then><span class="text-body-secondary">{userMap.{entry.user_id}}</span></f:then>
+            <f:else><f:if condition="{entry.user_id}"><span class="text-body-tertiary">#{entry.user_id}</span></f:if></f:else>
+        </f:if>
+    </td>
+    <td>{entry.request_type}</td>
+    <td>{entry.provider_identifier}</td>
+    <td>
+        <span class="badge badge-secondary">{entry.model_used -> f:or(alternative: entry.model_requested)}</span>
+        <f:if condition="{entry.model_used} && {entry.model_requested} && {entry.model_used} != {entry.model_requested}">
+            <br /><small class="text-body-secondary">requested: {entry.model_requested}</small>
+        </f:if>
+    </td>
+    <td>
+        <strong>{entry.total_tokens -> f:format.number(decimals: 0, thousandsSeparator: ',')}</strong>
+        <br /><small class="text-body-secondary">{entry.prompt_tokens} / {entry.completion_tokens}</small>
+        <f:if condition="{entry.cached_tokens} > 0">
+            <br /><small class="text-success">cached: {entry.cached_tokens}</small>
+        </f:if>
+        <f:if condition="{entry.reasoning_tokens} > 0">
+            <br /><small class="text-warning">reasoning: {entry.reasoning_tokens}</small>
+        </f:if>
+    </td>
+    <td>{entry.cost -> f:format.number(decimals: 6)}</td>
+    <td>{entry.duration_ms -> f:format.number(decimals: 0, thousandsSeparator: ',')} ms</td>
+    <td>
+        <f:if condition="{entry.rerouted}">
+            <f:if condition="{entry.reroute_type} == 'fallback'">
+                <f:then><span class="badge badge-info" title="{entry.reroute_reason -> f:format.htmlspecialchars()}"><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.status.fallback" /></span></f:then>
+                <f:else><span class="badge badge-warning" title="{entry.reroute_reason -> f:format.htmlspecialchars()}"><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.status.rerouted" /></span></f:else>
+            </f:if>
+        </f:if>
+        <f:if condition="{entry.success}">
+            <f:then>
+                <span class="badge badge-success"><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.status.success" /></span>
+            </f:then>
+            <f:else>
+                <span class="badge badge-danger" title="{entry.error_message -> f:format.htmlspecialchars()}"><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.status.failed" /></span>
+            </f:else>
+        </f:if>
+    </td>
+</tr>
+
+</html>

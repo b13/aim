@@ -1,5 +1,4 @@
 <html xmlns:f="http://typo3.org/ns/TYPO3/CMS/Fluid/ViewHelpers"
-      xmlns:core="http://typo3.org/ns/TYPO3/CMS/Core/ViewHelpers"
       data-namespace-typo3-fluid="true">
 
 <f:layout name="Module" />
@@ -13,89 +12,12 @@
 
     <f:if condition="{statistics.total_requests}">
         <f:then>
-            <f:render section="statistics" arguments="{statistics: statistics}" />
-            <f:render section="filter" arguments="{_all}" />
+            <f:render partial="RequestLog/Stats" arguments="{statistics: statistics}" />
+            <f:render partial="RequestLog/Filters" arguments="{_all}" />
 
             <f:if condition="{paginator.paginatedItems}">
                 <f:then>
-                    <div class="table-fit">
-                        <table class="table table-striped table-hover">
-                            <thead>
-                                <tr>
-                                    <th><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.column.timestamp" /></th>
-                                    <th><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.column.extension" /></th>
-                                    <th><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.column.user" /></th>
-                                    <th><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.column.requestType" /></th>
-                                    <th><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.column.provider" /></th>
-                                    <th><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.column.model" /></th>
-                                    <th><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.column.tokens" /></th>
-                                    <th><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.column.cost" /></th>
-                                    <th><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.column.duration" /></th>
-                                    <th><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.column.status" /></th>
-                                </tr>
-                            </thead>
-                            <tbody data-poll="rows">
-                                <f:for each="{paginator.paginatedItems}" as="entry">
-                                    <tr>
-                                        <td>{entry.crdate -> f:format.date(format: 'Y-m-d H:i:s')}</td>
-                                        <td>
-                                            <f:if condition="{entry.extension_key}">
-                                                <f:then>
-                                                    <f:if condition="{extensionIcons.{entry.extension_key}}">
-                                                        <f:then><img src="{extensionIcons.{entry.extension_key}}" width="16" height="16" alt="" /></f:then>
-                                                    </f:if>
-                                                    {entry.extension_key}
-                                                </f:then>
-                                                <f:else><span class="text-body-secondary">-</span></f:else>
-                                            </f:if>
-                                        </td>
-                                        <td>
-                                            <f:if condition="{userMap.{entry.user_id}}">
-                                                <f:then><span class="text-body-secondary">{userMap.{entry.user_id}}</span></f:then>
-                                                <f:else><f:if condition="{entry.user_id}"><span class="text-body-tertiary">#{entry.user_id}</span></f:if></f:else>
-                                            </f:if>
-                                        </td>
-                                        <td>{entry.request_type}</td>
-                                        <td>{entry.provider_identifier}</td>
-                                        <td>
-                                            <span class="badge badge-secondary">{entry.model_used -> f:or(alternative: entry.model_requested)}</span>
-                                            <f:if condition="{entry.model_used} && {entry.model_requested} && {entry.model_used} != {entry.model_requested}">
-                                                <br /><small class="text-body-secondary">requested: {entry.model_requested}</small>
-                                            </f:if>
-                                        </td>
-                                        <td>
-                                            <strong>{entry.total_tokens -> f:format.number(decimals: 0, thousandsSeparator: ',')}</strong>
-                                            <br /><small class="text-body-secondary">{entry.prompt_tokens} / {entry.completion_tokens}</small>
-                                            <f:if condition="{entry.cached_tokens} > 0">
-                                                <br /><small class="text-success">cached: {entry.cached_tokens}</small>
-                                            </f:if>
-                                            <f:if condition="{entry.reasoning_tokens} > 0">
-                                                <br /><small class="text-warning">reasoning: {entry.reasoning_tokens}</small>
-                                            </f:if>
-                                        </td>
-                                        <td>{entry.cost -> f:format.number(decimals: 6)}</td>
-                                        <td>{entry.duration_ms -> f:format.number(decimals: 0, thousandsSeparator: ',')} ms</td>
-                                        <td>
-                                            <f:if condition="{entry.rerouted}">
-                                                <f:if condition="{entry.reroute_type} == 'fallback'">
-                                                    <f:then><span class="badge badge-info" title="{entry.reroute_reason -> f:format.htmlspecialchars()}"><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.status.fallback" /></span></f:then>
-                                                    <f:else><span class="badge badge-warning" title="{entry.reroute_reason -> f:format.htmlspecialchars()}"><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.status.rerouted" /></span></f:else>
-                                                </f:if>
-                                            </f:if>
-                                            <f:if condition="{entry.success}">
-                                                <f:then>
-                                                    <span class="badge badge-success"><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.status.success" /></span>
-                                                </f:then>
-                                                <f:else>
-                                                    <span class="badge badge-danger" title="{entry.error_message -> f:format.htmlspecialchars()}"><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.status.failed" /></span>
-                                                </f:else>
-                                            </f:if>
-                                        </td>
-                                    </tr>
-                                </f:for>
-                            </tbody>
-                        </table>
-                    </div>
+                    <f:render partial="RequestLog/Table" arguments="{_all}" />
                     <f:render partial="Pagination" arguments="{paginator: paginator, pagination: pagination, baseUrl: paginationBaseUrl}" />
                 </f:then>
                 <f:else>
@@ -125,128 +47,6 @@
         </a>
     </div>
 
-</f:section>
-
-<f:section name="statistics">
-    <div class="row mb-4" data-poll="statistics">
-        <div class="col">
-            <div class="card">
-                <span class="card-info-icon" data-bs-toggle="popover" data-bs-placement="auto" data-bs-trigger="hover focus" data-bs-content="{f:translate(key:'LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.stats.totalRequests.info')}">
-                    <core:icon identifier="actions-info-circle" size="small" />
-                </span>
-                <div class="card-body text-center">
-                    <core:icon identifier="actions-paperplane" size="medium" />
-                    <h5 class="card-title mt-2"><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.stats.totalRequests" /></h5>
-                    <p class="display-6" data-stat="total_requests">{statistics.total_requests -> f:format.number(decimals: 0, thousandsSeparator: ',')}</p>
-                </div>
-            </div>
-        </div>
-        <div class="col">
-            <div class="card">
-                <span class="card-info-icon" data-bs-toggle="popover" data-bs-placement="auto" data-bs-trigger="hover focus" data-bs-content="{f:translate(key:'LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.stats.totalCost.info')}">
-                    <core:icon identifier="actions-info-circle" size="small" />
-                </span>
-                <div class="card-body text-center">
-                    <core:icon identifier="actions-wallet" size="medium" />
-                    <h5 class="card-title mt-2"><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.stats.totalCost" /></h5>
-                    <p class="display-6" data-stat="total_cost">{statistics.total_cost -> f:format.number(decimals: 4)}</p>
-                </div>
-            </div>
-        </div>
-        <div class="col">
-            <div class="card">
-                <span class="card-info-icon" data-bs-toggle="popover" data-bs-placement="auto" data-bs-trigger="hover focus" data-bs-html="true" data-bs-content="Prompt + completion tokens across all requests.<f:if condition='{statistics.total_cached_tokens} > 0'>&lt;br&gt;Cached: {statistics.total_cached_tokens -> f:format.number(decimals: 0, thousandsSeparator: ',')}</f:if><f:if condition='{statistics.total_reasoning_tokens} > 0'>&lt;br&gt;Reasoning: {statistics.total_reasoning_tokens -> f:format.number(decimals: 0, thousandsSeparator: ',')}</f:if>">
-                    <core:icon identifier="actions-info-circle" size="small" />
-                </span>
-                <div class="card-body text-center">
-                    <core:icon identifier="actions-tag" size="medium" />
-                    <h5 class="card-title mt-2"><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.stats.totalTokens" /></h5>
-                    <p class="display-6" data-stat="total_tokens">{statistics.total_tokens -> f:format.number(decimals: 0, thousandsSeparator: ',')}</p>
-                </div>
-            </div>
-        </div>
-        <div class="col">
-            <div class="card">
-                <span class="card-info-icon" data-bs-toggle="popover" data-bs-placement="auto" data-bs-trigger="hover focus" data-bs-content="{f:translate(key:'LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.stats.successRate.info')}">
-                    <core:icon identifier="actions-info-circle" size="small" />
-                </span>
-                <div class="card-body text-center">
-                    <core:icon identifier="actions-check-circle" size="medium" />
-                    <h5 class="card-title mt-2"><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.stats.successRate" /></h5>
-                    <p class="display-6" data-stat="success_rate">{statistics.success_rate}%</p>
-                </div>
-            </div>
-        </div>
-        <div class="col">
-            <div class="card">
-                <span class="card-info-icon" data-bs-toggle="popover" data-bs-placement="auto" data-bs-trigger="hover focus" data-bs-content="{f:translate(key:'LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.stats.avgDuration.info')}">
-                    <core:icon identifier="actions-info-circle" size="small" />
-                </span>
-                <div class="card-body text-center">
-                    <core:icon identifier="actions-clock" size="medium" />
-                    <h5 class="card-title mt-2"><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.stats.avgDuration" /></h5>
-                    <p class="display-6" data-stat="avg_duration_ms">{statistics.avg_duration_ms -> f:format.number(decimals: 0, thousandsSeparator: ',')} ms</p>
-                </div>
-            </div>
-        </div>
-    </div>
-</f:section>
-
-<f:section name="filter">
-    <form action="{f:be.uri(route:'aim_request_log')}" method="post" enctype="multipart/form-data" name="demand">
-        <input type="hidden" name="orderField" value="{demand.orderField}">
-        <input type="hidden" name="orderDirection" value="{demand.orderDirection}">
-        <div class="form-row">
-            <div class="form-group">
-                <label for="demand-provider" class="form-label"><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.filter.provider" /></label>
-                <select id="demand-provider" class="form-select" name="demand[provider_identifier]" data-on-change="submit">
-                    <option value=""><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.filter.showAll" /></option>
-                    <f:for each="{providers}" as="provider">
-                        <option value="{provider}" {f:if(condition: '{provider} == {demand.providerIdentifier}', then: 'selected')}>{provider}</option>
-                    </f:for>
-                </select>
-            </div>
-            <div class="form-group">
-                <label for="demand-extension" class="form-label"><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.filter.extension" /></label>
-                <select id="demand-extension" class="form-select" name="demand[extension_key]" data-on-change="submit">
-                    <option value=""><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.filter.showAll" /></option>
-                    <f:for each="{extensionKeys}" as="ext">
-                        <option value="{ext}" {f:if(condition: '{ext} == {demand.extensionKey}', then: 'selected')}>{ext}</option>
-                    </f:for>
-                </select>
-            </div>
-            <div class="form-group">
-                <label for="demand-type" class="form-label"><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.filter.requestType" /></label>
-                <select id="demand-type" class="form-select" name="demand[request_type]" data-on-change="submit">
-                    <option value=""><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.filter.showAll" /></option>
-                    <f:for each="{requestTypes}" as="type">
-                        <option value="{type}" {f:if(condition: '{type} == {demand.requestType}', then: 'selected')}>{type}</option>
-                    </f:for>
-                </select>
-            </div>
-            <div class="form-group">
-                <label for="demand-model" class="form-label"><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.filter.model" /></label>
-                <select id="demand-model" class="form-select" name="demand[model_used]" data-on-change="submit">
-                    <option value=""><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.filter.showAll" /></option>
-                    <f:for each="{models}" as="model">
-                        <option value="{model}" {f:if(condition: '{model} == {demand.modelUsed}', then: 'selected')}>{model}</option>
-                    </f:for>
-                </select>
-            </div>
-            <div class="form-group">
-                <label for="demand-status" class="form-label"><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.filter.status" /></label>
-                <select id="demand-status" class="form-select" name="demand[success]" data-on-change="submit">
-                    <option value=""><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.filter.status.all" /></option>
-                    <option value="1" {f:if(condition: '{demand.hasSuccess} && {demand.success}', then: 'selected')}><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.filter.status.success" /></option>
-                    <option value="0" {f:if(condition: '{demand.hasSuccess} && !{demand.success}', then: 'selected')}><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.filter.status.failed" /></option>
-                </select>
-            </div>
-            <div class="form-group align-self-end">
-                <input type="submit" value="{f:translate(key: 'LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:filter.submit')}" class="btn btn-default" />
-                <a href="{f:be.uri(route:'aim_request_log')}" class="btn btn-link"><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:filter.reset" /></a>
-            </div>
-        </div>
-    </form>
 </f:section>
 
 </html>

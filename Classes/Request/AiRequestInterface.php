@@ -30,4 +30,13 @@ interface AiRequestInterface
      * Used during fallback to swap the API key/model without reflection.
      */
     public function withConfiguration(ProviderConfiguration $configuration): static;
+
+    /**
+     * Return a copy of this request with additional metadata merged in.
+     *
+     * Example:
+     *     $request = $request->withMetadata(['my_extension.context' => $value]);
+     *     return $next->handle($request, $provider, $configuration);
+     */
+    public function withMetadata(array $additional): static;
 }

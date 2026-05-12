@@ -1,0 +1,58 @@
+<html xmlns:f="http://typo3.org/ns/TYPO3/CMS/Fluid/ViewHelpers" data-namespace-typo3-fluid="true">
+
+<form action="{f:be.uri(route:'aim_request_log')}" method="post" enctype="multipart/form-data" name="demand">
+    <input type="hidden" name="orderField" value="{demand.orderField}">
+    <input type="hidden" name="orderDirection" value="{demand.orderDirection}">
+    <div class="form-row">
+        <div class="form-group">
+            <label for="demand-provider" class="form-label"><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.filter.provider" /></label>
+            <select id="demand-provider" class="form-select" name="demand[provider_identifier]" data-on-change="submit">
+                <option value=""><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.filter.showAll" /></option>
+                <f:for each="{providers}" as="provider">
+                    <option value="{provider}" {f:if(condition: '{provider} == {demand.providerIdentifier}', then: 'selected')}>{provider}</option>
+                </f:for>
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="demand-extension" class="form-label"><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.filter.extension" /></label>
+            <select id="demand-extension" class="form-select" name="demand[extension_key]" data-on-change="submit">
+                <option value=""><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.filter.showAll" /></option>
+                <f:for each="{extensionKeys}" as="ext">
+                    <option value="{ext}" {f:if(condition: '{ext} == {demand.extensionKey}', then: 'selected')}>{ext}</option>
+                </f:for>
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="demand-type" class="form-label"><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.filter.requestType" /></label>
+            <select id="demand-type" class="form-select" name="demand[request_type]" data-on-change="submit">
+                <option value=""><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.filter.showAll" /></option>
+                <f:for each="{requestTypes}" as="type">
+                    <option value="{type}" {f:if(condition: '{type} == {demand.requestType}', then: 'selected')}>{type}</option>
+                </f:for>
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="demand-model" class="form-label"><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.filter.model" /></label>
+            <select id="demand-model" class="form-select" name="demand[model_used]" data-on-change="submit">
+                <option value=""><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.filter.showAll" /></option>
+                <f:for each="{models}" as="model">
+                    <option value="{model}" {f:if(condition: '{model} == {demand.modelUsed}', then: 'selected')}>{model}</option>
+                </f:for>
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="demand-status" class="form-label"><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.filter.status" /></label>
+            <select id="demand-status" class="form-select" name="demand[success]" data-on-change="submit">
+                <option value=""><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.filter.status.all" /></option>
+                <option value="1" {f:if(condition: '{demand.hasSuccess} && {demand.success}', then: 'selected')}><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.filter.status.success" /></option>
+                <option value="0" {f:if(condition: '{demand.hasSuccess} && !{demand.success}', then: 'selected')}><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.filter.status.failed" /></option>
+            </select>
+        </div>
+        <div class="form-group align-self-end">
+            <input type="submit" value="{f:translate(key: 'LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:filter.submit')}" class="btn btn-default" />
+            <a href="{f:be.uri(route:'aim_request_log')}" class="btn btn-link"><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:filter.reset" /></a>
+        </div>
+    </div>
+</form>
+
+</html>
