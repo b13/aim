@@ -13,6 +13,7 @@ declare(strict_types=1);
 namespace B13\Aim\Request;
 
 use B13\Aim\Domain\Model\ProviderConfiguration;
+use B13\Aim\Governance\PrivacyLevel;
 
 final class EmbeddingRequest implements AiRequestInterface
 {
@@ -26,6 +27,7 @@ final class EmbeddingRequest implements AiRequestInterface
         public readonly int $dimensions = 0,
         public readonly string $user = '',
         public readonly array $metadata = [],
+        public readonly ?PrivacyLevel $privacyLevelOverride = null,
     ) {}
 
     public function getConfiguration(): ProviderConfiguration
@@ -47,5 +49,18 @@ final class EmbeddingRequest implements AiRequestInterface
             get_object_vars($this),
             ['metadata' => [...$this->metadata, ...$additional]],
         ));
+    }
+
+    public function withPrivacyLevel(PrivacyLevel $level): static
+    {
+        return new static(...array_merge(
+            get_object_vars($this),
+            ['privacyLevelOverride' => $level],
+        ));
+    }
+
+    public function getPrivacyLevelOverride(): ?PrivacyLevel
+    {
+        return $this->privacyLevelOverride;
     }
 }

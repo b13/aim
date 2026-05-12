@@ -71,7 +71,7 @@ final class RequestLoggingMiddleware implements AiMiddlewareInterface
         RequestContext $context,
     ): void {
         // Determine effective privacy level
-        $privacyLevel = $this->resolvePrivacyLevel($configuration);
+        $privacyLevel = $this->resolvePrivacyLevel($configuration, $request);
         if ($privacyLevel === PrivacyLevel::None) {
             return;
         }
@@ -165,23 +165,28 @@ final class RequestLoggingMiddleware implements AiMiddlewareInterface
     }
 
     /**
-     * Resolve the effective privacy level from the provider config and user TSconfig.
-     * The stricter of the two wins.
+     * Resolve the effective privacy level from provider config, user TSconfig,
+     * and any per-request override carried on the request. The strictest of
+     * the three wins — an override can only escalate, never relax.
      */
-    private function resolvePrivacyLevel(ProviderConfiguration $configuration): PrivacyLevel
+    private function resolvePrivacyLevel(ProviderConfiguration $configuration, AiRequestInterface $request): PrivacyLevel
     {
-        $configLevel = PrivacyLevel::fromString($configuration->privacyLevel);
+        $level = PrivacyLevel::fromString($configuration->privacyLevel);
 
         $user = $this->getBackendUser();
-        if ($user === null || !method_exists($user, 'getTSConfig')) {
-            return $configLevel;
+        if ($user !== null && method_exists($user, 'getTSConfig')) {
+            $userLevel = PrivacyLevel::fromString(
+                (string)($user->getTSConfig()['aim.']['privacyLevel'] ?? 'standard')
+            );
+            $level = $level->strictest($userLevel);
         }
 
-        $userLevel = PrivacyLevel::fromString(
-            (string)($user->getTSConfig()['aim.']['privacyLevel'] ?? 'standard')
-        );
+        $requestOverride = $request->getPrivacyLevelOverride();
+        if ($requestOverride !== null) {
+            $level = $level->strictest($requestOverride);
+        }
 
-        return $configLevel->strictest($userLevel);
+        return $level;
     }
 
     private function extractMetadata(AiRequestInterface $request): array
