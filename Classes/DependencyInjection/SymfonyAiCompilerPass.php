@@ -38,7 +38,7 @@ use Symfony\Component\DependencyInjection\Reference;
  * naming convention. For each bridge it:
  *
  * 1. Derives the PHP namespace from the package's autoload configuration
- * 2. Checks for PlatformFactory and ModelCatalog classes
+ * 2. Checks for Factory and ModelCatalog classes
  * 3. Reads models and per-model capabilities from the ModelCatalog
  * 4. Sanitizes model names for TCA compatibility (no colons)
  * 5. Detects the factory authentication parameter via reflection
