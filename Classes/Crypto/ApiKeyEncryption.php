@@ -80,6 +80,31 @@ final class ApiKeyEncryption
         return $value;
     }
 
+    /**
+     * Decrypts a value using a system encryption key other than the one
+     * currently in $TYPO3_CONF_VARS — needed by the rotation command after
+     * SYS/encryptionKey has changed but stored ciphertexts still use the old
+     * derivation.
+     *
+     * Both decryption paths (v1 secretbox and v2 CipherService) read the
+     * system key from globals, so we swap it temporarily and restore it via
+     * try/finally. The swap is local to this call.
+     */
+    public function decryptWithSystemKey(string $value, string $systemKey): string
+    {
+        if ($value === '' || !$this->isEncrypted($value)) {
+            return $value;
+        }
+
+        $previous = $GLOBALS['TYPO3_CONF_VARS']['SYS']['encryptionKey'] ?? null;
+        $GLOBALS['TYPO3_CONF_VARS']['SYS']['encryptionKey'] = $systemKey;
+        try {
+            return $this->decrypt($value);
+        } finally {
+            $GLOBALS['TYPO3_CONF_VARS']['SYS']['encryptionKey'] = $previous;
+        }
+    }
+
     public function isEncrypted(string $value): bool
     {
         return str_starts_with($value, self::PREFIX_ANY);

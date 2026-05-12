@@ -355,7 +355,15 @@ Stored values carry a version prefix (`aim:enc:v1:` for the v12/v13 path, `aim:e
 
 For providers that put an **endpoint URL** in the `api_key` field instead of a real secret (Ollama, LM Studio, self-hosted OpenAI-compatible proxies), AiM detects the `http://` / `https://` prefix and skips encryption — the URL stays plaintext both in the column and in DB exports.
 
-If `SYS/encryptionKey` is rotated, existing API keys become unreadable and must be re-entered.
+If `SYS/encryptionKey` is rotated, existing API keys can no longer be decrypted with the new key. Run the rotation command *before* the rotation takes effect, or right after with the old value still in hand:
+
+```bash
+vendor/bin/typo3 aim:rotateApiKeys --old-key='<previous SYS/encryptionKey value>'
+```
+
+The command decrypts each stored key with the supplied old value, re-encrypts with the current one, and reports the result. It is idempotent (re-running with the same old key is a no-op) and aborts without writes if any row cannot be decrypted with the supplied value. Add `--dry-run` to preview.
+
+Without the previous key value, encrypted API keys cannot be recovered. This is by design. Save the old `SYS/encryptionKey` somewhere safe before rotating.
 
 ### Provider restrictions
 
