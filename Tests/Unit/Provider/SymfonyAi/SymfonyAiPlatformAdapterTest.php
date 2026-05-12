@@ -29,6 +29,10 @@ final class SymfonyAiPlatformAdapterTest extends TestCase
             'Symfony\\AI\\Platform\\Bridge\\OpenResponses\\PlatformFactory',
             'max_output_tokens',
         ];
+        yield 'Gemini uses camelCase per Google REST API' => [
+            'Symfony\\AI\\Platform\\Bridge\\Gemini\\PlatformFactory',
+            'maxOutputTokens',
+        ];
         yield 'Anthropic Messages API' => [
             'Symfony\\AI\\Platform\\Bridge\\Anthropic\\PlatformFactory',
             'max_tokens',
