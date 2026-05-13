@@ -12,3 +12,12 @@ services:
 
   B13\Aim\Domain\Repository\ProviderConfigurationRepository:
     public: true
+
+  B13\Aim\Crypto\ApiKeyEncryption:
+    public: true
+
+  B13\Aim\Hooks\EncryptApiKey:
+    public: true
+
+  B13\Aim\Backend\FormDataProvider\DecryptApiKey:
+    public: true

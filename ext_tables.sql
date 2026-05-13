@@ -3,7 +3,7 @@ CREATE TABLE tx_aim_configuration (
     title varchar(255) DEFAULT '' NOT NULL,
     description text,
     `default` tinyint(4) unsigned DEFAULT '0' NOT NULL,
-    api_key varchar(255) DEFAULT '' NOT NULL,
+    api_key text,
     model varchar(255) DEFAULT '' NOT NULL,
     total_cost double(10,6) DEFAULT '0.000000' NOT NULL,
     cost_currency varchar(10) DEFAULT 'USD' NOT NULL,

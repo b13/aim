@@ -12,6 +12,7 @@ declare(strict_types=1);
 
 namespace B13\Aim\Domain\Repository;
 
+use B13\Aim\Crypto\ApiKeyEncryption;
 use B13\Aim\Domain\Model\ProviderConfiguration;
 use B13\Aim\Domain\Model\ProviderConfigurationFactory;
 use TYPO3\CMS\Core\Database\Connection;
@@ -26,6 +27,7 @@ class ProviderConfigurationRepository
 
     public function __construct(
         private readonly ConnectionPool $connectionPool,
+        private readonly ApiKeyEncryption $encryption,
     ) {}
 
     public function findByUid(int $uid): ?ProviderConfiguration
@@ -188,6 +190,9 @@ class ProviderConfigurationRepository
 
     protected function mapSingleRow(array $row): ProviderConfiguration
     {
+        if (isset($row['api_key']) && $row['api_key'] !== '') {
+            $row['api_key'] = $this->encryption->decrypt((string)$row['api_key']);
+        }
         return ProviderConfigurationFactory::fromRow($row);
     }
 
