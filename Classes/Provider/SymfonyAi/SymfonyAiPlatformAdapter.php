@@ -445,10 +445,18 @@ class SymfonyAiPlatformAdapter implements
     }
 
     /**
-     * Resolve the max-tokens option key expected by a Symfony AI bridge based on the used bridge
+     * Resolve the max-tokens option key expected by a Symfony AI bridge.
+     *
+     * Each bridge keeps the option naming convention of its underlying API:
+     *   - Gemini uses camelCase (Google REST API: "maxOutputTokens")
+     *   - OpenAI / OpenResponses use snake_case "max_output_tokens"
+     *   - Anthropic / Mistral / Ollama and most others use legacy "max_tokens"
      */
     public static function resolveMaxTokensKey(string $factoryClass): string
     {
+        if (str_contains($factoryClass, '\\Bridge\\Gemini\\')) {
+            return 'maxOutputTokens';
+        }
         if (str_contains($factoryClass, '\\Bridge\\OpenAi\\')
             || str_contains($factoryClass, '\\Bridge\\OpenResponses\\')
         ) {
