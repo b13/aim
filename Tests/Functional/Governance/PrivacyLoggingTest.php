@@ -14,6 +14,7 @@ namespace B13\Aim\Tests\Functional\Governance;
 
 use B13\Aim\Domain\Model\ProviderConfiguration;
 use B13\Aim\Domain\Repository\RequestLogRepository;
+use B13\Aim\Governance\PrivacyLevel;
 use B13\Aim\Middleware\AiMiddlewareHandler;
 use B13\Aim\Middleware\RequestLoggingMiddleware;
 use B13\Aim\Provider\AiProviderInterface;
@@ -170,6 +171,88 @@ final class PrivacyLoggingTest extends FunctionalTestCase
             configuration: $config,
             prompt: 'Should be redacted',
         );
+
+        $this->createLoggingMiddleware()->process(
+            $request,
+            $this->createMock(AiProviderInterface::class),
+            $config,
+            $this->respondWith('Also redacted'),
+        );
+
+        $rows = $this->getConnectionPool()
+            ->getConnectionForTable('tx_aim_request_log')
+            ->select(['*'], 'tx_aim_request_log')
+            ->fetchAllAssociative();
+
+        self::assertCount(1, $rows);
+        self::assertSame('', $rows[0]['request_prompt']);
+        self::assertSame('', $rows[0]['response_content']);
+    }
+
+    #[Test]
+    public function requestOverrideCanEscalatePrivacyToNone(): void
+    {
+        // Config says standard, request says none → none wins, nothing logged.
+        $config = $this->createConfig('standard');
+        $request = (new TextGenerationRequest(
+            configuration: $config,
+            prompt: 'Health check',
+        ))->withPrivacyLevel(PrivacyLevel::None);
+
+        $this->createLoggingMiddleware()->process(
+            $request,
+            $this->createMock(AiProviderInterface::class),
+            $config,
+            $this->respondWith('Pong'),
+        );
+
+        $count = $this->getConnectionPool()
+            ->getConnectionForTable('tx_aim_request_log')
+            ->count('*', 'tx_aim_request_log', []);
+
+        self::assertSame(0, $count);
+    }
+
+    #[Test]
+    public function requestOverrideCannotRelaxConfigPrivacy(): void
+    {
+        // Config says none, request says standard → none still wins (stricter),
+        // nothing logged. The request can only escalate, never relax.
+        $config = $this->createConfig('none');
+        $request = (new TextGenerationRequest(
+            configuration: $config,
+            prompt: 'Top secret',
+        ))->withPrivacyLevel(PrivacyLevel::Standard);
+
+        $this->createLoggingMiddleware()->process(
+            $request,
+            $this->createMock(AiProviderInterface::class),
+            $config,
+            $this->respondWith('Classified'),
+        );
+
+        $count = $this->getConnectionPool()
+            ->getConnectionForTable('tx_aim_request_log')
+            ->count('*', 'tx_aim_request_log', []);
+
+        self::assertSame(0, $count);
+    }
+
+    #[Test]
+    public function requestOverrideCannotRelaxUserTsconfig(): void
+    {
+        // User TSconfig says reduced, request says standard → reduced still wins.
+        $user = $this->createMock(\TYPO3\CMS\Core\Authentication\BackendUserAuthentication::class);
+        $user->method('getTSConfig')->willReturn([
+            'aim.' => ['privacyLevel' => 'reduced'],
+        ]);
+        $GLOBALS['BE_USER'] = $user;
+
+        $config = $this->createConfig('standard');
+        $request = (new TextGenerationRequest(
+            configuration: $config,
+            prompt: 'Should still be redacted',
+        ))->withPrivacyLevel(PrivacyLevel::Standard);
 
         $this->createLoggingMiddleware()->process(
             $request,

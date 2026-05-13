@@ -13,6 +13,7 @@ declare(strict_types=1);
 namespace B13\Aim\Request;
 
 use B13\Aim\Domain\Model\ProviderConfiguration;
+use B13\Aim\Governance\PrivacyLevel;
 use B13\Aim\Request\Message\AbstractMessage;
 
 final class ConversationRequest implements AiRequestInterface
@@ -30,6 +31,7 @@ final class ConversationRequest implements AiRequestInterface
         public readonly string $user = '',
         public readonly array $metadata = [],
         public readonly bool $stream = false,
+        public readonly ?PrivacyLevel $privacyLevelOverride = null,
     ) {}
 
     public function getConfiguration(): ProviderConfiguration
@@ -43,5 +45,26 @@ final class ConversationRequest implements AiRequestInterface
             get_object_vars($this),
             ['configuration' => $configuration],
         ));
+    }
+
+    public function withMetadata(array $additional): static
+    {
+        return new static(...array_merge(
+            get_object_vars($this),
+            ['metadata' => [...$this->metadata, ...$additional]],
+        ));
+    }
+
+    public function withPrivacyLevel(PrivacyLevel $level): static
+    {
+        return new static(...array_merge(
+            get_object_vars($this),
+            ['privacyLevelOverride' => $level],
+        ));
+    }
+
+    public function getPrivacyLevelOverride(): ?PrivacyLevel
+    {
+        return $this->privacyLevelOverride;
     }
 }

@@ -459,6 +459,60 @@ class MyMiddleware implements AiMiddlewareInterface
 }
 ```
 
+### Enriching the request log
+
+Every request DTO carries a `metadata` array that lands in the `metadata` JSON column of `tx_aim_request_log`. To attach extension-specific context, enrich it from your custom middleware via `$request->withMetadata([...])` and forward the new instance. The original request stays immutable; downstream middlewares see the merged metadata:
+
+```php
+#[AsAiMiddleware(priority: 80)]
+final class MyExtensionContextMiddleware implements AiMiddlewareInterface
+{
+    public function process(
+        AiRequestInterface $request,
+        AiProviderInterface $provider,
+        ProviderConfiguration $configuration,
+        AiMiddlewareHandler $next,
+    ): TextResponse {
+        $request = $request->withMetadata([
+            'my_ext.additional' => 'info',
+        ]);
+        return $next->handle($request, $provider, $configuration);
+    }
+}
+```
+
+### Detailed / parallel logging
+
+For richer or separate logging, register a middleware at a lower priority than `RequestLoggingMiddleware` (use a priority below `-700`). It sees the response, the resolved `$configuration`, and any metadata enriched by earlier middlewares, and is free to write wherever it likes without touching `tx_aim_request_log`:
+
+```php
+#[AsAiMiddleware(priority: -750)]
+final class MyExtensionDetailedLogger implements AiMiddlewareInterface
+{
+    public function __construct(private readonly MyExtensionLogRepository $repository) {}
+
+    public function process(
+        AiRequestInterface $request,
+        AiProviderInterface $provider,
+        ProviderConfiguration $configuration,
+        AiMiddlewareHandler $next,
+    ): TextResponse {
+        $response = $next->handle($request, $provider, $configuration);
+        $this->repository->record([
+            'provider' => $configuration->providerIdentifier,
+            'model' => $response->usage->modelUsed,
+            'metadata' => $request->metadata,
+            'tokens' => $response->usage->getTotalTokens(),
+            'cost' => $response->usage->cost,
+            // ...any custom shape you need
+        ]);
+        return $response;
+    }
+}
+```
+
+The middleware pipeline is intentionally the only logging extension point: it gives you the request, response, configuration, and middleware context in one place, plus full control over where the data goes.
+
 ### Built-in Middleware
 
 | Middleware | Priority | Purpose |

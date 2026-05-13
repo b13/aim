@@ -1,0 +1,68 @@
+<html xmlns:f="http://typo3.org/ns/TYPO3/CMS/Fluid/ViewHelpers"
+      xmlns:core="http://typo3.org/ns/TYPO3/CMS/Core/ViewHelpers"
+      data-namespace-typo3-fluid="true">
+
+<div class="row mb-4" data-poll="statistics">
+    <div class="col">
+        <div class="card">
+            <span class="card-info-icon" data-bs-toggle="popover" data-bs-placement="auto" data-bs-trigger="hover focus" data-bs-content="{f:translate(key:'LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.stats.totalRequests.info')}">
+                <core:icon identifier="actions-info-circle" size="small" />
+            </span>
+            <div class="card-body text-center">
+                <core:icon identifier="actions-paperplane" size="medium" />
+                <h5 class="card-title mt-2"><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.stats.totalRequests" /></h5>
+                <p class="display-6" data-stat="total_requests">{statistics.total_requests -> f:format.number(decimals: 0, thousandsSeparator: ',')}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col">
+        <div class="card">
+            <span class="card-info-icon" data-bs-toggle="popover" data-bs-placement="auto" data-bs-trigger="hover focus" data-bs-content="{f:translate(key:'LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.stats.totalCost.info')}">
+                <core:icon identifier="actions-info-circle" size="small" />
+            </span>
+            <div class="card-body text-center">
+                <core:icon identifier="actions-wallet" size="medium" />
+                <h5 class="card-title mt-2"><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.stats.totalCost" /></h5>
+                <p class="display-6" data-stat="total_cost">{statistics.total_cost -> f:format.number(decimals: 4)}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col">
+        <div class="card">
+            <span class="card-info-icon" data-bs-toggle="popover" data-bs-placement="auto" data-bs-trigger="hover focus" data-bs-html="true" data-bs-content="Prompt + completion tokens across all requests.<f:if condition='{statistics.total_cached_tokens} > 0'>&lt;br&gt;Cached: {statistics.total_cached_tokens -> f:format.number(decimals: 0, thousandsSeparator: ',')}</f:if><f:if condition='{statistics.total_reasoning_tokens} > 0'>&lt;br&gt;Reasoning: {statistics.total_reasoning_tokens -> f:format.number(decimals: 0, thousandsSeparator: ',')}</f:if>">
+                <core:icon identifier="actions-info-circle" size="small" />
+            </span>
+            <div class="card-body text-center">
+                <core:icon identifier="actions-tag" size="medium" />
+                <h5 class="card-title mt-2"><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.stats.totalTokens" /></h5>
+                <p class="display-6" data-stat="total_tokens">{statistics.total_tokens -> f:format.number(decimals: 0, thousandsSeparator: ',')}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col">
+        <div class="card">
+            <span class="card-info-icon" data-bs-toggle="popover" data-bs-placement="auto" data-bs-trigger="hover focus" data-bs-content="{f:translate(key:'LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.stats.successRate.info')}">
+                <core:icon identifier="actions-info-circle" size="small" />
+            </span>
+            <div class="card-body text-center">
+                <core:icon identifier="actions-check-circle" size="medium" />
+                <h5 class="card-title mt-2"><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.stats.successRate" /></h5>
+                <p class="display-6" data-stat="success_rate">{statistics.success_rate}%</p>
+            </div>
+        </div>
+    </div>
+    <div class="col">
+        <div class="card">
+            <span class="card-info-icon" data-bs-toggle="popover" data-bs-placement="auto" data-bs-trigger="hover focus" data-bs-content="{f:translate(key:'LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.stats.avgDuration.info')}">
+                <core:icon identifier="actions-info-circle" size="small" />
+            </span>
+            <div class="card-body text-center">
+                <core:icon identifier="actions-clock" size="medium" />
+                <h5 class="card-title mt-2"><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.stats.avgDuration" /></h5>
+                <p class="display-6" data-stat="avg_duration_ms">{statistics.avg_duration_ms -> f:format.number(decimals: 0, thousandsSeparator: ',')} ms</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+</html>
