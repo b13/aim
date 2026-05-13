@@ -7,6 +7,7 @@ $parent = (new Typo3Version())->getMajorVersion() >= 14 ? 'admin' : 'tools';
 return [
     'aim' => [
         'parent' => $parent,
+        'access' => 'admin',
         'position' => ['before' => '*'],
         'appearance' => [
             'dependsOnSubmodules' => true,
