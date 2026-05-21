@@ -14,7 +14,10 @@ CREATE TABLE tx_aim_configuration (
     be_groups varchar(255) DEFAULT '' NOT NULL,
     privacy_level varchar(20) DEFAULT 'standard' NOT NULL,
     rerouting_allowed tinyint(1) unsigned DEFAULT '1' NOT NULL,
-    auto_model_switch tinyint(1) unsigned DEFAULT '1' NOT NULL
+    auto_model_switch tinyint(1) unsigned DEFAULT '1' NOT NULL,
+    grading_enabled tinyint(1) unsigned DEFAULT '0' NOT NULL,
+    judge_configuration_uid int(11) unsigned DEFAULT '0' NOT NULL,
+    grading_rubric text
 );
 
 CREATE TABLE tx_aim_usage_budget (
@@ -61,6 +64,14 @@ CREATE TABLE tx_aim_request_log (
 	rerouted tinyint(1) unsigned DEFAULT '0' NOT NULL,
 	reroute_type varchar(20) DEFAULT '' NOT NULL,
 	reroute_reason varchar(255) DEFAULT '' NOT NULL,
+	grade_status varchar(20) DEFAULT 'none' NOT NULL,
+	grade_score double(5,4) DEFAULT '0.0000' NOT NULL,
+	grade_label varchar(20) DEFAULT '' NOT NULL,
+	grade_reason text,
+	judge_model varchar(255) DEFAULT '' NOT NULL,
+	judge_cost double(10,6) DEFAULT '0.000000' NOT NULL,
+	grade_duration_ms int(11) unsigned DEFAULT '0' NOT NULL,
+	grade_error varchar(500) DEFAULT '' NOT NULL,
 
 	PRIMARY KEY (uid),
 	KEY crdate (crdate),
@@ -69,5 +80,6 @@ CREATE TABLE tx_aim_request_log (
 	KEY configuration_uid (configuration_uid),
 	KEY user_id (user_id),
 	KEY model_used (model_used),
-	KEY request_type (request_type)
+	KEY request_type (request_type),
+	KEY grade_status (grade_status)
 );

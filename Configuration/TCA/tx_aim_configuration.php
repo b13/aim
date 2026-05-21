@@ -32,7 +32,10 @@ return [
                 --palette--;;cost,
                 --div--;LLL:EXT:core/Resources/Private/Language/Form/locallang_tabs.xlf:access,
                 --palette--;;access,
-                --palette--;;governance',
+                --palette--;;governance,
+                --div--;LLL:EXT:aim/Resources/Private/Language/locallang_tca.xlf:tx_aim_configuration.tab.grading,
+                --palette--;;grading,
+                grading_rubric',
         ],
     ],
     'palettes' => [
@@ -55,6 +58,10 @@ return [
         'access' => [
             'label' => 'LLL:EXT:frontend/Resources/Private/Language/locallang_tca.xlf:pages.palettes.access',
             'showitem' => 'disabled',
+        ],
+        'grading' => [
+            'label' => 'LLL:EXT:aim/Resources/Private/Language/locallang_tca.xlf:tx_aim_configuration.palette.grading.label',
+            'showitem' => 'grading_enabled, --linebreak--, judge_configuration_uid',
         ],
     ],
     'columns' => [
@@ -207,6 +214,41 @@ return [
                         'invertStateDisplay' => true,
                     ],
                 ],
+            ],
+        ],
+        'grading_enabled' => [
+            'label' => 'LLL:EXT:aim/Resources/Private/Language/locallang_tca.xlf:tx_aim_configuration.columns.grading_enabled.label',
+            'description' => 'LLL:EXT:aim/Resources/Private/Language/locallang_tca.xlf:tx_aim_configuration.columns.grading_enabled.description',
+            'config' => [
+                'type' => 'check',
+                'renderType' => 'checkboxToggle',
+                'default' => 0,
+            ],
+        ],
+        'judge_configuration_uid' => [
+            'label' => 'LLL:EXT:aim/Resources/Private/Language/locallang_tca.xlf:tx_aim_configuration.columns.judge_configuration_uid.label',
+            'description' => 'LLL:EXT:aim/Resources/Private/Language/locallang_tca.xlf:tx_aim_configuration.columns.judge_configuration_uid.description',
+            'displayCond' => 'FIELD:grading_enabled:REQ:true',
+            'config' => [
+                'type' => 'select',
+                'renderType' => 'selectSingle',
+                'foreign_table' => 'tx_aim_configuration',
+                'foreign_table_where' => 'AND tx_aim_configuration.uid != ###THIS_UID### AND tx_aim_configuration.disabled = 0 ORDER BY tx_aim_configuration.title',
+                'items' => [
+                    ['label' => '', 'value' => 0],
+                ],
+                'default' => 0,
+            ],
+        ],
+        'grading_rubric' => [
+            'label' => 'LLL:EXT:aim/Resources/Private/Language/locallang_tca.xlf:tx_aim_configuration.columns.grading_rubric.label',
+            'description' => 'LLL:EXT:aim/Resources/Private/Language/locallang_tca.xlf:tx_aim_configuration.columns.grading_rubric.description',
+            'displayCond' => 'FIELD:grading_enabled:REQ:true',
+            'config' => [
+                'type' => 'text',
+                'rows' => 6,
+                'cols' => 40,
+                'placeholder' => 'LLL:EXT:aim/Resources/Private/Language/locallang_tca.xlf:tx_aim_configuration.columns.grading_rubric.placeholder',
             ],
         ],
     ],

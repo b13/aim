@@ -190,8 +190,23 @@
             <trans-unit id="requestLog.column.duration" resname="requestLog.column.duration">
                 <source>Duration</source>
             </trans-unit>
+            <trans-unit id="requestLog.column.grade" resname="requestLog.column.grade">
+                <source>Grade</source>
+            </trans-unit>
             <trans-unit id="requestLog.column.status" resname="requestLog.column.status">
                 <source>Status</source>
+            </trans-unit>
+            <trans-unit id="requestLog.grade.pending" resname="requestLog.grade.pending">
+                <source>Pending</source>
+            </trans-unit>
+            <trans-unit id="requestLog.grade.failed" resname="requestLog.grade.failed">
+                <source>Grade failed</source>
+            </trans-unit>
+            <trans-unit id="requestLog.pendingGrades.title" resname="requestLog.pendingGrades.title">
+                <source>Pending grades</source>
+            </trans-unit>
+            <trans-unit id="requestLog.pendingGrades.message" resname="requestLog.pendingGrades.message">
+                <source>%d request log row(s) have been waiting more than an hour to be graded. The shutdown handler appears to have missed them — run "vendor/bin/typo3 aim:grade-pending" or schedule it via the TYPO3 scheduler.</source>
             </trans-unit>
             <trans-unit id="requestLog.status.success" resname="requestLog.status.success">
                 <source>Success</source>

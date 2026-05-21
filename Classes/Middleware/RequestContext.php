@@ -26,4 +26,10 @@ final class RequestContext
 
     /** @var array{from: string, to: string, reason: string}|null */
     public ?array $fallbackInfo = null;
+
+    /**
+     * Primary key of the row written by RequestLoggingMiddleware,
+     * surfaced so GraderMiddleware can attach a grade to it later.
+     */
+    public ?int $logUid = null;
 }

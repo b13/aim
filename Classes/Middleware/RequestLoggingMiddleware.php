@@ -156,7 +156,7 @@ final class RequestLoggingMiddleware implements AiMiddlewareInterface
         }
 
         try {
-            $this->repository->log($data);
+            $context->logUid = $this->repository->log($data);
         } catch (\Throwable $logError) {
             $this->logger->error('AiM request log insert failed: ' . $logError->getMessage(), [
                 'data' => $data,

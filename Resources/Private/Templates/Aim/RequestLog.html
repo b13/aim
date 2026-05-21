@@ -13,6 +13,11 @@
     <f:if condition="{statistics.total_requests}">
         <f:then>
             <f:render partial="RequestLog/Stats" arguments="{statistics: statistics}" />
+            <f:if condition="{statistics.pending_grades} > 0">
+                <f:be.infobox title="{f:translate(key: 'LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.pendingGrades.title')}" state="1">
+                    <f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.pendingGrades.message" arguments="{0: statistics.pending_grades}" />
+                </f:be.infobox>
+            </f:if>
             <f:render partial="RequestLog/Filters" arguments="{_all}" />
 
             <f:if condition="{paginator.paginatedItems}">
