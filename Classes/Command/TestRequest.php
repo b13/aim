@@ -13,7 +13,18 @@ declare(strict_types=1);
 namespace B13\Aim\Command;
 
 use B13\Aim\Ai;
+use B13\Aim\Capability\ConversationCapableInterface;
+use B13\Aim\Capability\EmbeddingCapableInterface;
+use B13\Aim\Capability\TextGenerationCapableInterface;
+use B13\Aim\Capability\TranslationCapableInterface;
+use B13\Aim\Exception\ProviderNotFoundException;
+use B13\Aim\Middleware\AiMiddlewarePipeline;
+use B13\Aim\Provider\ProviderResolver;
+use B13\Aim\Request\ConversationRequest;
+use B13\Aim\Request\EmbeddingRequest;
 use B13\Aim\Request\Message\UserMessage;
+use B13\Aim\Request\TextGenerationRequest;
+use B13\Aim\Request\TranslationRequest;
 use B13\Aim\Response\TextResponse;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -23,12 +34,16 @@ use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 use TYPO3\CMS\Core\Database\ConnectionPool;
+use TYPO3\CMS\Core\Site\SiteFinder;
 
 /**
- * Sends a one-off (non-streaming) AI request through the AiM facade and
- * prints the response, usage, timing, and whether a request-log row was
- * written. A quick way to test a provider configuration from the CLI
- * without wiring up a consuming extension.
+ * Sends a one-off (non-streaming) AI request and prints the response, usage,
+ * timing, and whether a request-log row was written. A quick way to test a
+ * provider configuration from the CLI without wiring up a consuming extension.
+ *
+ * By default the provider is resolved from the database (Admin Tools > AiM >
+ * Providers). With --site, it is resolved from a site's settings.yaml instead
+ * and dispatched through the pipeline directly.
  */
 #[AsCommand(
     name: 'aim:test',
@@ -43,6 +58,9 @@ final class TestRequest extends Command
     public function __construct(
         private readonly Ai $ai,
         private readonly ConnectionPool $connectionPool,
+        private readonly ProviderResolver $resolver,
+        private readonly AiMiddlewarePipeline $pipeline,
+        private readonly SiteFinder $siteFinder,
     ) {
         parent::__construct();
     }
@@ -55,7 +73,8 @@ final class TestRequest extends Command
                 . '  vendor/bin/typo3 aim:test text --prompt "Write a haiku about TYPO3"' . PHP_EOL
                 . '  vendor/bin/typo3 aim:test conversation -p "anthropic:*" --prompt "Hi there"' . PHP_EOL
                 . '  vendor/bin/typo3 aim:test translate --prompt "Hello world" --from English --to German' . PHP_EOL
-                . '  vendor/bin/typo3 aim:test embed --prompt "vector me"'
+                . '  vendor/bin/typo3 aim:test embed --prompt "vector me"' . PHP_EOL
+                . '  vendor/bin/typo3 aim:test text --site main --prompt "Resolve from site settings"'
             )
             ->addArgument(
                 'capability',
@@ -75,6 +94,13 @@ final class TestRequest extends Command
                 'p',
                 InputOption::VALUE_REQUIRED,
                 'Provider notation (e.g. "openai:gpt-4o", "anthropic:*"). Defaults to the configured default.',
+                '',
+            )
+            ->addOption(
+                'site',
+                null,
+                InputOption::VALUE_REQUIRED,
+                'Resolve the provider from this site\'s settings.yaml instead of the database. Takes precedence over --provider.',
                 '',
             )
             ->addOption(
@@ -118,12 +144,17 @@ final class TestRequest extends Command
 
         $prompt = (string)$input->getOption('prompt');
         $provider = (string)$input->getOption('provider');
+        $site = (string)$input->getOption('site');
         $systemPrompt = (string)$input->getOption('system-prompt');
         $maxTokens = (int)$input->getOption('max-tokens');
 
         $io->title('AiM request test');
         $io->writeln(sprintf(' Capability: <info>%s</info>', $capability));
-        $io->writeln(sprintf(' Provider:   <info>%s</info>', $provider !== '' ? $provider : '(default)'));
+        if ($site !== '') {
+            $io->writeln(sprintf(' Source:     <info>site settings of "%s"</info>', $site));
+        } else {
+            $io->writeln(sprintf(' Provider:   <info>%s</info>', $provider !== '' ? $provider : '(default)'));
+        }
         $io->writeln(sprintf(' Prompt:     <info>%s</info>', $prompt));
         if ($systemPrompt !== '' && $capability !== 'embed') {
             $io->writeln(sprintf(' System:     <info>%s</info>', $systemPrompt));
@@ -134,9 +165,29 @@ final class TestRequest extends Command
         $start = hrtime(true);
 
         try {
-            $response = $this->sendRequest($capability, $input, $prompt, $systemPrompt, $maxTokens, $provider);
+            $response = $site !== ''
+                ? $this->sendViaSite($capability, $site, $input, $prompt, $systemPrompt, $maxTokens)
+                : $this->sendRequest($capability, $input, $prompt, $systemPrompt, $maxTokens, $provider);
+        } catch (ProviderNotFoundException $e) {
+            if ($site !== '') {
+                // Site-settings path: the exception message is already specific
+                // (e.g. the configured provider's bridge is not installed).
+                $io->error('Request failed: ' . $e->getMessage());
+                return Command::FAILURE;
+            }
+            $io->error('No AI provider is available for the "' . $capability . '" capability.');
+            $io->writeln(' AiM needs at least one provider configuration before it can send requests.');
+            $io->writeln(' Create one in the TYPO3 backend under <info>Admin Tools > AiM > Providers</info>:');
+            $io->newLine();
+            $io->listing([
+                'Pick a provider (auto-populated from installed Symfony AI bridges)',
+                'Enter your API key — or an endpoint URL such as http://localhost:11434 for Ollama',
+                'Select a model that supports the capability you want to test',
+            ]);
+            $io->writeln(' Or point --site at a site whose settings.yaml configures an AI provider.');
+            return Command::FAILURE;
         } catch (\Throwable $e) {
-            $io->error($capability . '() threw: ' . $e::class . ' — ' . $e->getMessage());
+            $io->error('Request failed: ' . $e->getMessage());
             return Command::FAILURE;
         }
 
@@ -214,6 +265,66 @@ final class TestRequest extends Command
                 provider: $provider,
             ),
         };
+    }
+
+    /**
+     * Resolve the provider from a site's settings.yaml and dispatch directly
+     * through the pipeline. The Ai facade only resolves database-backed
+     * configurations, so site-settings configs need this explicit path.
+     */
+    private function sendViaSite(
+        string $capability,
+        string $siteIdentifier,
+        InputInterface $input,
+        string $prompt,
+        string $systemPrompt,
+        int $maxTokens,
+    ): TextResponse {
+        $site = $this->siteFinder->getSiteByIdentifier($siteIdentifier);
+
+        $capabilityFqcn = match ($capability) {
+            'conversation' => ConversationCapableInterface::class,
+            'translate' => TranslationCapableInterface::class,
+            'embed' => EmbeddingCapableInterface::class,
+            default => TextGenerationCapableInterface::class,
+        };
+
+        $resolved = $this->resolver->resolveFromSiteSettings($capabilityFqcn, $site);
+        $configuration = $resolved->configuration;
+        $metadata = ['extension' => 'aim'];
+
+        $request = match ($capability) {
+            'conversation' => new ConversationRequest(
+                configuration: $configuration,
+                messages: [new UserMessage($prompt)],
+                systemPrompt: $systemPrompt,
+                maxTokens: $maxTokens,
+                metadata: $metadata,
+            ),
+            'translate' => new TranslationRequest(
+                configuration: $configuration,
+                text: $prompt,
+                sourceLanguage: (string)$input->getOption('from'),
+                targetLanguage: (string)$input->getOption('to'),
+                systemPrompt: $systemPrompt,
+                maxTokens: $maxTokens,
+                metadata: $metadata,
+            ),
+            'embed' => new EmbeddingRequest(
+                configuration: $configuration,
+                input: [$prompt],
+                metadata: $metadata,
+            ),
+            default => new TextGenerationRequest(
+                configuration: $configuration,
+                prompt: $prompt,
+                systemPrompt: $systemPrompt,
+                maxTokens: $maxTokens,
+                metadata: $metadata,
+            ),
+        };
+
+        return $this->pipeline->dispatch($request, $resolved);
     }
 
     private function countLogRows(): int

@@ -185,6 +185,7 @@ Every AI request is tracked in the **AiM > Request Log** module:
 - **Which model answered**: requested model vs. actually used model
 - **How much it cost**: token counts (prompt, completion, cached, reasoning) and calculated cost
 - **How complex it was**: AiM's complexity classification (simple/moderate/complex) with the scoring reason
+- **How good it was**: when grading is enabled, an LLM-as-a-judge quality score, label, and reason
 - **How long it took**: wall-clock duration in milliseconds
 - **Who asked**: the backend username is displayed for each request, so you can see which user triggered it. Automated/CLI requests show no user.
 - **Which extension**: the calling extension key is shown per request
@@ -193,6 +194,16 @@ Every AI request is tracked in the **AiM > Request Log** module:
 Filter by provider, extension, request type, or success/failure. Statistics dashboard shows totals at a glance.
 
 ![Request Log](Images/request-log.png)
+
+### Response quality grading
+
+How good are the AI responses your site produces? AiM can answer that automatically. Enable **LLM grading** on any provider configuration and AiM scores each response with a second AI model acting as an impartial judge ("LLM-as-a-judge").
+
+You write the rubric ("evaluate factual accuracy and relevance", "check the tone is friendly and professional", ...) and pick which configuration acts as the judge, typically a cheaper model. After each response is delivered, AiM asks the judge to score it and records a grade (poor / fair / good / excellent), a 0–1 score, and a one-sentence reason on the request log row.
+
+Grading runs *after* the response reaches the user, so it never slows anything down. It applies to text and conversation requests, and only when full logging is active, since the judge needs to see the content it is scoring. Grading is delivered by a shutdown handler on the live request, with a scheduler task (`aim:grade-pending`) as a safety net for anything it misses.
+
+This turns the request log into a quality dashboard: spot which models or prompts produce weak answers, compare providers on real output, and catch quality regressions before your editors do.
 
 ### Provider verification
 
