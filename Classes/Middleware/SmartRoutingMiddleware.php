@@ -63,6 +63,19 @@ final class SmartRoutingMiddleware implements AiMiddlewareInterface
      */
     private const MIN_SUCCESS_RATE = 90.0;
 
+    /**
+     * Minimum number of graded requests before the grade gate is trusted.
+     * Below this, grading is treated as "no signal" and the candidate is
+     * judged on cost and success rate alone.
+     */
+    private const MIN_GRADED_REQUESTS = 10;
+
+    /**
+     * Minimum average grade (0.0–1.0) for a cheaper model to remain a
+     * candidate. 0.65 is the "good" label boundary.
+     */
+    private const MIN_GRADE_SCORE = 0.65;
+
     public function __construct(
         private readonly RequestLogRepository $logRepository,
         private readonly ProviderResolver $providerResolver,
@@ -101,12 +114,16 @@ final class SmartRoutingMiddleware implements AiMiddlewareInterface
         if ($classification['label'] === 'simple') {
             $cheaperResult = $this->findCheaperModel($request, $configuration);
             if ($cheaperResult !== null) {
+                $gradeNote = $cheaperResult['graded_count'] > 0
+                    ? sprintf('avg grade: %.2f over %d graded', $cheaperResult['avg_grade_score'], $cheaperResult['graded_count'])
+                    : 'ungraded';
                 $this->logger->info(sprintf(
-                    'Smart routing: downgrading from "%s" to cheaper model "%s" for simple prompt (score: %.2f, reason: %s)',
+                    'Smart routing: downgrading from "%s" to cheaper model "%s" for simple prompt (score: %.2f, reason: %s, %s)',
                     $configuration->model,
                     $cheaperResult['configuration']->model,
                     $classification['score'],
                     $classification['reason'],
+                    $gradeNote,
                 ));
 
                 return $next->handle(
@@ -257,7 +274,7 @@ final class SmartRoutingMiddleware implements AiMiddlewareInterface
      * Queries historical performance data from the request log to find
      * models with lower cost but high success rates for the same request type.
      *
-     * @return array{provider: AiProviderInterface, configuration: ProviderConfiguration}|null
+     * @return array{provider: AiProviderInterface, configuration: ProviderConfiguration, avg_grade_score: float, graded_count: int}|null
      */
     private function findCheaperModel(AiRequestInterface $request, ProviderConfiguration $currentConfig): ?array
     {
@@ -298,6 +315,13 @@ final class SmartRoutingMiddleware implements AiMiddlewareInterface
             if ($profile['success_rate'] < self::MIN_SUCCESS_RATE) {
                 continue;
             }
+            // Quality gate: veto a cheap, reliable model only when we have enough
+            // graded samples to trust the signal. Too few grades = no signal, fall through.
+            if ($profile['graded_count'] >= self::MIN_GRADED_REQUESTS
+                && $profile['avg_grade_score'] < self::MIN_GRADE_SCORE
+            ) {
+                continue;
+            }
             if ($profile['avg_cost'] >= $currentCost) {
                 continue;
             }
@@ -328,6 +352,8 @@ final class SmartRoutingMiddleware implements AiMiddlewareInterface
                     return [
                         'provider' => $resolved->manifest->getInstance(),
                         'configuration' => $resolved->configuration,
+                        'avg_grade_score' => $bestCandidate['avg_grade_score'],
+                        'graded_count' => $bestCandidate['graded_count'],
                     ];
                 }
             }

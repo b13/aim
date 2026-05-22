@@ -229,10 +229,11 @@ class RequestLogRepository
      * Performance profile per model for a given request type.
      * Used by smart routing middleware.
      *
-     * @return list<array{model_used: string, request_count: int, avg_cost: float, avg_duration_ms: int, success_rate: float, avg_tokens: int}>
+     * @return list<array{model_used: string, request_count: int, avg_cost: float, avg_duration_ms: int, success_rate: float, avg_tokens: int, graded_count: int, avg_grade_score: float}>
      */
     public function getModelPerformanceProfile(string $requestType = ''): array
     {
+        $done = GradeStatus::Done->value;
         $qb = $this->getQueryBuilder();
         $qb->addSelectLiteral(
                 'model_used',
@@ -241,6 +242,8 @@ class RequestLogRepository
                 'AVG(duration_ms) AS avg_duration_ms',
                 'SUM(success) AS successful_requests',
                 'AVG(total_tokens) AS avg_tokens',
+                sprintf("SUM(CASE WHEN grade_status = '%s' THEN grade_score ELSE 0 END) AS grade_score_sum", $done),
+                sprintf("SUM(CASE WHEN grade_status = '%s' THEN 1 ELSE 0 END) AS graded_count", $done),
             );
         if ($requestType !== '') {
             $qb->where($qb->expr()->eq('request_type', $qb->createNamedParameter($requestType)));
@@ -257,6 +260,7 @@ class RequestLogRepository
         return array_map(static function (array $row): array {
             $count = (int)$row['request_count'];
             $successful = (int)$row['successful_requests'];
+            $gradedCount = (int)$row['graded_count'];
             return [
                 'model_used' => $row['model_used'],
                 'request_count' => $count,
@@ -264,6 +268,8 @@ class RequestLogRepository
                 'avg_duration_ms' => (int)$row['avg_duration_ms'],
                 'success_rate' => $count > 0 ? round($successful / $count * 100, 1) : 0,
                 'avg_tokens' => (int)$row['avg_tokens'],
+                'graded_count' => $gradedCount,
+                'avg_grade_score' => $gradedCount > 0 ? round((float)$row['grade_score_sum'] / $gradedCount, 4) : 0.0,
             ];
         }, $rows);
     }
