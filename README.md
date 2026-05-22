@@ -47,7 +47,7 @@ A few lines to add AI to any TYPO3 extension. No API keys in your code, no provi
 - Auto-discovery of installed bridges (OpenAI, Anthropic, Gemini, Mistral, Ollama, etc.)
 - Capability-based routing with model-level awareness
 - Auto model switch: one config covers all capabilities
-- Smart routing: routes simple prompts to cheaper models based on historical cost data
+- Smart routing: routes simple prompts to cheaper models based on historical cost, reliability, and (with grading) quality data
 - Fallback chains: automatic retry with alternative providers on failure
 - 9-layer middleware pipeline: retry, access control, smart routing, capability validation, grading, logging, cost tracking, events, dispatch
 
@@ -468,6 +468,14 @@ The `SmartRoutingMiddleware` classifies prompt complexity using language-agnosti
 - Multi-language keyword signals (extensible per extension)
 
 Classification is logged per request (`complexity_score`, `complexity_label`, `complexity_reason`). When a cheaper model has proven reliable for simple prompts (based on historical request log data with minimum 10 requests and 90%+ success rate), the middleware automatically downgrades.
+
+### Quality gate
+
+"Reliable" on its own only means *the API call didn't error*. A cheap model can succeed every time while producing weak answers. When [LLM grading](#llm-grading) is enabled, smart routing also consults the recorded `grade_score`: a cheaper model is only chosen if its graded responses for that request type average at least **0.65** (the "good" boundary) across at least **10 graded requests**.
+
+The gate is a one-way veto, not a tie-breaker. The cheapest cost-and-success-eligible model is still the one picked; a poor average grade simply removes a candidate. Crucially, **too few graded requests means "no signal", not "bad"**: a model with fewer than 10 graded samples is judged on cost and success rate exactly as before, so installs without grading enabled see no change in routing behavior.
+
+The downgrade decision is logged with the candidate's graded quality, e.g. `... (avg grade: 0.82 over 14 graded)` or `... (ungraded)`.
 
 ### Extending complexity signals
 
