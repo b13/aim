@@ -81,6 +81,33 @@
             <trans-unit id="tx_aim_configuration.columns.output_token_cost.label" resname="tx_aim_configuration.columns.output_token_cost.label">
                 <source>Output Token Cost (per 1M)</source>
             </trans-unit>
+            <trans-unit id="tx_aim_configuration.tab.grading" resname="tx_aim_configuration.tab.grading">
+                <source>LLM Grading</source>
+            </trans-unit>
+            <trans-unit id="tx_aim_configuration.palette.grading.label" resname="tx_aim_configuration.palette.grading.label">
+                <source>Response Quality Grading</source>
+            </trans-unit>
+            <trans-unit id="tx_aim_configuration.columns.grading_enabled.label" resname="tx_aim_configuration.columns.grading_enabled.label">
+                <source>Enable LLM grading</source>
+            </trans-unit>
+            <trans-unit id="tx_aim_configuration.columns.grading_enabled.description" resname="tx_aim_configuration.columns.grading_enabled.description">
+                <source>When enabled, successful responses from this configuration are scored by a second LLM (the judge) after the response has been delivered. The score, label, and reason are stored on the request log row. Grading only runs when the effective privacy level is "standard". Reduced or none disables it.</source>
+            </trans-unit>
+            <trans-unit id="tx_aim_configuration.columns.judge_configuration_uid.label" resname="tx_aim_configuration.columns.judge_configuration_uid.label">
+                <source>Judge configuration</source>
+            </trans-unit>
+            <trans-unit id="tx_aim_configuration.columns.judge_configuration_uid.description" resname="tx_aim_configuration.columns.judge_configuration_uid.description">
+                <source>The AiM configuration used to score responses. Should be a separate, cheaper or specialized configuration that supports the conversation capability. Cannot be this configuration itself.</source>
+            </trans-unit>
+            <trans-unit id="tx_aim_configuration.columns.grading_rubric.label" resname="tx_aim_configuration.columns.grading_rubric.label">
+                <source>Grading rubric (judge system prompt)</source>
+            </trans-unit>
+            <trans-unit id="tx_aim_configuration.columns.grading_rubric.description" resname="tx_aim_configuration.columns.grading_rubric.description">
+                <source>System prompt for the judge. Describe what to evaluate (e.g. factual accuracy, relevance, tone). The judge is instructed automatically to respond with JSON containing score (0.0–1.0), label (poor|fair|good|excellent), and reason. No need to mention the output format here.</source>
+            </trans-unit>
+            <trans-unit id="tx_aim_configuration.columns.grading_rubric.placeholder" resname="tx_aim_configuration.columns.grading_rubric.placeholder">
+                <source>Evaluate the response for factual accuracy and relevance to the user's prompt.</source>
+            </trans-unit>
             <trans-unit id="permissions.header" resname="permissions.header">
                 <source>AI Management</source>
             </trans-unit>

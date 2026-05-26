@@ -34,6 +34,8 @@ class RequestLogDemand
         protected ?bool $success = null,
         protected int $dateFrom = 0,
         protected int $dateTo = 0,
+        protected string $gradeStatus = '',
+        protected string $gradeLabel = '',
     ) {
         if (!in_array($orderField, self::ORDER_FIELDS, true)) {
             $orderField = self::DEFAULT_ORDER_FIELD;
@@ -65,7 +67,29 @@ class RequestLogDemand
             isset($demand['success']) && $demand['success'] !== '' ? (bool)(int)$demand['success'] : null,
             (int)($demand['date_from'] ?? 0),
             (int)($demand['date_to'] ?? 0),
+            (string)($demand['grade_status'] ?? ''),
+            (string)($demand['grade_label'] ?? ''),
         );
+    }
+
+    public function getGradeStatus(): string
+    {
+        return $this->gradeStatus;
+    }
+
+    public function hasGradeStatus(): bool
+    {
+        return $this->gradeStatus !== '';
+    }
+
+    public function getGradeLabel(): string
+    {
+        return $this->gradeLabel;
+    }
+
+    public function hasGradeLabel(): bool
+    {
+        return $this->gradeLabel !== '';
     }
 
     public function getOrderField(): string
@@ -166,7 +190,9 @@ class RequestLogDemand
             || $this->hasModelUsed()
             || $this->hasSuccess()
             || $this->hasDateFrom()
-            || $this->hasDateTo();
+            || $this->hasDateTo()
+            || $this->hasGradeStatus()
+            || $this->hasGradeLabel();
     }
 
     public function getPage(): int
@@ -207,6 +233,12 @@ class RequestLogDemand
         }
         if ($this->hasDateTo()) {
             $parameters['date_to'] = $this->getDateTo();
+        }
+        if ($this->hasGradeStatus()) {
+            $parameters['grade_status'] = $this->getGradeStatus();
+        }
+        if ($this->hasGradeLabel()) {
+            $parameters['grade_label'] = $this->getGradeLabel();
         }
         return $parameters;
     }

@@ -84,6 +84,7 @@ class RequestLogController
         $pagination = new SimplePagination($paginator);
 
         $statistics = $this->logRepository->getStatistics();
+        $statistics['pending_grades'] = $this->logRepository->countPendingGradesOlderThan(3600);
 
         // Build pagination base URL with demand filters (append &page=N in template)
         $paginationBaseParams = [
@@ -149,6 +150,12 @@ class RequestLogController
                 'complexity_score' => (float)($entry['complexity_score'] ?? 0),
                 'reroute_type' => $entry['reroute_type'] ?? '',
                 'reroute_reason' => $entry['reroute_reason'] ?? '',
+                'grade_status' => $entry['grade_status'] ?? 'none',
+                'grade_score' => (float)($entry['grade_score'] ?? 0),
+                'grade_label' => $entry['grade_label'] ?? '',
+                'grade_reason' => $entry['grade_reason'] ?? '',
+                'judge_model' => $entry['judge_model'] ?? '',
+                'judge_cost' => number_format((float)($entry['judge_cost'] ?? 0), 6),
             ];
         }
 

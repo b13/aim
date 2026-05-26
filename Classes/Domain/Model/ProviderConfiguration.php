@@ -37,6 +37,9 @@ final class ProviderConfiguration
     public readonly string $privacyLevel;
     public readonly bool $reroutingAllowed;
     public readonly bool $autoModelSwitch;
+    public readonly bool $gradingEnabled;
+    public readonly int $judgeConfigurationUid;
+    public readonly string $gradingRubric;
 
     public function __construct(
         public readonly array $row,
@@ -54,6 +57,9 @@ final class ProviderConfiguration
         $this->privacyLevel = (string)($row['privacy_level'] ?? 'standard');
         $this->reroutingAllowed = (bool)($row['rerouting_allowed'] ?? true);
         $this->autoModelSwitch = (bool)($row['auto_model_switch'] ?? true);
+        $this->gradingEnabled = (bool)($row['grading_enabled'] ?? false);
+        $this->judgeConfigurationUid = (int)($row['judge_configuration_uid'] ?? 0);
+        $this->gradingRubric = (string)($row['grading_rubric'] ?? '');
     }
 
     /**

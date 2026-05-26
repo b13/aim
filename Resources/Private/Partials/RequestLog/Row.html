@@ -40,6 +40,21 @@
     <td>{entry.cost -> f:format.number(decimals: 6)}</td>
     <td>{entry.duration_ms -> f:format.number(decimals: 0, thousandsSeparator: ',')} ms</td>
     <td>
+        <f:switch expression="{entry.grade_status}">
+            <f:case value="done">
+                <f:switch expression="{entry.grade_label}">
+                    <f:case value="excellent"><span class="badge badge-success" title="{entry.grade_reason -> f:format.htmlspecialchars()}">excellent ({entry.grade_score -> f:format.number(decimals: 2)})</span></f:case>
+                    <f:case value="good"><span class="badge badge-info" title="{entry.grade_reason -> f:format.htmlspecialchars()}">good ({entry.grade_score -> f:format.number(decimals: 2)})</span></f:case>
+                    <f:case value="fair"><span class="badge badge-warning" title="{entry.grade_reason -> f:format.htmlspecialchars()}">fair ({entry.grade_score -> f:format.number(decimals: 2)})</span></f:case>
+                    <f:defaultCase><span class="badge badge-danger" title="{entry.grade_reason -> f:format.htmlspecialchars()}">{entry.grade_label} ({entry.grade_score -> f:format.number(decimals: 2)})</span></f:defaultCase>
+                </f:switch>
+            </f:case>
+            <f:case value="pending"><span class="badge badge-secondary"><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.grade.pending" /></span></f:case>
+            <f:case value="failed"><span class="badge badge-warning" title="{entry.grade_error -> f:format.htmlspecialchars()}"><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.grade.failed" /></span></f:case>
+            <f:defaultCase><span class="text-body-tertiary">-</span></f:defaultCase>
+        </f:switch>
+    </td>
+    <td>
         <f:if condition="{entry.rerouted}">
             <f:if condition="{entry.reroute_type} == 'fallback'">
                 <f:then><span class="badge badge-info" title="{entry.reroute_reason -> f:format.htmlspecialchars()}"><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.status.fallback" /></span></f:then>

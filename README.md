@@ -40,15 +40,16 @@ A few lines to add AI to any TYPO3 extension. No API keys in your code, no provi
 - Budget limits and rate limiting per user (including admins as a safety net)
 - Privacy levels (standard / reduced / none) per provider
 - Provider group restrictions and capability permissions via native TYPO3 mechanisms
+- LLM grading: score response quality with a second model acting as a judge
 
 **Under the hood:**
 - Zero provider dependencies. Install Symfony AI bridge packages as needed.
 - Auto-discovery of installed bridges (OpenAI, Anthropic, Gemini, Mistral, Ollama, etc.)
 - Capability-based routing with model-level awareness
 - Auto model switch: one config covers all capabilities
-- Smart routing: routes simple prompts to cheaper models based on historical cost data
+- Smart routing: routes simple prompts to cheaper models based on historical cost, reliability, and (with grading) quality data
 - Fallback chains: automatic retry with alternative providers on failure
-- 8-layer middleware pipeline: retry, access control, smart routing, capability validation, logging, cost tracking, events, dispatch
+- 9-layer middleware pipeline: retry, access control, smart routing, capability validation, grading, logging, cost tracking, events, dispatch
 
 ## Installation
 
@@ -76,6 +77,37 @@ Any installed `symfony/ai-*-platform` package is **auto-discovered** at containe
 After installation, create a provider configuration in the backend (Admin Tools > AiM > Providers) with your API key and preferred model.
 
 > **Local providers (Ollama, LM Studio):** The *API Key* field doubles as the endpoint URL. Enter `http://localhost:11434` (Ollama) or `http://localhost:1234` (LM Studio) instead of a key. The available models are then fetched live from that endpoint.
+
+## Trying AiM from the command line
+
+Once a provider configuration exists, you can fire requests without writing an extension first. The `aim:test` command sends a one-off request through the full pipeline and reports the response, model used, token usage, cost, timing, and whether a request-log row was written:
+
+```bash
+# Text generation (default capability)
+vendor/bin/typo3 aim:test text --prompt "Write a haiku about TYPO3"
+
+# Conversation, against a specific provider
+vendor/bin/typo3 aim:test conversation -p "anthropic:*" --prompt "Explain dependency injection"
+
+# Translation
+vendor/bin/typo3 aim:test translate --prompt "Hello world" --from English --to German
+
+# Embeddings
+vendor/bin/typo3 aim:test embed --prompt "TYPO3 is an open-source CMS"
+```
+
+The capability is a positional argument (`text`, `conversation`, `translate`, or `embed`; defaults to `text`). Options:
+
+| Option | Purpose |
+|---|---|
+| `--prompt` | The prompt / text to send |
+| `--provider` / `-p` | Provider notation (`openai:gpt-4o`, `anthropic:*`); defaults to the configured default |
+| `--site` | Resolve the provider from a site's `settings.yaml` instead of the database; takes precedence over `--provider` |
+| `--system-prompt` | Optional system prompt |
+| `--max-tokens` | Token limit for the response |
+| `--from` / `--to` | Source / target language (translate only) |
+
+Because it runs through the real pipeline, every call also lands in the request log. A quick way to see logging, cost tracking, smart routing, and grading in action before integrating the API into your own code.
 
 ## Usage
 
@@ -437,6 +469,14 @@ The `SmartRoutingMiddleware` classifies prompt complexity using language-agnosti
 
 Classification is logged per request (`complexity_score`, `complexity_label`, `complexity_reason`). When a cheaper model has proven reliable for simple prompts (based on historical request log data with minimum 10 requests and 90%+ success rate), the middleware automatically downgrades.
 
+### Quality gate
+
+"Reliable" on its own only means *the API call didn't error*. A cheap model can succeed every time while producing weak answers. When [LLM grading](#llm-grading) is enabled, smart routing also consults the recorded `grade_score`: a cheaper model is only chosen if its graded responses for that request type average at least **0.65** (the "good" boundary) across at least **10 graded requests**.
+
+The gate is a one-way veto, not a tie-breaker. The cheapest cost-and-success-eligible model is still the one picked; a poor average grade simply removes a candidate. Crucially, **too few graded requests means "no signal", not "bad"**: a model with fewer than 10 graded samples is judged on cost and success rate exactly as before, so installs without grading enabled see no change in routing behavior.
+
+The downgrade decision is logged with the candidate's graded quality, e.g. `... (avg grade: 0.82 over 14 graded)` or `... (ungraded)`.
+
 ### Extending complexity signals
 
 Ship a `Configuration/SmartRouting/ComplexitySignals.php` in any extension:
@@ -456,6 +496,49 @@ Or add signals at runtime:
 ```php
 $GLOBALS['TYPO3_CONF_VARS']['EXTENSIONS']['aim']['complexitySignals']['de']['complex'][] = 'analysiere';
 ```
+
+## LLM Grading
+
+AiM can score the quality of AI responses using a second model as a judge ("LLM-as-a-judge"). Grading is opt-in per provider configuration and runs *after* the response has been delivered to the caller, so it adds no latency to the live request.
+
+### Enabling grading
+
+On any provider configuration (Admin Tools > AiM > Providers), open the **LLM Grading** tab:
+
+| Field | Purpose |
+|---|---|
+| `grading_enabled` | Turns grading on for this configuration |
+| `judge_configuration_uid` | A *different* AiM configuration used to score responses — typically a cheaper or specialized model that supports the conversation capability |
+| `grading_rubric` | The judge's instructions: what to evaluate (factual accuracy, relevance, tone, ...). The required JSON output format is appended automatically. |
+
+Grading covers `ConversationRequest` and `TextGenerationRequest`. It only runs when the effective privacy level is `standard`, `reduced` and `none` skip it, since the judge needs the prompt and response content.
+
+### How it runs
+
+1. After a successful, gradeable response, `GraderMiddleware` marks the request log row `grade_status = pending` and registers a shutdown function.
+2. The shutdown function runs *after* the response is flushed to the caller, then calls the judge model.
+3. The judge returns a JSON `{score, label, reason}`, written back to the row (`grade_score`, `grade_label`, `grade_reason`).
+
+If the shutdown path is missed (CLI crash, an unusual SAPI), a scheduler command picks up the stragglers:
+
+```bash
+vendor/bin/typo3 aim:grade-pending
+```
+
+Run it from the TYPO3 scheduler every few minutes. It grades rows still marked `pending` that are older than `--min-age` seconds (default 60), so it never races the live shutdown handler. The request log module shows a warning when a pending backlog builds up.
+
+### Grades
+
+The judge assigns one of four labels. When it returns a score but no recognizable label, the label is derived from the score:
+
+| Label | Score range |
+|---|---|
+| `poor` | 0.00–0.39 |
+| `fair` | 0.40–0.64 |
+| `good` | 0.65–0.84 |
+| `excellent` | 0.85–1.00 |
+
+The judge call deliberately bypasses the middleware pipeline (it would otherwise produce a duplicate request-log row), but its cost is still rolled into the judge configuration's `total_cost` and recorded on the graded row's `judge_cost` column.
 
 ## Custom Middleware
 
@@ -544,6 +627,7 @@ The middleware pipeline is intentionally the only logging extension point: it gi
 | `AccessControlMiddleware` | 90 | Provider access, capability permissions, budgets, rate limits |
 | `SmartRoutingMiddleware` | 75 | Complexity classification, cost-based model downgrade |
 | `CapabilityValidationMiddleware` | 50 | Validates provider capability, auto-reroutes if needed |
+| `GraderMiddleware` | -600 | Schedules LLM-as-a-judge grading after a successful response |
 | `RequestLoggingMiddleware` | -700 | Logs every request (respects privacy levels) |
 | `CostTrackingMiddleware` | -800 | Updates cumulative cost per configuration |
 | `EventDispatchMiddleware` | -900 | Fires `BeforeAiRequestEvent` / `AfterAiResponseEvent` |
@@ -580,6 +664,7 @@ Monitor all AI requests:
 - **User tracking**: shows the backend username for each request (empty for CLI/automation)
 - **Full content**: prompt, system prompt, and response content per request (respects privacy levels)
 - **Complexity classification**: score, label, and reason for each request
+- **Quality grades**: LLM-as-a-judge score, label, and reason per request when grading is enabled
 - **Token details**: prompt, completion, cached, and reasoning token breakdowns
 - **Rerouting info**: fallback and capability rerouting details
 
@@ -604,7 +689,7 @@ All widgets are refreshable and grouped under "AiM" in the widget picker. The re
 | Table | Purpose |
 |---|---|
 | `tx_aim_configuration` | Provider configurations (TCA-managed). API keys, models, cost tracking, governance settings. |
-| `tx_aim_request_log` | Per-request log (no TCA). Tokens, cost, duration, prompt/response content, complexity classification, rerouting details. |
+| `tx_aim_request_log` | Per-request log (no TCA). Tokens, cost, duration, prompt/response content, complexity classification, rerouting details, LLM grading results. |
 | `tx_aim_usage_budget` | Per-user budget tracking. Rolling period counters for tokens, cost, and request count. |
 
 See `ext_tables.sql` for the full schema.
