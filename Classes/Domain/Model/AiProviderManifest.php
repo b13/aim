@@ -97,11 +97,15 @@ final class AiProviderManifest
         if ($this->modelCapabilities === []) {
             return [];
         }
-        // Collect capabilities that ONLY appear in models with a reduced set
-        $allProviderCapabilities = count($this->capabilities);
+        // Use the maximum capability count of any listed model as the threshold.
+        // Comparing against count($this->capabilities) (ALL_CAPABILITIES) breaks
+        // when provider-level capabilities include interfaces no model in the
+        // catalog supports (e.g. TranslationCapableInterface), because then every
+        // model is considered "reduced" and every capability becomes specialized.
+        $maxModelCapabilities = max(array_map('count', $this->modelCapabilities));
         $specialized = [];
         foreach ($this->modelCapabilities as $caps) {
-            if (count($caps) < $allProviderCapabilities) {
+            if (count($caps) < $maxModelCapabilities) {
                 foreach ($caps as $cap) {
                     $specialized[$cap] = true;
                 }
@@ -109,7 +113,7 @@ final class AiProviderManifest
         }
         // Remove capabilities that also appear in models with the full set
         foreach ($this->modelCapabilities as $caps) {
-            if (count($caps) >= $allProviderCapabilities) {
+            if (count($caps) >= $maxModelCapabilities) {
                 foreach ($caps as $cap) {
                     unset($specialized[$cap]);
                 }

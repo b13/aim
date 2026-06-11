@@ -330,17 +330,18 @@ final class ProviderResolver
             }
         }
 
-        $result = array_merge($defaults, $others);
-
-        // If no direct matches, try auto model switch
-        if ($result === []) {
+        // If no default directly supports the capability, try auto model switch first.
+        // This ensures a default provider's alternative model (e.g. OpenAI → text-embedding-ada-002)
+        // takes priority over a non-default that only claims support via empty modelCapabilities
+        // (e.g. Ollama with a dynamic catalog where every model appears capable of everything).
+        if ($defaults === []) {
             $switched = $this->tryAutoModelSwitch($capabilityFqcn, $configurations);
             if ($switched !== null) {
-                $result[] = $switched;
+                array_unshift($others, $switched);
             }
         }
 
-        return $result;
+        return array_merge($defaults, $others);
     }
 
     /**
