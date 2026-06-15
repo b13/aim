@@ -33,8 +33,20 @@ final class ToolDefinition
         public readonly bool $strict = false,
     ) {}
 
+    /**
+     * @deprecated since b13/aim 0.3.0, will be removed in 1.0.0. Tool definitions are
+     *             now serialized by Symfony AI's per-provider ToolNormalizer — pass
+     *             \Symfony\AI\Platform\Tool\Tool objects via $options['tools'] instead.
+     *             This method has no remaining callers inside the extension.
+     */
     public function toArray(): array
     {
+        trigger_error(
+            __METHOD__ . '() is deprecated and will be removed in b13/aim 1.0.0. Tool definitions are now '
+            . 'serialized by the Symfony AI bridge ToolNormalizers; pass \Symfony\AI\Platform\Tool\Tool objects instead.',
+            E_USER_DEPRECATED
+        );
+
         return [
             'type' => 'function',
             'function' => [

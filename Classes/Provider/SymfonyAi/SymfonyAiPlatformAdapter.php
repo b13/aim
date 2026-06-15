@@ -39,6 +39,8 @@ use Symfony\AI\Platform\Message\Message;
 use Symfony\AI\Platform\Message\MessageBag;
 use Symfony\AI\Platform\ProviderInterface;
 use Symfony\AI\Platform\TokenUsage\TokenUsageInterface;
+use Symfony\AI\Platform\Tool\ExecutionReference;
+use Symfony\AI\Platform\Tool\Tool as SymfonyTool;
 
 /**
  * Bridges any Symfony AI Platform bridge to AiM's provider system.
@@ -187,7 +189,15 @@ class SymfonyAiPlatformAdapter implements
         $platform = $this->getPlatform($request->configuration);
         $messages = $this->buildMessageBag($request->messages, $request->systemPrompt);
 
-        $tools = array_map(static fn($tool) => $tool->toArray(), $request->tools);
+        $tools = array_map(
+            static fn($tool) => new SymfonyTool(
+                new ExecutionReference($tool->name),
+                $tool->name,
+                $tool->description,
+                $tool->parameters ?: ['type' => 'object'],
+            ),
+            $request->tools,
+        );
 
         $options = $this->buildOptions($request->configuration->model, $request->maxTokens, $request->temperature, [
             'tools' => $tools,
