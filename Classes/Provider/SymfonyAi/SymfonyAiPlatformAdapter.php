@@ -23,8 +23,11 @@ use B13\Aim\Provider\AiProviderInterface;
 use B13\Aim\Request\ConversationRequest;
 use B13\Aim\Request\EmbeddingRequest;
 use B13\Aim\Request\Message\AbstractMessage;
+use B13\Aim\Request\Message\AssistantMessage;
+use B13\Aim\Request\Message\ToolMessage;
 use B13\Aim\Request\TextGenerationRequest;
 use B13\Aim\Request\ToolCallingRequest;
+use B13\Aim\Request\ToolResult;
 use B13\Aim\Request\TranslationRequest;
 use B13\Aim\Request\VisionRequest;
 use B13\Aim\Response\AiUsageStatistics;
@@ -38,6 +41,7 @@ use Symfony\AI\Platform\Message\Content\Image;
 use Symfony\AI\Platform\Message\Message;
 use Symfony\AI\Platform\Message\MessageBag;
 use Symfony\AI\Platform\ProviderInterface;
+use Symfony\AI\Platform\Result\ToolCall as SymfonyToolCall;
 use Symfony\AI\Platform\TokenUsage\TokenUsageInterface;
 use Symfony\AI\Platform\Tool\ExecutionReference;
 use Symfony\AI\Platform\Tool\Tool as SymfonyTool;
@@ -187,7 +191,7 @@ class SymfonyAiPlatformAdapter implements
     public function processToolCallingRequest(ToolCallingRequest $request): ToolCallingResponse
     {
         $platform = $this->getPlatform($request->configuration);
-        $messages = $this->buildMessageBag($request->messages, $request->systemPrompt);
+        $messages = $this->buildMessageBag($request->messages, $request->systemPrompt, true, $request->toolResults);
 
         $tools = array_map(
             static fn($tool) => new SymfonyTool(
@@ -418,23 +422,76 @@ class SymfonyAiPlatformAdapter implements
     /**
      * Convert AiM messages to a Symfony AI MessageBag.
      *
+     * With $nativeToolProtocol enabled, assistant messages carrying tool calls
+     * and tool(-result) messages are mapped to Symfony AI's native message
+     * types, so each bridge serialises its provider-specific round-trip shape
+     * (tool_use/tool_result blocks on Anthropic, function_call/
+     * function_call_output items on the OpenAI Responses API, functionCall/
+     * functionResponse parts on Gemini, nested tool_calls/tool messages on the
+     * Chat Completions dialect).
+     *
+     * Native tool blocks are only valid when the request also defines tools —
+     * providers reject or blank a tool exchange without a tools option. Only
+     * processToolCallingRequest() enables this; requests without tools keep
+     * flattening tool messages to plain text turns.
+     *
+     * Providers require the assistant turn that requested a tool call to
+     * precede the corresponding result, so callers passing tool results must
+     * keep that assistant message (with its tool calls) in the history.
+     *
      * @param list<AbstractMessage> $aiMessages
+     * @param list<ToolResult> $toolResults
      */
-    private function buildMessageBag(array $aiMessages, string $systemPrompt): MessageBag
-    {
+    private function buildMessageBag(
+        array $aiMessages,
+        string $systemPrompt,
+        bool $nativeToolProtocol = false,
+        array $toolResults = [],
+    ): MessageBag {
         $messages = [];
         if ($systemPrompt !== '') {
             $messages[] = Message::forSystem($systemPrompt);
         }
+        // Tool calls seen in assistant turns, keyed by id, so tool results can
+        // reference the full call (Gemini needs the tool name in the response).
+        $seenToolCalls = [];
         foreach ($aiMessages as $msg) {
             $content = is_string($msg->content) ? $msg->content : '';
+            if ($nativeToolProtocol && $msg instanceof AssistantMessage && $msg->toolCalls !== []) {
+                $parts = $content !== '' ? [$content] : [];
+                foreach ($msg->toolCalls as $call) {
+                    $seenToolCalls[$call->id] = $this->toSymfonyToolCall($call);
+                    $parts[] = $seenToolCalls[$call->id];
+                }
+                $messages[] = Message::ofAssistant(...$parts);
+                continue;
+            }
+            if ($nativeToolProtocol && $msg instanceof ToolMessage) {
+                $messages[] = Message::ofToolCall(
+                    $seenToolCalls[$msg->toolCallId] ?? new SymfonyToolCall($msg->toolCallId, ''),
+                    $content,
+                );
+                continue;
+            }
             $messages[] = match ($msg->role) {
                 'system' => Message::forSystem($content),
                 'assistant' => Message::ofAssistant($content),
                 default => Message::ofUser($content),
             };
         }
+        foreach ($toolResults as $toolResult) {
+            $messages[] = Message::ofToolCall(
+                $seenToolCalls[$toolResult->toolCallId]
+                    ?? new SymfonyToolCall($toolResult->toolCallId, $toolResult->name),
+                $toolResult->output,
+            );
+        }
         return new MessageBag(...$messages);
+    }
+
+    private function toSymfonyToolCall(ToolCall $call): SymfonyToolCall
+    {
+        return new SymfonyToolCall($call->id, $call->name, $call->getDecodedArguments());
     }
 
     /**
