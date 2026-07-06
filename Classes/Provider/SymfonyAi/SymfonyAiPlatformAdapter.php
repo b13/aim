@@ -203,12 +203,23 @@ class SymfonyAiPlatformAdapter implements
             $request->tools,
         );
 
-        $options = $this->buildOptions($request->configuration->model, $request->maxTokens, $request->temperature, [
-            'tools' => $tools,
-        ]);
+        $extra = ['tools' => $tools];
+        if ($request->stream) {
+            $extra['stream'] = true;
+        }
+        $options = $this->buildOptions($request->configuration->model, $request->maxTokens, $request->temperature, $extra);
 
         try {
             $result = $platform->invoke($request->configuration->model, $messages, $options);
+
+            if ($request->stream) {
+                $streamIterator = new StreamChunkIterator(
+                    $result->asStream(),
+                    $request->configuration,
+                );
+                return new ToolCallingResponse('', streamIterator: $streamIterator);
+            }
+
             $usage = $this->extractUsage($result, $request->configuration);
             $rawResponse = $this->extractRawResponse($result);
             $content = $this->resolveTextContent($result);

@@ -23,6 +23,9 @@ class ToolCallingResponse extends TextResponse
 {
     /**
      * @param list<ToolCall> $toolCalls
+     * @param StreamChunkIterator|null $streamIterator When streaming, text chunks yield
+     *        here and tool calls are available via $streamIterator->getToolCalls()
+     *        once the stream is exhausted
      */
     public function __construct(
         string $content,
@@ -30,20 +33,39 @@ class ToolCallingResponse extends TextResponse
         AiUsageStatistics $usage = new AiUsageStatistics(),
         array $rawResponse = [],
         array $errors = [],
+        public readonly ?StreamChunkIterator $streamIterator = null,
     ) {
         parent::__construct($content, $usage, $rawResponse, $errors);
     }
 
+    public function isStreaming(): bool
+    {
+        return $this->streamIterator !== null;
+    }
+
     /**
      * Whether the model requests tool execution before continuing.
+     * When streaming, only meaningful after the stream is exhausted.
      */
     public function requiresToolExecution(): bool
     {
-        return $this->toolCalls !== [];
+        return $this->getToolCalls() !== [];
+    }
+
+    /**
+     * @return list<ToolCall>
+     */
+    public function getToolCalls(): array
+    {
+        if ($this->streamIterator !== null) {
+            return $this->streamIterator->getToolCalls();
+        }
+        return $this->toolCalls;
     }
 
     public function isSuccessful(): bool
     {
-        return $this->errors === [] && ($this->content !== '' || $this->requiresToolExecution());
+        return $this->errors === []
+            && ($this->content !== '' || $this->requiresToolExecution() || $this->isStreaming());
     }
 }
