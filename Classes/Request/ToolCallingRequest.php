@@ -29,6 +29,8 @@ final class ToolCallingRequest implements AiRequestInterface
      * @param list<AbstractMessage> $messages Conversation messages
      * @param list<ToolDefinition> $tools Available tools the model may call
      * @param list<ToolResult> $toolResults Results from previously invoked tools (for multi-turn)
+     * @param bool $stream Stream the response; text chunks yield via the response's
+     *                     streamIterator, tool calls are collected on the iterator
      */
     public function __construct(
         public readonly ProviderConfiguration $configuration,
@@ -42,6 +44,7 @@ final class ToolCallingRequest implements AiRequestInterface
         public readonly string $user = '',
         public readonly array $metadata = [],
         public readonly ?PrivacyLevel $privacyLevelOverride = null,
+        public readonly bool $stream = false,
     ) {}
 
     public function getConfiguration(): ProviderConfiguration
