@@ -330,6 +330,41 @@ if ($response->requiresToolExecution()) {
 }
 ```
 
+Tool schemas are serialized natively per provider (OpenAI, Anthropic, Gemini, ...) via the underlying Symfony AI bridge. You never need to worry about wire-format differences between providers.
+
+#### Multi-turn: feeding tool results back
+
+A single round only gets you the model's *request* to call a tool. To let the model use the result, execute the tool yourself, then send a follow-up `ToolCallingRequest` carrying the assistant's tool-call message plus the result:
+
+```php
+use B13\Aim\Request\Message\AssistantMessage;
+use B13\Aim\Request\ToolResult;
+
+// $response is the ToolCallingResponse from the first round above.
+$followUp = new ToolCallingRequest(
+    configuration: $resolvedProvider->configuration,
+    messages: [
+        new UserMessage('What is the weather in Berlin?'),
+        new AssistantMessage($response->content, $response->toolCalls),
+    ],
+    tools: [/* same tool definitions as the first round */],
+    toolResults: array_map(
+        static fn($toolCall) => new ToolResult(
+            toolCallId: $toolCall->id,
+            name: $toolCall->name,
+            output: json_encode(['temperature' => 21, 'condition' => 'sunny']), // your tool's actual result
+        ),
+        $response->toolCalls,
+    ),
+);
+
+$response = $this->pipeline->dispatch($followUp, $resolvedProvider);
+// $response->content now contains the model's answer using the tool result.
+// Repeat while $response->requiresToolExecution() for agentic, multi-step tool use.
+```
+
+Keep looping (execute tool calls → send `toolResults` → check `requiresToolExecution()` again) until the model returns plain content. Always cap the number of rounds — nothing in AiM stops a model from calling tools indefinitely.
+
 ## Capabilities
 
 Each provider implements one or more capability interfaces:
@@ -611,6 +646,32 @@ class MyMiddleware implements AiMiddlewareInterface
 }
 ```
 
+`$response` can be an unconsumed stream (`ConversationResponse`/`ToolCallingResponse` with `stream: true`) — see [Streaming responses](#streaming-responses) below before reading `$response->content` or `$response->usage` in your own middleware.
+
+### Streaming responses
+
+Check `$response->isStreaming()` before reading `$response->content` or `$response->usage`. For a streaming response, both are still placeholders at the point any middleware sees them. The real values only exist once the caller (e.g. a controller sending SSE chunks) has fully drained `$response->streamIterator`. Reading them synchronously, as a naive logging middleware would, silently records zero tokens and zero cost instead of erroring, which makes the mistake easy to miss.
+
+`RequestLoggingMiddleware` and `CostTrackingMiddleware` handle this by registering a `register_shutdown_function`, the same mechanism `GraderMiddleware` uses to defer grading, that reads the final numbers off the *same* `StreamChunkIterator` instance once PHP's shutdown phase runs, which in the normal request lifecycle only happens after the stream has already been fully consumed:
+
+```php
+$response = $next->handle($request, $provider, $configuration);
+
+if (($response instanceof ConversationResponse || $response instanceof ToolCallingResponse) && $response->isStreaming()) {
+    $streamIterator = $response->streamIterator;
+    register_shutdown_function(function () use ($streamIterator, $configuration): void {
+        $usage = $streamIterator->getUsage();                // now populated
+        $content = $streamIterator->getAccumulatedContent();  // now populated
+        // ...write your log/metric with the real numbers
+    });
+    return $response;
+}
+
+// Non-streaming: $response->content / $response->usage are already final here.
+```
+
+One caveat: if the client disconnects mid-stream, or the process is killed before PHP's shutdown phase runs, the deferred write never happens and can't be recovered afterward. The token/cost data only ever existed in that one request's memory. Unlike grading (retryable later via `aim:grade-pending`, since the underlying prompt/response is already durably stored before grading is deferred), there is currently no safety-net command for this: a crashed stream simply goes unlogged.
+
 ### Enriching the request log
 
 Every request DTO carries a `metadata` array that lands in the `metadata` JSON column of `tx_aim_request_log`. To attach extension-specific context, enrich it from your custom middleware via `$request->withMetadata([...])` and forward the new instance. The original request stays immutable; downstream middlewares see the merged metadata:
@@ -635,7 +696,9 @@ final class MyExtensionContextMiddleware implements AiMiddlewareInterface
 
 ### Detailed / parallel logging
 
-For richer or separate logging, register a middleware at a lower priority than `RequestLoggingMiddleware` (use a priority below `-700`). It sees the response, the resolved `$configuration`, and any metadata enriched by earlier middlewares, and is free to write wherever it likes without touching `tx_aim_request_log`:
+For richer or separate logging, register a middleware at a lower priority than `RequestLoggingMiddleware` (use a priority below `-700`). It sees the response, the resolved `$configuration`, and any metadata enriched by earlier middlewares, and is free to write wherever it likes without touching `tx_aim_request_log`.
+
+The example below only handles the non-streaming case for brevity. See [Streaming responses](#streaming-responses) above for the `register_shutdown_function` pattern if your middleware also needs to run for `conversationStream()` or streaming tool-calling requests, where `$response->usage`/`content` aren't populated yet at this point:
 
 ```php
 #[AsAiMiddleware(priority: -750)]
@@ -674,9 +737,9 @@ The middleware pipeline is intentionally the only logging extension point: it gi
 | `SmartRoutingMiddleware` | 75 | Complexity classification, cost-based model downgrade |
 | `CapabilityValidationMiddleware` | 50 | Validates provider capability, auto-reroutes if needed |
 | `GraderMiddleware` | -600 | Schedules LLM-as-a-judge grading after a successful response |
-| `RequestLoggingMiddleware` | -700 | Logs every request (respects privacy levels) |
-| `CostTrackingMiddleware` | -800 | Updates cumulative cost per configuration |
-| `EventDispatchMiddleware` | -900 | Fires `BeforeAiRequestEvent` / `AfterAiResponseEvent` |
+| `RequestLoggingMiddleware` | -700 | Logs every request (respects privacy levels); defers via shutdown function for streaming responses — see [Streaming responses](#streaming-responses) |
+| `CostTrackingMiddleware` | -800 | Updates cumulative cost per configuration; defers via shutdown function for streaming responses |
+| `EventDispatchMiddleware` | -900 | Fires `BeforeAiRequestEvent` / `AfterAiResponseEvent`; for a streaming response, `AfterAiResponseEvent` fires with the still-unconsumed response (listeners that need final content/usage should apply the same deferred pattern) |
 | `CoreDispatchMiddleware` | -1000 | Routes request to the correct provider capability method |
 
 ## Events

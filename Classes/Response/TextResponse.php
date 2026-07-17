@@ -32,4 +32,13 @@ class TextResponse
     {
         return $this->errors === [] && $this->content !== '';
     }
+
+    /**
+     * Whether this response carries an unconsumed stream (see ConversationResponse,
+     * ToolCallingResponse). Overridden by subclasses that support streaming.
+     */
+    public function isStreaming(): bool
+    {
+        return false;
+    }
 }

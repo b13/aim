@@ -192,10 +192,14 @@ final class Ai
      * string chunks as they arrive from the provider. The caller iterates
      * the stream and sends chunks to the client (e.g. via SSE).
      *
-     * Note: streaming bypasses the middleware pipeline for the response path.
-     * The request is still resolved and validated, but logging and cost
-     * tracking happen after the stream completes via the StreamChunkIterator's
-     * onComplete callback.
+     * Goes through the full middleware pipeline like every other request
+     * (access control, budgets, rate limiting, smart routing, fallback).
+     * Logging and cost tracking can't run synchronously here. Content and
+     * usage aren't known until the caller drains the stream, so
+     * RequestLoggingMiddleware and CostTrackingMiddleware detect the
+     * unconsumed stream and defer via register_shutdown_function instead,
+     * reading the real numbers off the same StreamChunkIterator once it's
+     * been consumed.
      *
      * @param list<AbstractMessage> $messages
      */
@@ -220,9 +224,16 @@ final class Ai
             stream: true,
         );
 
-        // For streaming, call the provider directly to get the stream iterator.
-        // The full middleware pipeline is synchronous — it can't handle streaming.
-        return $resolvedProvider->getCapability(ConversationCapableInterface::class)->processConversationRequest($request);
+        $response = $this->dispatch($request, ConversationCapableInterface::class);
+        if ($response instanceof ConversationResponse) {
+            return $response;
+        }
+
+        // Governance middlewares (access control, budgets, rate limits) can
+        // short-circuit before the provider is ever called, returning a plain
+        // TextResponse. Normalize to this method's declared return type
+        // instead of letting a TypeError surface for a denied request.
+        return new ConversationResponse($response->content, $response->usage, $response->rawResponse, $response->errors);
     }
 
     /**

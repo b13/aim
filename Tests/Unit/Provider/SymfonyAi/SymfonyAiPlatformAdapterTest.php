@@ -100,7 +100,7 @@ final class SymfonyAiPlatformAdapterTest extends TestCase
         self::assertInstanceOf(ToolCallMessage::class, $toolMessage);
         self::assertSame('call_1', $toolMessage->getToolCall()->getId());
         self::assertSame('get_weather', $toolMessage->getToolCall()->getName());
-        self::assertSame('{"temperature":21}', $toolMessage->getContent());
+        self::assertSame('{"temperature":21}', $toolMessage->asText());
     }
 
     #[Test]
@@ -122,7 +122,7 @@ final class SymfonyAiPlatformAdapterTest extends TestCase
         self::assertInstanceOf(ToolCallMessage::class, $toolMessage);
         self::assertSame('call_1', $toolMessage->getToolCall()->getId());
         self::assertSame('get_weather', $toolMessage->getToolCall()->getName());
-        self::assertSame('{"temperature":21}', $toolMessage->getContent());
+        self::assertSame('{"temperature":21}', $toolMessage->asText());
     }
 
     #[Test]

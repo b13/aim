@@ -18,7 +18,10 @@ use B13\Aim\Domain\Repository\RequestLogRepository;
 use B13\Aim\Governance\PrivacyLevel;
 use B13\Aim\Provider\AiProviderInterface;
 use B13\Aim\Request\AiRequestInterface;
+use B13\Aim\Response\ConversationResponse;
+use B13\Aim\Response\StreamChunkIterator;
 use B13\Aim\Response\TextResponse;
+use B13\Aim\Response\ToolCallingResponse;
 use Psr\Log\LoggerInterface;
 use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
 
@@ -57,9 +60,78 @@ final class RequestLoggingMiddleware implements AiMiddlewareInterface
             $error = $e;
             throw $e;
         } finally {
-            $durationMs = (int)((hrtime(true) - $start) / 1_000_000);
-            $this->logRequest($request, $response, $configuration, $durationMs, $error, $next->context);
+            if (($response instanceof ConversationResponse || $response instanceof ToolCallingResponse) && $response->isStreaming()) {
+                // Content and usage aren't known yet. The caller hasn't consumed
+                // the stream. Log after it has, instead of writing a phantom
+                // zero-cost row now. See deferLogRequest().
+                $this->deferLogRequest($request, $response, $configuration, $start, $next->context);
+            } else {
+                $durationMs = (int)((hrtime(true) - $start) / 1_000_000);
+                $this->logRequest($request, $response, $configuration, $durationMs, $error, $next->context);
+            }
         }
+    }
+
+    /**
+     * Registers a shutdown function that logs the request only once the stream
+     * has actually been drained by the caller (e.g. the controller's SSE loop),
+     * which, in the normal request lifecycle, always finishes before PHP's
+     * shutdown phase runs.
+     */
+    private function deferLogRequest(
+        AiRequestInterface $request,
+        ConversationResponse|ToolCallingResponse $response,
+        ProviderConfiguration $configuration,
+        float $start,
+        RequestContext $context,
+    ): void {
+        $streamIterator = $response->streamIterator;
+        if (!$streamIterator instanceof StreamChunkIterator) {
+            return;
+        }
+
+        register_shutdown_function(
+            function () use ($request, $response, $streamIterator, $configuration, $start, $context): void {
+                $this->applyStreamedLog($request, $response, $streamIterator, $configuration, $start, $context);
+            },
+        );
+    }
+
+    /**
+     * Resolves and writes the log row using the data the iterator accumulated
+     * while the caller drained it. Split out from deferLogRequest() so the
+     * actual logging logic is testable without waiting for PHP's shutdown
+     * phase to invoke the registered closure.
+     */
+    private function applyStreamedLog(
+        AiRequestInterface $request,
+        ConversationResponse|ToolCallingResponse $response,
+        StreamChunkIterator $streamIterator,
+        ProviderConfiguration $configuration,
+        float $start,
+        RequestContext $context,
+    ): void {
+        $resolved = $this->resolveStreamedResponse($response, $streamIterator);
+        $durationMs = (int)((hrtime(true) - $start) / 1_000_000);
+        $this->logRequest($request, $resolved, $configuration, $durationMs, null, $context);
+    }
+
+    /**
+     * Rebuilds the streaming response with the data the iterator accumulated
+     * while the caller consumed it. logRequest() otherwise has no way to know
+     * the streaming response's readonly content/usage were placeholders.
+     */
+    private function resolveStreamedResponse(
+        ConversationResponse|ToolCallingResponse $response,
+        StreamChunkIterator $streamIterator,
+    ): TextResponse {
+        $content = $streamIterator->getAccumulatedContent();
+        $usage = $streamIterator->getUsage();
+
+        if ($response instanceof ToolCallingResponse) {
+            return new ToolCallingResponse($content, $streamIterator->getToolCalls(), $usage, $response->rawResponse);
+        }
+        return new ConversationResponse($content, $usage, $response->rawResponse);
     }
 
     private function logRequest(
