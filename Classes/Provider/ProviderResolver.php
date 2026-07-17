@@ -424,10 +424,18 @@ final class ProviderResolver
                 continue; // Model already supports it — should have been found earlier
             }
 
-            $alternativeModel = $this->pickCheapestModel(
-                $manifest->findModelsForCapability($capabilityFqcn),
-                $config->providerIdentifier,
+            $candidates = $manifest->findModelsForCapability($capabilityFqcn);
+            // Prefer the most specialized model (fewest capabilities) first, e.g. a
+            // dedicated image model over a general-purpose chat model that merely also
+            // supports image output. This also matters functionally: some multi-capability
+            // models (e.g. OpenAI's "chatgpt-image-latest") use a different request contract
+            // than single-purpose models (e.g. "gpt-image-1") for the same capability.
+            usort(
+                $candidates,
+                static fn(string $a, string $b): int
+                    => count($manifest->modelCapabilities[$a] ?? []) <=> count($manifest->modelCapabilities[$b] ?? []),
             );
+            $alternativeModel = $this->pickCheapestModel($candidates, $config->providerIdentifier);
             if ($alternativeModel === null) {
                 continue;
             }

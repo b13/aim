@@ -29,8 +29,9 @@ A few lines to add AI to any TYPO3 extension. No API keys in your code, no provi
 ## Key features
 
 **For extension developers:**
-- Simple proxy API (`$ai->vision()`, `$ai->text()`, `$ai->translate()`, `$ai->embed()`)
+- Simple proxy API (`$ai->vision()`, `$ai->text()`, `$ai->translate()`, `$ai->embed()`, `$ai->generateImage()`)
 - Fluent builder for advanced parameters
+- Image generation with reference-image style transfer
 - Direct pipeline access for full control
 - Structured output (JSON Schema), tool calling, streaming
 
@@ -160,7 +161,40 @@ $response = $this->ai->embed(
     dimensions: 256,
     extensionKey: 'my_extension',
 );
+
+// Image generation
+$response = $this->ai->generateImage(
+    prompt: 'A minimalist header illustration of a lighthouse at sunset',
+    options: ['size' => '1536x1024', 'quality' => 'high'], // provider-specific, passed through as-is
+    extensionKey: 'my_extension',
+);
+if ($response instanceof \B13\Aim\Response\ImageGenerationResponse) {
+    foreach ($response->images as $image) {
+        if ($image->isUrl()) {
+            // Some providers return a temporary URL instead of the bytes.
+            file_put_contents('header.png', file_get_contents($image->url));
+        } else {
+            file_put_contents('header.png', base64_decode($image->data));
+        }
+    }
+}
 ```
+
+#### Image generation with a reference image (style transfer)
+
+Every editor prompting an image generator on their own produces a different look, inconsistent styles, colors, and composition scattered across the site. Instead, pass an existing on-brand image as a **style reference** alongside the prompt. AiM asks the provider to generate an image-to-image edit guided by it, so headers, teasers, and illustrations stay visually consistent site-wide instead of looking like they came from ten different tools:
+
+```php
+$response = $this->ai->generateImage(
+    prompt: 'A lighthouse at sunset, for the "About us" page header',
+    referenceImageData: base64_encode(file_get_contents('brand-style-reference.png')),
+    referenceMimeType: 'image/png',
+    options: ['size' => '1536x1024'],
+    extensionKey: 'my_extension',
+);
+```
+
+`options` is a generic pass-through bag since valid keys/values differ per provider (e.g. OpenAI also supports `background` for transparent images and `output_format` for png/jpeg/webp). The same option is available on the fluent builder via `->referenceImage($imageData, $mimeType)` (see [Tier 2](#tier-2-fluent-builder) below).
 
 #### Provider preference
 
@@ -198,6 +232,18 @@ $response = $this->ai->request()
     ->maxTokens(100)
     ->temperature(0.3)
     ->provider('openai:*')
+    ->from('my_extension')
+    ->send();
+```
+
+The same builder covers image generation, including the reference-image style transfer shown above:
+
+```php
+$response = $this->ai->request()
+    ->image()
+    ->prompt('A lighthouse at sunset, for the "About us" page header')
+    ->referenceImage($imageData, 'image/png')
+    ->options(['size' => '1536x1024'])
     ->from('my_extension')
     ->send();
 ```

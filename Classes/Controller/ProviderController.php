@@ -13,6 +13,8 @@ declare(strict_types=1);
 namespace B13\Aim\Controller;
 
 use B13\Aim\Capability\ConversationCapableInterface;
+use B13\Aim\Capability\EmbeddingCapableInterface;
+use B13\Aim\Capability\ImageGenerationCapableInterface;
 use B13\Aim\Capability\TextGenerationCapableInterface;
 use B13\Aim\Domain\Model\AiProviderManifest;
 use B13\Aim\Domain\Model\ProviderConfiguration;
@@ -24,6 +26,8 @@ use B13\Aim\Provider\LiveModelDiscovery;
 use B13\Aim\Registry\AiProviderRegistry;
 use B13\Aim\Registry\DisabledModelRegistry;
 use B13\Aim\Request\ConversationRequest;
+use B13\Aim\Request\EmbeddingRequest;
+use B13\Aim\Request\ImageGenerationRequest;
 use B13\Aim\Request\Message\UserMessage;
 use B13\Aim\Request\TextGenerationRequest;
 use Psr\Http\Message\ResponseInterface;
@@ -301,28 +305,54 @@ class ProviderController
         $manifest = $this->providerRegistry->getProvider($configuration->providerIdentifier);
         $provider = $manifest->getInstance();
 
-        // Build a minimal probe request to verify connectivity.
+        // Build a minimal probe request to verify connectivity. The configured
+        // MODEL, not just the adapter class, determines which probe is valid —
+        // a SymfonyAiPlatformAdapter implements every capability interface
+        // regardless of the specific model configured, so e.g. an embeddings-only
+        // model would otherwise get sent a conversational prompt it can't handle.
         // Prefer conversation over text generation since reasoning models
         // (o-series) work more reliably with the conversation API.
         // Use 256 max tokens to accommodate reasoning overhead.
         $start = hrtime(true);
         try {
-            if ($provider instanceof ConversationCapableInterface) {
+            if ($provider instanceof ConversationCapableInterface
+                && $manifest->hasModelCapability($configuration->model, ConversationCapableInterface::class)
+            ) {
                 $probeRequest = new ConversationRequest(
                     configuration: $configuration,
                     messages: [new UserMessage('Respond with the single word: hello')],
                     maxTokens: 256,
                 );
                 $response = $provider->processConversationRequest($probeRequest);
-            } elseif ($provider instanceof TextGenerationCapableInterface) {
+            } elseif ($provider instanceof TextGenerationCapableInterface
+                && $manifest->hasModelCapability($configuration->model, TextGenerationCapableInterface::class)
+            ) {
                 $probeRequest = new TextGenerationRequest(
                     configuration: $configuration,
                     prompt: 'Respond with the single word: hello',
                     maxTokens: 256,
                 );
                 $response = $provider->processTextGenerationRequest($probeRequest);
+            } elseif ($provider instanceof EmbeddingCapableInterface
+                && $manifest->hasModelCapability($configuration->model, EmbeddingCapableInterface::class)
+            ) {
+                $probeRequest = new EmbeddingRequest(
+                    configuration: $configuration,
+                    input: ['connection test'],
+                );
+                $response = $provider->processEmbeddingRequest($probeRequest);
+            } elseif ($provider instanceof ImageGenerationCapableInterface
+                && $manifest->hasModelCapability($configuration->model, ImageGenerationCapableInterface::class)
+            ) {
+                // Unlike the other probes, this generates a real (billable) image —
+                // there's no free-tier "ping" for image generation endpoints.
+                $probeRequest = new ImageGenerationRequest(
+                    configuration: $configuration,
+                    prompt: 'a single red circle on a white background',
+                );
+                $response = $provider->processImageGenerationRequest($probeRequest);
             } else {
-                return new JsonResponse(['ok' => false, 'message' => 'Provider does not support text generation or conversation for verification']);
+                return new JsonResponse(['ok' => false, 'message' => 'Model "' . $configuration->model . '" does not support a known verification probe (conversation, text generation, embeddings, or image generation)']);
             }
         } catch (\Throwable $e) {
             $result = [

@@ -14,6 +14,7 @@ namespace B13\Aim\DependencyInjection;
 
 use B13\Aim\Capability\ConversationCapableInterface;
 use B13\Aim\Capability\EmbeddingCapableInterface;
+use B13\Aim\Capability\ImageGenerationCapableInterface;
 use B13\Aim\Capability\TextGenerationCapableInterface;
 use B13\Aim\Capability\ToolCallingCapableInterface;
 use B13\Aim\Capability\TranslationCapableInterface;
@@ -50,8 +51,8 @@ final class SymfonyAiCompilerPass implements CompilerPassInterface
      * Symfony AI Capability enum → AiM capability interface mapping.
      *
      * Only capabilities relevant to AiM's interfaces are mapped.
-     * Unmapped Symfony AI capabilities (audio, video, image generation, etc.)
-     * are silently ignored — AiM doesn't support them yet.
+     * Unmapped Symfony AI capabilities (audio, video, etc.) are silently
+     * ignored — AiM doesn't support them yet.
      */
     private const CAPABILITY_MAP = [
         'input-image' => VisionCapableInterface::class,
@@ -59,11 +60,16 @@ final class SymfonyAiCompilerPass implements CompilerPassInterface
         'output-text' => TextGenerationCapableInterface::class,
         'tool-calling' => ToolCallingCapableInterface::class,
         'embeddings' => EmbeddingCapableInterface::class,
+        'output-image' => ImageGenerationCapableInterface::class,
     ];
 
     /**
      * All AiM capability interfaces — used as the provider-level default
      * when a bridge has no ModelCatalog to read from.
+     *
+     * Note: ImageGenerationCapableInterface is included here (provider-level "this
+     * bridge family can do it") but AiProviderManifest::hasModelCapability() special-cases
+     * it so unlisted/dynamic-catalog models don't silently inherit it, see there for why.
      */
     private const ALL_CAPABILITIES = [
         VisionCapableInterface::class,
@@ -72,6 +78,7 @@ final class SymfonyAiCompilerPass implements CompilerPassInterface
         TranslationCapableInterface::class,
         ToolCallingCapableInterface::class,
         EmbeddingCapableInterface::class,
+        ImageGenerationCapableInterface::class,
     ];
 
     public function process(ContainerBuilder $container): void

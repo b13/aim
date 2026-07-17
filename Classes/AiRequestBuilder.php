@@ -12,12 +12,14 @@ declare(strict_types=1);
 
 namespace B13\Aim;
 
+use B13\Aim\Capability\ImageGenerationCapableInterface;
 use B13\Aim\Capability\TextGenerationCapableInterface;
 use B13\Aim\Capability\TranslationCapableInterface;
 use B13\Aim\Capability\VisionCapableInterface;
 use B13\Aim\Middleware\AiMiddlewarePipeline;
 use B13\Aim\Provider\ProviderResolver;
 use B13\Aim\Provider\ResolvedProvider;
+use B13\Aim\Request\ImageGenerationRequest;
 use B13\Aim\Request\ResponseFormat;
 use B13\Aim\Request\TextGenerationRequest;
 use B13\Aim\Request\TranslationRequest;
@@ -59,6 +61,12 @@ final class AiRequestBuilder
     private string $sourceLanguage = '';
     private string $targetLanguage = '';
 
+    // Image generation-specific
+    private string $referenceImageData = '';
+    private string $referenceMimeType = '';
+    private array $imageOptions = [];
+    private int $imageCount = 1;
+
     public function __construct(
         private readonly ProviderResolver $providerResolver,
         private readonly AiMiddlewarePipeline $pipeline,
@@ -85,6 +93,44 @@ final class AiRequestBuilder
         $this->translateText = $text;
         $this->sourceLanguage = $sourceLanguage;
         $this->targetLanguage = $targetLanguage;
+        return $this;
+    }
+
+    /**
+     * Generate an image. Use prompt() to set the description.
+     */
+    public function image(): self
+    {
+        $this->type = 'imageGeneration';
+        return $this;
+    }
+
+    /**
+     * Guide image generation with a reference image (image-to-image / style transfer).
+     */
+    public function referenceImage(string $imageData, string $mimeType): self
+    {
+        $this->referenceImageData = $imageData;
+        $this->referenceMimeType = $mimeType;
+        return $this;
+    }
+
+    /**
+     * Provider-specific options passed through as-is, merged into whatever's
+     * already set (e.g. ->options(['size' => '1024x1024', 'quality' => 'high'])).
+     */
+    public function options(array $options): self
+    {
+        $this->imageOptions = [...$this->imageOptions, ...$options];
+        return $this;
+    }
+
+    /**
+     * Number of images to generate in one request.
+     */
+    public function count(int $count): self
+    {
+        $this->imageCount = $count;
         return $this;
     }
 
@@ -157,11 +203,32 @@ final class AiRequestBuilder
             'vision' => $this->sendVision($metadata),
             'text' => $this->sendText($metadata),
             'translation' => $this->sendTranslation($metadata),
+            'imageGeneration' => $this->sendImageGeneration($metadata),
             default => throw new \LogicException(
-                'No request type set. Call vision(), text(), or translate() before send().',
+                'No request type set. Call vision(), text(), translate(), or image() before send().',
                 1773874300,
             ),
         };
+    }
+
+    private function sendImageGeneration(array $metadata): TextResponse
+    {
+        $capabilityClass = ImageGenerationCapableInterface::class;
+        $resolvedProvider = $this->resolve($capabilityClass);
+        $request = new ImageGenerationRequest(
+            configuration: $resolvedProvider->configuration,
+            prompt: $this->prompt,
+            referenceImageData: $this->referenceImageData,
+            referenceMimeType: $this->referenceMimeType,
+            options: $this->imageOptions,
+            count: $this->imageCount,
+            user: $this->user,
+            metadata: $metadata,
+        );
+        return $this->pipeline->dispatchWithFallback(
+            $request,
+            $this->providerResolver->buildFallbackChain($capabilityClass),
+        );
     }
 
     private function sendVision(array $metadata): TextResponse

@@ -87,14 +87,7 @@ class RequestLogController
         $statistics['pending_grades'] = $this->logRepository->countPendingGradesOlderThan(3600);
 
         // Build pagination base URL with demand filters (append &page=N in template)
-        $paginationBaseParams = [
-            'orderField' => $demand->getOrderField(),
-            'orderDirection' => $demand->getOrderDirection(),
-        ];
-        foreach ($demand->getParameters() as $key => $value) {
-            $paginationBaseParams['demand[' . $key . ']'] = $value;
-        }
-        $paginationBaseUrl = (string)$this->uriBuilder->buildUriFromRoute('aim_request_log', $paginationBaseParams);
+        $paginationBaseUrl = (string)$this->uriBuilder->buildUriFromRoute('aim_request_log', $this->demandToRouteParams($demand));
 
         // Resolve user_id -> username for display
         $userIds = array_unique(array_filter(array_map(
@@ -105,6 +98,10 @@ class RequestLogController
 
         return $view->assignMultiple([
             'demand' => $demand,
+            // Filters are submitted via POST (Filters.html), so they never show up
+            // in the request's own URI/query string — it must be rebuilt from the
+            // parsed demand instead, the same way $paginationBaseUrl is.
+            'returnUrl' => $this->buildRequestLogUrl($demand),
             'paginationBaseUrl' => $paginationBaseUrl,
             'paginator' => $paginator,
             'pagination' => $pagination,
@@ -125,13 +122,22 @@ class RequestLogController
         $totalCount = $this->logRepository->countByDemand($demand);
         $statistics = $this->logRepository->getStatistics();
 
+        $requestLogReturnUrl = $this->buildRequestLogUrl($demand);
+
         $rows = [];
         foreach ($logEntries as $entry) {
+            $configurationUid = (int)($entry['configuration_uid'] ?? 0);
             $rows[] = [
                 'crdate' => date('Y-m-d H:i:s', (int)$entry['crdate']),
                 'extension_key' => $entry['extension_key'] ?? '',
                 'request_type' => $entry['request_type'] ?? '',
                 'provider_identifier' => $entry['provider_identifier'] ?? '',
+                'configuration_edit_url' => $configurationUid > 0
+                    ? (string)$this->uriBuilder->buildUriFromRoute('record_edit', [
+                        'edit' => ['tx_aim_configuration' => [$configurationUid => 'edit']],
+                        'returnUrl' => $requestLogReturnUrl,
+                    ])
+                    : '',
                 'model_used' => $entry['model_used'] ?: ($entry['model_requested'] ?? ''),
                 'model_requested' => $entry['model_requested'] ?? '',
                 'total_tokens' => (int)($entry['total_tokens'] ?? 0),
@@ -164,6 +170,40 @@ class RequestLogController
             'rows' => $rows,
             'totalCount' => $totalCount,
         ]);
+    }
+
+    /**
+     * Maps a demand's filters/sorting to route parameters, so a rebuilt
+     * "aim_request_log" URL reflects the same filter/sort state (deliberately
+     * excludes "page" — callers append that separately where relevant).
+     *
+     * @return array<string, string>
+     */
+    private function demandToRouteParams(RequestLogDemand $demand): array
+    {
+        $params = [
+            'orderField' => $demand->getOrderField(),
+            'orderDirection' => $demand->getOrderDirection(),
+        ];
+        foreach ($demand->getParameters() as $key => $value) {
+            $params['demand[' . $key . ']'] = $value;
+        }
+        return $params;
+    }
+
+    /**
+     * Rebuilds the "aim_request_log" listing URL for the given demand, including
+     * the current page. Used as a returnUrl wherever the actual current request
+     * doesn't reflect the demand (filters are submitted via POST, so they never
+     * appear in a request's own URI/query string — see Filters.html) or is a
+     * different request entirely (e.g. pollAction's AJAX endpoint).
+     */
+    private function buildRequestLogUrl(RequestLogDemand $demand): string
+    {
+        return (string)$this->uriBuilder->buildUriFromRoute(
+            'aim_request_log',
+            array_merge($this->demandToRouteParams($demand), ['page' => $demand->getPage()]),
+        );
     }
 
     /**

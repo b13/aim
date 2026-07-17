@@ -13,6 +13,7 @@ declare(strict_types=1);
 namespace B13\Aim\Domain\Model;
 
 use B13\Aim\Capability\AiCapabilityInterface;
+use B13\Aim\Capability\ImageGenerationCapableInterface;
 use B13\Aim\Provider\AiProviderInterface;
 use B13\Aim\Provider\ProviderFeatures;
 use Psr\Container\ContainerInterface;
@@ -64,9 +65,15 @@ final class AiProviderManifest
      */
     public function hasModelCapability(string $model, string $capabilityFqcn): bool
     {
-        // No model-level overrides — all models inherit provider capabilities
+        // No model-level overrides. All models inherit provider capabilities.
+        // Exception: image generation needs a genuinely different request contract
+        // (a dedicated image endpoint, not a chat/messages payload) than every other
+        // capability here, so it's never safe to assume an unlisted model supports it
+        // (e.g. a dynamic-catalog bridge like Ollama, which has no image endpoint at all).
+        // It's only granted when a static ModelCatalog explicitly lists it per model.
         if ($this->modelCapabilities === []) {
-            return $this->hasCapability($capabilityFqcn);
+            return $capabilityFqcn !== ImageGenerationCapableInterface::class
+                && $this->hasCapability($capabilityFqcn);
         }
         // Model explicitly listed — use only its declared capabilities
         if (isset($this->modelCapabilities[$model])) {

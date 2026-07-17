@@ -107,7 +107,7 @@ class RequestLogPoll {
       this.#td(e.crdate),
       this.#tdHtml(this.#renderExtBadge(e.extension_key)),
       this.#td(e.request_type),
-      this.#td(e.provider_identifier),
+      this.#tdHtml(this.#renderProvider(e)),
       this.#tdHtml(this.#renderModel(e)),
       this.#tdHtml(this.#renderTokens(e)),
       this.#td(e.cost),
@@ -133,6 +133,12 @@ class RequestLogPoll {
     return key
       ? `<span class="badge badge-info">${this.#esc(key)}</span>`
       : '<span class="text-body-secondary">-</span>';
+  }
+
+  #renderProvider(e) {
+    return e.configuration_edit_url
+      ? `<a href="${this.#esc(e.configuration_edit_url)}">${this.#esc(e.provider_identifier)}</a>`
+      : this.#esc(e.provider_identifier);
   }
 
   #renderModel(e) {

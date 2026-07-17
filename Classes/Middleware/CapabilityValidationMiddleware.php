@@ -15,6 +15,7 @@ namespace B13\Aim\Middleware;
 use B13\Aim\Attribute\AsAiMiddleware;
 use B13\Aim\Capability\ConversationCapableInterface;
 use B13\Aim\Capability\EmbeddingCapableInterface;
+use B13\Aim\Capability\ImageGenerationCapableInterface;
 use B13\Aim\Capability\TextGenerationCapableInterface;
 use B13\Aim\Capability\ToolCallingCapableInterface;
 use B13\Aim\Capability\TranslationCapableInterface;
@@ -27,6 +28,7 @@ use B13\Aim\Registry\DisabledModelRegistry;
 use B13\Aim\Request\AiRequestInterface;
 use B13\Aim\Request\ConversationRequest;
 use B13\Aim\Request\EmbeddingRequest;
+use B13\Aim\Request\ImageGenerationRequest;
 use B13\Aim\Request\TextGenerationRequest;
 use B13\Aim\Request\ToolCallingRequest;
 use B13\Aim\Request\TranslationRequest;
@@ -57,6 +59,7 @@ final class CapabilityValidationMiddleware implements AiMiddlewareInterface
         TextGenerationRequest::class => TextGenerationCapableInterface::class,
         TranslationRequest::class => TranslationCapableInterface::class,
         EmbeddingRequest::class => EmbeddingCapableInterface::class,
+        ImageGenerationRequest::class => ImageGenerationCapableInterface::class,
     ];
 
     public function __construct(

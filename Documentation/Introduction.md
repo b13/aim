@@ -64,6 +64,10 @@ Generate vector embeddings for content. Enable semantic search, find related con
 
 Let AI interact with your TYPO3 data. AI can call functions you define: query records, trigger actions, process data.
 
+### Image generation
+
+Every editor prompting an image generator on their own produces a different look, inconsistent styles, colors, and composition scattered across the site. Instead, pass an existing on-brand image as a **style reference** alongside the prompt. AiM asks the provider to generate an image-to-image edit guided by it, so headers, teasers, and illustrations stay visually consistent site-wide instead of looking like they came from ten different tools. Requires a provider/model that supports image output (e.g. OpenAI's `gpt-image-1`).
+
 ---
 
 ## How it works for administrators
@@ -283,6 +287,32 @@ foreach ($response->streamIterator as $chunk) {
 
 // Embeddings
 $response = $this->ai->embed('TYPO3 is a CMS', dimensions: 256, extensionKey: 'my_ext');
+
+// Image generation
+$response = $this->ai->generateImage(
+    prompt: 'A minimalist header illustration of a lighthouse at sunset',
+    options: ['size' => '1536x1024', 'quality' => 'high'], // provider-specific, passed through as-is
+    extensionKey: 'my_ext',
+);
+if ($response instanceof \B13\Aim\Response\ImageGenerationResponse) {
+    foreach ($response->images as $image) {
+        if ($image->isUrl()) {
+            // Some providers return a temporary URL instead of the bytes.
+            file_put_contents('header.png', file_get_contents($image->url));
+        } else {
+            // $image->data is base64-encoded, $image->mimeType e.g. "image/png"
+            file_put_contents('header.png', base64_decode($image->data));
+        }
+    }
+}
+
+// Image generation guided by a reference image (style transfer)
+$response = $this->ai->generateImage(
+    prompt: 'The same lighthouse scene, but as a header for the "About us" page',
+    referenceImageData: base64_encode(file_get_contents('brand-style-reference.png')),
+    referenceMimeType: 'image/png',
+    extensionKey: 'my_ext',
+);
 ```
 
 ### Request a specific provider
@@ -311,6 +341,18 @@ $response = $this->ai->request()
     ->maxTokens(100)
     ->temperature(0.3)
     ->provider('openai:*')
+    ->from('my_extension')
+    ->send();
+```
+
+The same builder covers image generation:
+
+```php
+$response = $this->ai->request()
+    ->image()
+    ->prompt('A minimalist header illustration of a lighthouse at sunset')
+    ->referenceImage($imageData, 'image/png')
+    ->options(['size' => '1536x1024'])
     ->from('my_extension')
     ->send();
 ```

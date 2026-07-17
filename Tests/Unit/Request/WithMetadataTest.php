@@ -16,6 +16,7 @@ use B13\Aim\Domain\Model\ProviderConfiguration;
 use B13\Aim\Request\AiRequestInterface;
 use B13\Aim\Request\ConversationRequest;
 use B13\Aim\Request\EmbeddingRequest;
+use B13\Aim\Request\ImageGenerationRequest;
 use B13\Aim\Request\Message\UserMessage;
 use B13\Aim\Request\TextGenerationRequest;
 use B13\Aim\Request\ToolCallingRequest;
@@ -80,6 +81,13 @@ final class WithMetadataTest extends TestCase
                 configuration: $configuration,
                 messages: [new UserMessage('hi')],
                 tools: [new ToolDefinition(name: 't', description: 'd', parameters: [])],
+                metadata: ['existing' => 'value', 'shared' => 'old'],
+            ),
+        ];
+        yield 'ImageGenerationRequest' => [
+            new ImageGenerationRequest(
+                configuration: $configuration,
+                prompt: 'A sunset over mountains',
                 metadata: ['existing' => 'value', 'shared' => 'old'],
             ),
         ];
