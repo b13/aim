@@ -323,9 +323,28 @@ class RequestLogRepository
     protected function getQueryBuilderForDemand(RequestLogDemand $demand): QueryBuilder
     {
         $qb = $this->getQueryBuilder();
-        $qb->orderBy($demand->getOrderField(), $demand->getOrderDirection());
-        if ($demand->getOrderField() !== 'uid') {
-            $qb->addOrderBy('uid', 'desc');
+
+        if ($demand->getOrderField() === 'username') {
+            // "username" isn't a real column here. Sorting by the raw user_id
+            // would order by internal ID, not the resolved username the column
+            // actually displays, which is confusing. Join be_users instead.
+            // Re-select only this table's columns: with the join in place, a
+            // bare "*" would pull in be_users' columns too (including its own
+            // "uid", colliding with this table's "uid" key in the result row).
+            $qb->selectLiteral(self::TABLE . '.*')
+                ->leftJoin(
+                    self::TABLE,
+                    'be_users',
+                    'be_users',
+                    $qb->expr()->eq(self::TABLE . '.user_id', $qb->quoteIdentifier('be_users.uid'))
+                )
+                ->orderBy('be_users.username', $demand->getOrderDirection())
+                ->addOrderBy(self::TABLE . '.uid', 'desc');
+        } else {
+            $qb->orderBy($demand->getOrderField(), $demand->getOrderDirection());
+            if ($demand->getOrderField() !== 'uid') {
+                $qb->addOrderBy('uid', 'desc');
+            }
         }
 
         $constraints = [];

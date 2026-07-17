@@ -4,15 +4,15 @@
     <table class="table table-striped table-hover">
         <thead>
             <tr>
-                <th><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.column.timestamp" /></th>
-                <th><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.column.extension" /></th>
-                <th><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.column.user" /></th>
-                <th><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.column.requestType" /></th>
-                <th><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.column.provider" /></th>
+                <f:render partial="SortableHeader" arguments="{sortUrls: sortUrls, field: 'crdate', labelKey: 'LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.column.timestamp'}" />
+                <f:render partial="SortableHeader" arguments="{sortUrls: sortUrls, field: 'extension_key', labelKey: 'LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.column.extension'}" />
+                <f:render partial="SortableHeader" arguments="{sortUrls: sortUrls, field: 'username', labelKey: 'LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.column.user'}" />
+                <f:render partial="SortableHeader" arguments="{sortUrls: sortUrls, field: 'request_type', labelKey: 'LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.column.requestType'}" />
+                <f:render partial="SortableHeader" arguments="{sortUrls: sortUrls, field: 'provider_identifier', labelKey: 'LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.column.provider'}" />
                 <th><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.column.model" /></th>
-                <th><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.column.tokens" /></th>
-                <th><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.column.cost" /></th>
-                <th><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.column.duration" /></th>
+                <f:render partial="SortableHeader" arguments="{sortUrls: sortUrls, field: 'total_tokens', labelKey: 'LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.column.tokens'}" />
+                <f:render partial="SortableHeader" arguments="{sortUrls: sortUrls, field: 'cost', labelKey: 'LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.column.cost'}" />
+                <f:render partial="SortableHeader" arguments="{sortUrls: sortUrls, field: 'duration_ms', labelKey: 'LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.column.duration'}" />
                 <th><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.column.grade" /></th>
                 <th><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.column.status" /></th>
             </tr>

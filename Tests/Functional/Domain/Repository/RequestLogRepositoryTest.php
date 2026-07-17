@@ -12,6 +12,7 @@ declare(strict_types=1);
 
 namespace B13\Aim\Tests\Functional\Domain\Repository;
 
+use B13\Aim\Domain\Repository\RequestLogDemand;
 use B13\Aim\Domain\Repository\RequestLogRepository;
 use B13\Aim\Grading\GradeLabel;
 use B13\Aim\Grading\GradeStatus;
@@ -23,6 +24,55 @@ final class RequestLogRepositoryTest extends FunctionalTestCase
     protected array $testExtensionsToLoad = [
         'b13/aim',
     ];
+
+    #[Test]
+    public function findByDemandOrderedByUsernameSortsByResolvedUsernameNotRawUserId(): void
+    {
+        $logRepo = $this->get(RequestLogRepository::class);
+
+        // uid 1001 is numerically smaller but alphabetically LATER ("zebra") than
+        // uid 1002 ("apple") — this only passes if sorting genuinely joins on the
+        // resolved username instead of ordering by the raw user_id column.
+        $this->getConnectionPool()->getConnectionForTable('be_users')->insert('be_users', [
+            'uid' => 1001,
+            'pid' => 0,
+            'username' => 'zebra',
+        ]);
+        $this->getConnectionPool()->getConnectionForTable('be_users')->insert('be_users', [
+            'uid' => 1002,
+            'pid' => 0,
+            'username' => 'apple',
+        ]);
+
+        $logRepo->log(['request_type' => 'TextGenerationRequest', 'provider_identifier' => 'test', 'user_id' => 1001]);
+        $logRepo->log(['request_type' => 'TextGenerationRequest', 'provider_identifier' => 'test', 'user_id' => 1002]);
+
+        $rows = $logRepo->findByDemand(new RequestLogDemand(orderField: 'username', orderDirection: 'asc'));
+
+        self::assertCount(2, $rows);
+        self::assertSame(1002, (int)$rows[0]['user_id'], '"apple" should sort first');
+        self::assertSame(1001, (int)$rows[1]['user_id'], '"zebra" should sort second');
+    }
+
+    #[Test]
+    public function countByDemandIsUnaffectedByTheUsernameJoin(): void
+    {
+        $logRepo = $this->get(RequestLogRepository::class);
+
+        $this->getConnectionPool()->getConnectionForTable('be_users')->insert('be_users', [
+            'uid' => 1003,
+            'pid' => 0,
+            'username' => 'someone',
+        ]);
+        $logRepo->log(['request_type' => 'TextGenerationRequest', 'provider_identifier' => 'test', 'user_id' => 1003]);
+        // A row with no matching be_users record at all — the join must be LEFT,
+        // not INNER, or this row would silently vanish from both count and results.
+        $logRepo->log(['request_type' => 'TextGenerationRequest', 'provider_identifier' => 'test', 'user_id' => 0]);
+
+        $demand = new RequestLogDemand(orderField: 'username', orderDirection: 'asc');
+        self::assertSame(2, $logRepo->countByDemand($demand));
+        self::assertCount(2, $logRepo->findByDemand($demand));
+    }
 
     #[Test]
     public function modelPerformanceProfileAggregatesGradesOverDoneRowsOnly(): void

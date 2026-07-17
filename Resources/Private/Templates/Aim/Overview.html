@@ -29,10 +29,11 @@
                         <table class="table table-striped table-hover">
                             <thead>
                                 <tr>
-                                    <th colspan="2"><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:overview.configurations.title" /></th>
-                                    <th><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:overview.provider" /></th>
-                                    <th><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:overview.configurations.model" /></th>
-                                    <th><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:overview.configurations.totalCost" /></th>
+                                    <th class="col-icon"></th>
+                                    <f:render partial="SortableHeader" arguments="{sortUrls: sortUrls, field: 'title', labelKey: 'LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:overview.configurations.title'}" />
+                                    <f:render partial="SortableHeader" arguments="{sortUrls: sortUrls, field: 'ai_provider', labelKey: 'LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:overview.provider'}" />
+                                    <f:render partial="SortableHeader" arguments="{sortUrls: sortUrls, field: 'model', labelKey: 'LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:overview.configurations.model'}" />
+                                    <f:render partial="SortableHeader" arguments="{sortUrls: sortUrls, field: 'total_cost', labelKey: 'LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:overview.configurations.totalCost'}" />
                                     <th><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:overview.configurations.lastUsed" /></th>
                                     <th><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:overview.configurations.status" /></th>
                                     <th class="col-control"></th>

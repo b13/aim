@@ -12,6 +12,7 @@ declare(strict_types=1);
 
 namespace B13\Aim\Controller;
 
+use B13\Aim\Backend\SortUrlBuilder;
 use B13\Aim\Domain\Repository\RequestLogDemand;
 use B13\Aim\Domain\Repository\RequestLogRepository;
 use B13\Aim\Pagination\DemandedArrayPaginator;
@@ -43,6 +44,7 @@ class RequestLogController
         private readonly RequestLogRepository $logRepository,
         private readonly ModuleTemplateFactory $moduleTemplateFactory,
         private readonly PackageManager $packageManager,
+        private readonly SortUrlBuilder $sortUrlBuilder,
     ) {}
 
     public function logAction(ServerRequestInterface $request): ResponseInterface
@@ -103,6 +105,7 @@ class RequestLogController
             // parsed demand instead, the same way $paginationBaseUrl is.
             'returnUrl' => $this->buildRequestLogUrl($demand),
             'paginationBaseUrl' => $paginationBaseUrl,
+            'sortUrls' => $this->sortUrlBuilder->build($demand, 'aim_request_log'),
             'paginator' => $paginator,
             'pagination' => $pagination,
             'statistics' => $statistics,

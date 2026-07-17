@@ -1,0 +1,60 @@
+<html xmlns:f="http://typo3.org/ns/TYPO3/CMS/Fluid/ViewHelpers"
+      xmlns:core="http://typo3.org/ns/TYPO3/CMS/Core/ViewHelpers"
+      data-namespace-typo3-fluid="true">
+
+<f:comment>
+    Deliberately uses the pre-v14.2 Bootstrap `data-bs-toggle="dropdown"` mechanism, not core's newer native-popover
+    pattern (popovertarget/popover attributes), which only landed in TYPO3 v14.2 and doesn't exist in v12.4/v13.4 at
+    all. Bootstrap's own dropdown JS remains bundled in v14 for backwards compatibility, so this works unchanged
+    across all three.
+</f:comment>
+<th>
+    <div class="dropdown">
+        <button class="dropdown-toggle dropdown-toggle-link" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+            <f:translate key="{labelKey}" />
+            <f:if condition="{sortUrls.{field}.active}">
+                <f:then>
+                    <div class="text-primary">
+                        <f:if condition="{sortUrls.{field}.direction} == 'asc'">
+                            <f:then><core:icon identifier="actions-sort-amount-up" /></f:then>
+                            <f:else><core:icon identifier="actions-sort-amount-down" /></f:else>
+                        </f:if>
+                    </div>
+                </f:then>
+                <f:else><div><core:icon identifier="empty-empty" /></div></f:else>
+            </f:if>
+        </button>
+        <ul class="dropdown-menu">
+            <li>
+                <a class="dropdown-item" href="{sortUrls.{field}.ascUrl}">
+                    <span class="dropdown-item-columns">
+                        <span class="dropdown-item-column dropdown-item-column-icon text-primary">
+                            <f:if condition="{sortUrls.{field}.active} && {sortUrls.{field}.direction} == 'asc'">
+                                <core:icon identifier="actions-dot" />
+                            </f:if>
+                        </span>
+                        <span class="dropdown-item-column dropdown-item-column-title">
+                            <f:translate key="LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.sorting.asc" />
+                        </span>
+                    </span>
+                </a>
+            </li>
+            <li>
+                <a class="dropdown-item" href="{sortUrls.{field}.descUrl}">
+                    <span class="dropdown-item-columns">
+                        <span class="dropdown-item-column dropdown-item-column-icon text-primary">
+                            <f:if condition="{sortUrls.{field}.active} && {sortUrls.{field}.direction} == 'desc'">
+                                <core:icon identifier="actions-dot" />
+                            </f:if>
+                        </span>
+                        <span class="dropdown-item-column dropdown-item-column-title">
+                            <f:translate key="LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.sorting.desc" />
+                        </span>
+                    </span>
+                </a>
+            </li>
+        </ul>
+    </div>
+</th>
+
+</html>

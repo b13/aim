@@ -12,6 +12,7 @@ declare(strict_types=1);
 
 namespace B13\Aim\Controller;
 
+use B13\Aim\Backend\SortUrlBuilder;
 use B13\Aim\Capability\ConversationCapableInterface;
 use B13\Aim\Capability\EmbeddingCapableInterface;
 use B13\Aim\Capability\ImageGenerationCapableInterface;
@@ -62,6 +63,7 @@ class ProviderController
         private readonly RequestLogRepository $requestLogRepository,
         private readonly Registry $registry,
         private readonly LiveModelDiscovery $liveModelDiscovery,
+        private readonly SortUrlBuilder $sortUrlBuilder,
     ) {}
 
     public function overviewAction(ServerRequestInterface $request): ResponseInterface
@@ -158,6 +160,7 @@ class ProviderController
             'paginator' => $paginator,
             'pagination' => $pagination,
             'paginationBaseUrl' => $paginationBaseUrl,
+            'sortUrls' => $this->sortUrlBuilder->build($demand, 'aim_providers'),
             'hasProviders' => $hasProviders,
             'providerTypes' => $providerTypes,
             'verificationResults' => $this->getVerificationResults(),

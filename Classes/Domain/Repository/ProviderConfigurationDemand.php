@@ -14,7 +14,7 @@ namespace B13\Aim\Domain\Repository;
 
 use Psr\Http\Message\ServerRequestInterface;
 
-class ProviderConfigurationDemand
+class ProviderConfigurationDemand implements SortableDemandInterface
 {
     protected const ORDER_DESCENDING = 'desc';
     protected const ORDER_ASCENDING = 'asc';
@@ -52,6 +52,14 @@ class ProviderConfigurationDemand
         $title = (string)($demand['title'] ?? '');
         $aiProvider = (string)($demand['ai_provider'] ?? '');
         return new self($page, $orderField, $orderDirection, $title, $aiProvider);
+    }
+
+    /**
+     * @return list<string>
+     */
+    public static function getOrderFields(): array
+    {
+        return self::ORDER_FIELDS;
     }
 
     public function getOrderField(): string

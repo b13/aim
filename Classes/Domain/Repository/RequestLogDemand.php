@@ -14,12 +14,18 @@ namespace B13\Aim\Domain\Repository;
 
 use Psr\Http\Message\ServerRequestInterface;
 
-class RequestLogDemand
+class RequestLogDemand implements SortableDemandInterface
 {
     protected const ORDER_DESCENDING = 'desc';
     protected const ORDER_ASCENDING = 'asc';
     protected const DEFAULT_ORDER_FIELD = 'crdate';
-    protected const ORDER_FIELDS = ['crdate', 'cost', 'duration_ms', 'request_type', 'extension_key', 'total_tokens'];
+    /**
+     * "username" is a virtual field, not a real column on this table. It means
+     * "sort by the username resolved from user_id", which RequestLogRepository
+     * implements via a join. Sorting by the raw user_id instead would be poor UX
+     * since the column displays the resolved username, not the ID.
+     */
+    protected const ORDER_FIELDS = ['crdate', 'cost', 'duration_ms', 'request_type', 'extension_key', 'total_tokens', 'provider_identifier', 'username'];
 
     protected int $limit = 25;
 
@@ -90,6 +96,14 @@ class RequestLogDemand
     public function hasGradeLabel(): bool
     {
         return $this->gradeLabel !== '';
+    }
+
+    /**
+     * @return list<string>
+     */
+    public static function getOrderFields(): array
+    {
+        return self::ORDER_FIELDS;
     }
 
     public function getOrderField(): string
