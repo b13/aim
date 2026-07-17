@@ -25,6 +25,7 @@ use B13\Aim\Capability\VisionCapableInterface;
 use B13\Aim\Request\AiRequestInterface;
 use B13\Aim\Request\ConversationRequest;
 use B13\Aim\Request\EmbeddingRequest;
+use B13\Aim\Request\ImageGenerationRequest;
 use B13\Aim\Request\TextGenerationRequest;
 use B13\Aim\Request\ToolCallingRequest;
 use B13\Aim\Request\TranslationRequest;
@@ -91,6 +92,12 @@ final class SmartRoutingMiddleware implements AiMiddlewareInterface
     ): TextResponse {
         // Skip routing for embedding requests — model selection matters there
         if ($request instanceof EmbeddingRequest) {
+            return $next->handle($request, $provider, $configuration);
+        }
+
+        // Skip routing for image generation — cost is driven by size/quality, not
+        // prompt complexity, and the complexity classifier below is text-oriented.
+        if ($request instanceof ImageGenerationRequest) {
             return $next->handle($request, $provider, $configuration);
         }
 

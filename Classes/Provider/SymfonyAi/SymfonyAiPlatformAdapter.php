@@ -14,6 +14,7 @@ namespace B13\Aim\Provider\SymfonyAi;
 
 use B13\Aim\Capability\ConversationCapableInterface;
 use B13\Aim\Capability\EmbeddingCapableInterface;
+use B13\Aim\Capability\ImageGenerationCapableInterface;
 use B13\Aim\Capability\TextGenerationCapableInterface;
 use B13\Aim\Capability\ToolCallingCapableInterface;
 use B13\Aim\Capability\TranslationCapableInterface;
@@ -22,6 +23,7 @@ use B13\Aim\Domain\Model\ProviderConfiguration;
 use B13\Aim\Provider\AiProviderInterface;
 use B13\Aim\Request\ConversationRequest;
 use B13\Aim\Request\EmbeddingRequest;
+use B13\Aim\Request\ImageGenerationRequest;
 use B13\Aim\Request\Message\AbstractMessage;
 use B13\Aim\Request\TextGenerationRequest;
 use B13\Aim\Request\ToolCallingRequest;
@@ -30,6 +32,8 @@ use B13\Aim\Request\VisionRequest;
 use B13\Aim\Response\AiUsageStatistics;
 use B13\Aim\Response\ConversationResponse;
 use B13\Aim\Response\EmbeddingResponse;
+use B13\Aim\Response\GeneratedImage;
+use B13\Aim\Response\ImageGenerationResponse;
 use B13\Aim\Response\StreamChunkIterator;
 use B13\Aim\Response\TextResponse;
 use B13\Aim\Response\ToolCall;
@@ -38,6 +42,8 @@ use Symfony\AI\Platform\Message\Content\Image;
 use Symfony\AI\Platform\Message\Message;
 use Symfony\AI\Platform\Message\MessageBag;
 use Symfony\AI\Platform\ProviderInterface;
+use Symfony\AI\Platform\Result\BinaryResult;
+use Symfony\AI\Platform\Result\MultiPartResult;
 use Symfony\AI\Platform\TokenUsage\TokenUsageInterface;
 
 /**
@@ -59,7 +65,8 @@ class SymfonyAiPlatformAdapter implements
     TextGenerationCapableInterface,
     TranslationCapableInterface,
     ToolCallingCapableInterface,
-    EmbeddingCapableInterface
+    EmbeddingCapableInterface,
+    ImageGenerationCapableInterface
 {
     /** @var array<string, ProviderInterface> Providers cached by configuration key */
     private array $platforms = [];
@@ -234,6 +241,56 @@ class SymfonyAiPlatformAdapter implements
         } catch (\Throwable $e) {
             return new EmbeddingResponse(errors: ['Symfony AI error: ' . $e->getMessage()]);
         }
+    }
+
+    /**
+     * Generate one or more images from a prompt, optionally guided by a
+     * reference image (image-to-image / style transfer).
+     */
+    public function processImageGenerationRequest(ImageGenerationRequest $request): ImageGenerationResponse
+    {
+        $platform = $this->getPlatform($request->configuration);
+
+        $options = $request->options;
+        if ($request->count > 1) {
+            $options['n'] = $request->count;
+        }
+        if ($request->referenceImageData !== '') {
+            $options['image'] = Image::fromDataUrl(
+                'data:' . $request->referenceMimeType . ';base64,' . $request->referenceImageData,
+            );
+        }
+
+        try {
+            $result = $platform->invoke($request->configuration->model, $request->prompt, $options);
+            $images = $this->extractImages($result);
+            if ($images === []) {
+                return new ImageGenerationResponse(errors: ['Provider returned no image data.']);
+            }
+
+            $usage = $this->extractUsage($result, $request->configuration);
+            $rawResponse = $this->extractRawResponse($result);
+            return new ImageGenerationResponse($images, $usage, $rawResponse);
+        } catch (\Throwable $e) {
+            return new ImageGenerationResponse(errors: ['Symfony AI error: ' . $e->getMessage()]);
+        }
+    }
+
+    /**
+     * @return list<GeneratedImage>
+     */
+    private function extractImages(object $result): array
+    {
+        $resolved = method_exists($result, 'getResult') ? $result->getResult() : $result;
+        $parts = $resolved instanceof MultiPartResult ? $resolved->getContent() : [$resolved];
+
+        $images = [];
+        foreach ($parts as $part) {
+            if ($part instanceof BinaryResult) {
+                $images[] = GeneratedImage::fromBase64($part->toBase64(), $part->getMimeType() ?? 'image/png');
+            }
+        }
+        return $images;
     }
 
     /**

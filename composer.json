@@ -32,7 +32,11 @@
 	},
 	"extra": {
 		"typo3/cms": {
-			"extension-key": "aim"
+			"extension-key": "aim",
+			"Package": {
+				"providesPackages": {}
+			},
+			"version": "0.2.0"
 		}
 	},
 	"authors": [

@@ -14,6 +14,7 @@ namespace B13\Aim;
 
 use B13\Aim\Capability\ConversationCapableInterface;
 use B13\Aim\Capability\EmbeddingCapableInterface;
+use B13\Aim\Capability\ImageGenerationCapableInterface;
 use B13\Aim\Capability\TextGenerationCapableInterface;
 use B13\Aim\Capability\TranslationCapableInterface;
 use B13\Aim\Capability\VisionCapableInterface;
@@ -23,6 +24,7 @@ use B13\Aim\Provider\ResolvedProvider;
 use B13\Aim\Request\AiRequestInterface;
 use B13\Aim\Request\ConversationRequest;
 use B13\Aim\Request\EmbeddingRequest;
+use B13\Aim\Request\ImageGenerationRequest;
 use B13\Aim\Request\Message\AbstractMessage;
 use B13\Aim\Request\TextGenerationRequest;
 use B13\Aim\Request\TranslationRequest;
@@ -244,6 +246,40 @@ final class Ai
             metadata: $this->buildMetadata($extensionKey),
         );
         return $this->dispatch($request, EmbeddingCapableInterface::class);
+    }
+
+    /**
+     * Generate one or more images from a prompt.
+     *
+     * Pass a reference image (e.g. an existing brand/header image) via
+     * $referenceImageData/$referenceMimeType to guide style and composition
+     * (image-to-image) instead of generating from the prompt alone.
+     *
+     * @param array<string, mixed> $options Provider-specific options passed through as-is
+     *        (e.g. ['size' => '1536x1024', 'quality' => 'high', 'background' => 'transparent']).
+     */
+    public function generateImage(
+        string $prompt,
+        string $referenceImageData = '',
+        string $referenceMimeType = '',
+        array $options = [],
+        int $count = 1,
+        string $extensionKey = '',
+        string $user = '',
+        string $provider = '',
+    ): TextResponse {
+        $resolvedProvider = $this->resolve(ImageGenerationCapableInterface::class, $provider);
+        $request = new ImageGenerationRequest(
+            configuration: $resolvedProvider->configuration,
+            prompt: $prompt,
+            referenceImageData: $referenceImageData,
+            referenceMimeType: $referenceMimeType,
+            options: $options,
+            count: $count,
+            user: $user,
+            metadata: $this->buildMetadata($extensionKey),
+        );
+        return $this->dispatch($request, ImageGenerationCapableInterface::class);
     }
 
     /**

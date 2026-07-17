@@ -19,7 +19,7 @@
         </thead>
         <tbody data-poll="rows">
             <f:for each="{paginator.paginatedItems}" as="entry">
-                <f:render partial="RequestLog/Row" arguments="{entry: entry, extensionIcons: extensionIcons, userMap: userMap}" />
+                <f:render partial="RequestLog/Row" arguments="{entry: entry, extensionIcons: extensionIcons, userMap: userMap, returnUrl: returnUrl}" />
             </f:for>
         </tbody>
     </table>

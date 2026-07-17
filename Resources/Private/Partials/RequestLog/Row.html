@@ -1,4 +1,6 @@
-<html xmlns:f="http://typo3.org/ns/TYPO3/CMS/Fluid/ViewHelpers" data-namespace-typo3-fluid="true">
+<html xmlns:f="http://typo3.org/ns/TYPO3/CMS/Fluid/ViewHelpers"
+      xmlns:be="http://typo3.org/ns/TYPO3/CMS/Backend/ViewHelpers"
+      data-namespace-typo3-fluid="true">
 
 <tr>
     <td>{entry.crdate -> f:format.date(format: 'Y-m-d H:i:s')}</td>
@@ -20,7 +22,21 @@
         </f:if>
     </td>
     <td>{entry.request_type}</td>
-    <td>{entry.provider_identifier}</td>
+    <td>
+        <f:if condition="{entry.configuration_uid} > 0">
+            <f:then>
+                <be:link.editRecord
+                    returnUrl="{returnUrl}"
+                    table="tx_aim_configuration"
+                    uid="{entry.configuration_uid}"
+                    title="{f:translate(key: 'LLL:EXT:core/Resources/Private/Language/locallang_mod_web_list.xlf:edit')}: {entry.provider_identifier}"
+                >
+                    {entry.provider_identifier}
+                </be:link.editRecord>
+            </f:then>
+            <f:else>{entry.provider_identifier}</f:else>
+        </f:if>
+    </td>
     <td>
         <span class="badge badge-secondary">{entry.model_used -> f:or(alternative: entry.model_requested)}</span>
         <f:if condition="{entry.model_used} && {entry.model_requested} && {entry.model_used} != {entry.model_requested}">
