@@ -20,7 +20,9 @@ use B13\Aim\Provider\AiProviderInterface;
 use B13\Aim\Request\AiRequestInterface;
 use B13\Aim\Request\ConversationRequest;
 use B13\Aim\Request\TextGenerationRequest;
+use B13\Aim\Request\ToolCallingRequest;
 use B13\Aim\Response\TextResponse;
+use B13\Aim\Response\ToolCallingResponse;
 use B13\Aim\Service\GradingService;
 use Psr\Log\LoggerInterface;
 use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
@@ -98,7 +100,15 @@ final class GraderMiddleware implements AiMiddlewareInterface
         if (!$response->isSuccessful()) {
             return false;
         }
-        if (!($request instanceof ConversationRequest) && !($request instanceof TextGenerationRequest)) {
+        if ($request instanceof ToolCallingRequest) {
+            // An intermediate turn awaiting tool execution has no final answer yet
+            // (response_content is typically empty) - grading that would just bounce
+            // off GradingService's empty-content guard. Only grade once the model has
+            // produced its actual final text reply.
+            if ($response instanceof ToolCallingResponse && $response->requiresToolExecution()) {
+                return false;
+            }
+        } elseif (!($request instanceof ConversationRequest) && !($request instanceof TextGenerationRequest)) {
             return false;
         }
         if (($request->metadata['_aim_grading'] ?? false) === true) {

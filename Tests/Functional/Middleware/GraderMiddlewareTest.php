@@ -23,7 +23,11 @@ use B13\Aim\Provider\AiProviderInterface;
 use B13\Aim\Request\ConversationRequest;
 use B13\Aim\Request\EmbeddingRequest;
 use B13\Aim\Request\Message\UserMessage;
+use B13\Aim\Request\ToolCallingRequest;
+use B13\Aim\Request\ToolDefinition;
 use B13\Aim\Response\TextResponse;
+use B13\Aim\Response\ToolCall;
+use B13\Aim\Response\ToolCallingResponse;
 use B13\Aim\Service\GradingService;
 use PHPUnit\Framework\Attributes\Test;
 use Psr\Log\NullLogger;
@@ -197,6 +201,60 @@ final class GraderMiddlewareTest extends FunctionalTestCase
     }
 
     #[Test]
+    public function marksRowPendingForToolCallingRequestWithFinalTextAnswer(): void
+    {
+        $logRepo = $this->get(RequestLogRepository::class);
+        $logUid = $logRepo->log([
+            'crdate' => time(),
+            'configuration_uid' => 1,
+            'response_content' => 'the final answer',
+        ]);
+
+        $context = new RequestContext();
+        $context->logUid = $logUid;
+        $middleware = new GraderMiddleware($this->buildStubGradingService(), $logRepo, new NullLogger());
+
+        $config = $this->buildConfiguration([
+            'grading_enabled' => 1,
+            'judge_configuration_uid' => 99,
+        ]);
+        $request = $this->buildToolCallingRequest($config);
+        $response = new ToolCallingResponse('the final answer');
+        $next = new AiMiddlewareHandler(static fn() => $response, $context);
+
+        $middleware->process($request, $this->stubProvider(), $config, $next);
+
+        $row = $logRepo->findByUid($logUid);
+        self::assertSame(GradeStatus::Pending->value, $row['grade_status']);
+    }
+
+    #[Test]
+    public function doesNotMarkPendingForToolCallingRequestAwaitingToolExecution(): void
+    {
+        $logRepo = $this->get(RequestLogRepository::class);
+        $logUid = $logRepo->log(['crdate' => time(), 'configuration_uid' => 1]);
+
+        $context = new RequestContext();
+        $context->logUid = $logUid;
+        $middleware = new GraderMiddleware($this->buildStubGradingService(), $logRepo, new NullLogger());
+
+        $config = $this->buildConfiguration([
+            'grading_enabled' => 1,
+            'judge_configuration_uid' => 99,
+        ]);
+        $request = $this->buildToolCallingRequest($config);
+        $response = new ToolCallingResponse('', toolCalls: [
+            new ToolCall('call_1', 'get_weather', '{"city":"Berlin"}'),
+        ]);
+        $next = new AiMiddlewareHandler(static fn() => $response, $context);
+
+        $middleware->process($request, $this->stubProvider(), $config, $next);
+
+        $row = $logRepo->findByUid($logUid);
+        self::assertSame(GradeStatus::None->value, $row['grade_status']);
+    }
+
+    #[Test]
     public function doesNotMarkPendingWhenJudgeIsSameConfiguration(): void
     {
         $logRepo = $this->get(RequestLogRepository::class);
@@ -241,6 +299,15 @@ final class GraderMiddlewareTest extends FunctionalTestCase
         return new ConversationRequest(
             configuration: $config,
             messages: [new UserMessage('hi')],
+        );
+    }
+
+    private function buildToolCallingRequest(ProviderConfiguration $config): ToolCallingRequest
+    {
+        return new ToolCallingRequest(
+            configuration: $config,
+            messages: [new UserMessage('what is the weather in Berlin?')],
+            tools: [new ToolDefinition('get_weather', 'Get current weather for a city')],
         );
     }
 
