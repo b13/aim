@@ -1,9 +1,14 @@
 <html xmlns:f="http://typo3.org/ns/TYPO3/CMS/Fluid/ViewHelpers"
       xmlns:be="http://typo3.org/ns/TYPO3/CMS/Backend/ViewHelpers"
+      xmlns:core="http://typo3.org/ns/TYPO3/CMS/Core/ViewHelpers"
       data-namespace-typo3-fluid="true">
 
 <tr>
-    <td>{entry.crdate -> f:format.date(format: 'Y-m-d H:i:s')}</td>
+    <td>
+        <a href="{f:be.uri(route: 'aim_request_log.show', parameters: '{uid: entry.uid, returnUrl: returnUrl}')}" title="{f:translate(key: 'LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.show.viewDetails')}">
+            {entry.crdate -> f:format.date(format: 'Y-m-d H:i:s')}
+        </a>
+    </td>
     <td>
         <f:if condition="{entry.extension_key}">
             <f:then>
@@ -85,6 +90,15 @@
                 <span class="badge badge-danger" title="{entry.error_message -> f:format.htmlspecialchars()}"><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.status.failed" /></span>
             </f:else>
         </f:if>
+    </td>
+    <td class="col-control">
+        <a
+            href="{f:be.uri(route: 'aim_request_log.show', parameters: '{uid: entry.uid, returnUrl: returnUrl}')}"
+            class="btn btn-default btn-sm"
+            title="{f:translate(key: 'LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.show.viewDetails')}"
+        >
+            <core:icon identifier="actions-search" alternativeMarkupIdentifier="inline" />
+        </a>
     </td>
 </tr>
 

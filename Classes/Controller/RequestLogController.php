@@ -118,6 +118,57 @@ class RequestLogController
         ])->renderResponse('Aim/RequestLog');
     }
 
+    /**
+     * Detail view, reached via a "uid" query parameter. Meant both as a proper drill-down
+     * from the log table (see RequestLog/Row.html) and as a stable, direct link target for
+     * other extensions that log through aim and want to point back at "this specific request"
+     * (via requestLogUid on their own response/result objects).
+     */
+    public function showAction(ServerRequestInterface $request): ResponseInterface
+    {
+        $uid = (int)($request->getQueryParams()['uid'] ?? 0);
+        $entry = $uid > 0 ? $this->logRepository->findByUid($uid) : null;
+
+        $languageService = $this->getLanguageService();
+        $view = $this->moduleTemplateFactory->create($request);
+        if (method_exists($view, 'makeDocHeaderModuleMenu')) {
+            $view->makeDocHeaderModuleMenu();
+        }
+        $view->setTitle(
+            $languageService->sL('LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.title'),
+            $languageService->sL('LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.show.title')
+        );
+
+        $returnUrl = (string)($request->getQueryParams()['returnUrl'] ?? $this->uriBuilder->buildUriFromRoute('aim_request_log'));
+        $backButton = GeneralUtility::makeInstance(LinkButton::class)
+            ->setHref($returnUrl)
+            ->setTitle($languageService->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.goBack'))
+            ->setShowLabelText(true)
+            ->setIcon($this->iconFactory->getIcon('actions-view-go-back', class_exists(IconSize::class) ? IconSize::SMALL : Icon::SIZE_SMALL));
+        $view->getDocHeaderComponent()->getButtonBar()->addButton($backButton, ButtonBar::BUTTON_POSITION_LEFT);
+
+        if ($entry === null) {
+            return $view->assignMultiple(['entry' => null])->renderResponse('Aim/RequestLogShow');
+        }
+
+        $configurationUid = (int)($entry['configuration_uid'] ?? 0);
+        $entry['configuration_edit_url'] = $configurationUid > 0
+            ? (string)$this->uriBuilder->buildUriFromRoute('record_edit', [
+                'edit' => ['tx_aim_configuration' => [$configurationUid => 'edit']],
+                'returnUrl' => (string)$this->uriBuilder->buildUriFromRoute('aim_request_log.show', ['uid' => $uid]),
+            ])
+            : '';
+
+        $userId = (int)($entry['user_id'] ?? 0);
+        $userMap = $userId > 0 ? $this->logRepository->resolveUsernames([$userId]) : [];
+
+        return $view->assignMultiple([
+            'entry' => $entry,
+            'username' => $userMap[$userId] ?? '',
+            'extensionIcon' => ($entry['extension_key'] ?? '') !== '' ? ($this->resolveExtensionIcons([$entry['extension_key']])[$entry['extension_key']] ?? null) : null,
+        ])->renderResponse('Aim/RequestLogShow');
+    }
+
     public function pollAction(ServerRequestInterface $request): ResponseInterface
     {
         $demand = RequestLogDemand::fromRequest($request);
@@ -131,6 +182,11 @@ class RequestLogController
         foreach ($logEntries as $entry) {
             $configurationUid = (int)($entry['configuration_uid'] ?? 0);
             $rows[] = [
+                'uid' => (int)($entry['uid'] ?? 0),
+                'detailUrl' => (string)$this->uriBuilder->buildUriFromRoute('aim_request_log.show', [
+                    'uid' => (int)($entry['uid'] ?? 0),
+                    'returnUrl' => $requestLogReturnUrl,
+                ]),
                 'crdate' => date('Y-m-d H:i:s', (int)$entry['crdate']),
                 'extension_key' => $entry['extension_key'] ?? '',
                 'request_type' => $entry['request_type'] ?? '',

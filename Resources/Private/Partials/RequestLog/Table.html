@@ -15,6 +15,9 @@
                 <f:render partial="SortableHeader" arguments="{sortUrls: sortUrls, field: 'duration_ms', labelKey: 'LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.column.duration'}" />
                 <th><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.column.grade" /></th>
                 <th><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.column.status" /></th>
+                <th class="col-control">
+                    <span class="visually-hidden"><f:translate key="LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels._CONTROL_" /></span>
+                </th>
             </tr>
         </thead>
         <tbody data-poll="rows">

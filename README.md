@@ -297,6 +297,43 @@ $data = json_decode($response->content, true);
 
 ### Tool calling
 
+For simple cases, `$ai->toolCalling()` is the recommended Tier 1 entry point — no manual provider resolution or pipeline dispatch needed:
+
+```php
+use B13\Aim\Request\ToolDefinition;
+use B13\Aim\Request\Message\UserMessage;
+use B13\Aim\Response\ToolCallingResponse;
+
+$response = $this->ai->toolCalling(
+    messages: [new UserMessage('What is the weather in Berlin?')],
+    tools: [
+        new ToolDefinition(
+            name: 'get_weather',
+            description: 'Get current weather for a city',
+            parameters: [
+                'type' => 'object',
+                'properties' => [
+                    'city' => ['type' => 'string', 'description' => 'City name'],
+                ],
+                'required' => ['city'],
+                'additionalProperties' => false,
+            ],
+            strict: true,
+        ),
+    ],
+    extensionKey: 'my_extension',
+);
+if ($response instanceof ToolCallingResponse && $response->requiresToolExecution()) {
+    foreach ($response->toolCalls as $toolCall) {
+        // $toolCall->name, $toolCall->getDecodedArguments()
+    }
+}
+```
+
+The `instanceof` check is necessary because `toolCalling()` returns the base `TextResponse` type — governance middlewares (access control, budgets, rate limits) can short-circuit with a plain `TextResponse` before the provider is ever called, so a narrower return type would risk a `TypeError` on a denied request.
+
+For full control over the request (custom `maxTokens`, direct fallback-chain access, etc.), Tier 3 direct pipeline access is still available:
+
 ```php
 use B13\Aim\Request\ToolCallingRequest;
 use B13\Aim\Request\ToolDefinition;

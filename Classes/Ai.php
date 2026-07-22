@@ -16,6 +16,7 @@ use B13\Aim\Capability\ConversationCapableInterface;
 use B13\Aim\Capability\EmbeddingCapableInterface;
 use B13\Aim\Capability\ImageGenerationCapableInterface;
 use B13\Aim\Capability\TextGenerationCapableInterface;
+use B13\Aim\Capability\ToolCallingCapableInterface;
 use B13\Aim\Capability\TranslationCapableInterface;
 use B13\Aim\Capability\VisionCapableInterface;
 use B13\Aim\Middleware\AiMiddlewarePipeline;
@@ -27,6 +28,9 @@ use B13\Aim\Request\EmbeddingRequest;
 use B13\Aim\Request\ImageGenerationRequest;
 use B13\Aim\Request\Message\AbstractMessage;
 use B13\Aim\Request\TextGenerationRequest;
+use B13\Aim\Request\ToolCallingRequest;
+use B13\Aim\Request\ToolDefinition;
+use B13\Aim\Request\ToolResult;
 use B13\Aim\Request\TranslationRequest;
 use B13\Aim\Request\VisionRequest;
 use B13\Aim\Response\ConversationResponse;
@@ -234,6 +238,50 @@ final class Ai
         // TextResponse. Normalize to this method's declared return type
         // instead of letting a TypeError surface for a denied request.
         return new ConversationResponse($response->content, $response->usage, $response->rawResponse, $response->errors);
+    }
+
+    /**
+     * Let the model call tools/functions the caller defines.
+     *
+     * Returns the base TextResponse type (like every proxy method except
+     * conversationStream()) rather than ToolCallingResponse, since governance
+     * middlewares can short-circuit with a plain TextResponse before the
+     * provider is ever called, narrowing the return type here would risk
+     * the same TypeError class of bug fixed for conversationStream(). Callers
+     * check `instanceof ToolCallingResponse` and `requiresToolExecution()` /
+     * `toolCalls` themselves, same as the README's Tier 3 example.
+     *
+     * For multi-turn tool use: feed the prior turn's tool calls back as an
+     * AssistantMessage in $messages, and the executed results as $toolResults.
+     *
+     * @param list<AbstractMessage> $messages
+     * @param list<ToolDefinition> $tools
+     * @param list<ToolResult> $toolResults Results from previously invoked tools (for multi-turn)
+     */
+    public function toolCalling(
+        array $messages,
+        array $tools,
+        array $toolResults = [],
+        string $systemPrompt = '',
+        int $maxTokens = 1000,
+        float $temperature = 0.7,
+        string $extensionKey = '',
+        string $user = '',
+        string $provider = '',
+    ): TextResponse {
+        $resolvedProvider = $this->resolve(ToolCallingCapableInterface::class, $provider);
+        $request = new ToolCallingRequest(
+            configuration: $resolvedProvider->configuration,
+            messages: $messages,
+            tools: $tools,
+            systemPrompt: $systemPrompt,
+            toolResults: $toolResults,
+            maxTokens: $maxTokens,
+            temperature: $temperature,
+            user: $user,
+            metadata: $this->buildMetadata($extensionKey),
+        );
+        return $this->dispatch($request, ToolCallingCapableInterface::class);
     }
 
     /**

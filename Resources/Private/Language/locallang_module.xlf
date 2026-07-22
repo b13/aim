@@ -196,6 +196,33 @@
             <trans-unit id="requestLog.column.status" resname="requestLog.column.status">
                 <source>Status</source>
             </trans-unit>
+            <trans-unit id="requestLog.show.title" resname="requestLog.show.title">
+                <source>Request Details</source>
+            </trans-unit>
+            <trans-unit id="requestLog.show.notFound" resname="requestLog.show.notFound">
+                <source>This log entry could not be found. It may have been removed by the log's retention/cleanup task.</source>
+            </trans-unit>
+            <trans-unit id="requestLog.show.viewDetails" resname="requestLog.show.viewDetails">
+                <source>View details</source>
+            </trans-unit>
+            <trans-unit id="requestLog.show.prompt" resname="requestLog.show.prompt">
+                <source>Prompt</source>
+            </trans-unit>
+            <trans-unit id="requestLog.show.response" resname="requestLog.show.response">
+                <source>Response</source>
+            </trans-unit>
+            <trans-unit id="requestLog.show.errorMessage" resname="requestLog.show.errorMessage">
+                <source>Error Message</source>
+            </trans-unit>
+            <trans-unit id="requestLog.show.complexity" resname="requestLog.show.complexity">
+                <source>Complexity</source>
+            </trans-unit>
+            <trans-unit id="requestLog.show.judgeModel" resname="requestLog.show.judgeModel">
+                <source>Judge Model</source>
+            </trans-unit>
+            <trans-unit id="requestLog.show.judgeCost" resname="requestLog.show.judgeCost">
+                <source>Judge Cost</source>
+            </trans-unit>
             <trans-unit id="requestLog.grade.pending" resname="requestLog.grade.pending">
                 <source>Pending</source>
             </trans-unit>

@@ -201,6 +201,8 @@ Filter by provider, extension, request type, or success/failure. Statistics dash
 
 ![Request Log](Images/request-log.png)
 
+Click any row (or its dedicated details button) to open the **full request detail view**: the complete, untruncated prompt and response - the list only ever shows a short preview - alongside every other field recorded for that request. It's reachable via a stable, linkable URL (`aim_request_log.show`), so other extensions logging through AiM can link straight from their own UI to the exact request behind a piece of generated content, instead of sending editors to search the list manually.
+
 ### Response quality grading
 
 How good are the AI responses your site produces? AiM can answer that automatically. Enable **LLM grading** on any provider configuration and AiM scores each response with a second AI model acting as an impartial judge ("LLM-as-a-judge").

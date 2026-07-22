@@ -21,6 +21,15 @@ namespace B13\Aim\Response;
  */
 class TextResponse
 {
+    /**
+     * Uid of the tx_aim_request_log row RequestLoggingMiddleware wrote for this call.
+     * Not part of the constructor since it's only known after the response already
+     * exists. RequestLoggingMiddleware sets it once the log entry has been inserted.
+     * Stays null for streaming responses (logged after the response is returned) or
+     * if request logging itself failed.
+     */
+    public ?int $requestLogUid = null;
+
     public function __construct(
         public readonly string $content,
         public readonly AiUsageStatistics $usage = new AiUsageStatistics(),

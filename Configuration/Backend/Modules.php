@@ -52,6 +52,9 @@ return [
             '_default' => [
                 'target' => \B13\Aim\Controller\RequestLogController::class . '::logAction',
             ],
+            'show' => [
+                'target' => \B13\Aim\Controller\RequestLogController::class . '::showAction',
+            ],
         ],
     ],
 ];

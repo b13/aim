@@ -104,7 +104,7 @@ class RequestLogPoll {
   #createRow(e) {
     const tr = document.createElement('tr');
     tr.append(
-      this.#td(e.crdate),
+      this.#tdHtml(this.#renderTimestamp(e)),
       this.#tdHtml(this.#renderExtBadge(e.extension_key)),
       this.#td(e.request_type),
       this.#tdHtml(this.#renderProvider(e)),
@@ -113,8 +113,21 @@ class RequestLogPoll {
       this.#td(e.cost),
       this.#td(e.duration_ms + ' ms'),
       this.#tdHtml(this.#renderStatus(e)),
+      this.#tdHtml(this.#renderDetailLink(e)),
     );
     return tr;
+  }
+
+  #renderTimestamp(e) {
+    return e.detailUrl
+      ? `<a href="${this.#esc(e.detailUrl)}">${this.#esc(e.crdate)}</a>`
+      : this.#esc(e.crdate);
+  }
+
+  #renderDetailLink(e) {
+    return e.detailUrl
+      ? `<a href="${this.#esc(e.detailUrl)}" class="btn btn-default btn-sm">Details</a>`
+      : '';
   }
 
   #td(text) {
