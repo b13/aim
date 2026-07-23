@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.3.0
+
+Tool calling improvements, image generation, request log detail view, and sortable listings.
+
+- Request log detail view: every request now has a stable, linkable detail page (`aim_request_log.show`) showing the full untruncated prompt/response and all fields, reachable from the list's timestamp or a dedicated details button, so other extensions logging through AiM can link straight to a specific request instead of pointing at the list
+- Image generation support via `$ai->generateImage()`, optionally guided by a reference image, through the same proxy API as every other capability
+- Streaming support for tool-calling requests: text deltas and tool-call deltas are both exposed instead of dropping the latter, with an optional callback fired as soon as a tool call starts
+- Sortable columns in the request log and providers listing
+- Bugfix: tool schema is now serialised per provider through Symfony AI's native normalizers instead of a single hardcoded shape, fixing 400s on the OpenAI Responses API and incorrect shapes on Anthropic/Gemini
+- Bugfix: tool call/result round-tripping now uses Symfony AI's native message types, so providers see their actual protocol (tool_use/tool_result on Anthropic, function_call/function_call_output on the OpenAI Responses API, functionCall/functionResponse on Gemini) instead of losing the tool exchange on the next turn
+- Bugfix: streaming requests now go through the same logging/cost-tracking governance as non-streaming ones, reading real usage and content off the stream once it's drained instead of logging placeholder zeros
+- Bugfix: tool-calling requests are graded once they produce a final text answer; intermediate turns still awaiting tool execution are correctly skipped
+- If used, `symfony/ai-platform` now needs to be ^0.9 (tested up to 0.11), up from ^0.8; it remains an optional suggestion, not a hard dependency
+
 ## 0.2.0
 
 Quality grading, encrypted API keys, CLI testing, and smaller fixes.
