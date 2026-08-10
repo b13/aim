@@ -84,4 +84,48 @@ final class ProviderResolverTest extends TestCase
 
         self::assertSame('gpt-image-1', $resolved->configuration->model);
     }
+
+    #[Test]
+    public function resolveWithFallbackAcceptsProviderNotationAlongsideConfigurationUids(): void
+    {
+        $configuration = new ProviderConfiguration([
+            'uid' => 1,
+            'ai_provider' => 'anthropic',
+            'model' => 'claude-3-5-sonnet',
+            'disabled' => 0,
+        ]);
+
+        $manifest = new AiProviderManifest(
+            identifier: 'anthropic',
+            name: 'Anthropic',
+            description: '',
+            iconIdentifier: '',
+            supportedModels: [],
+            capabilities: [ConversationCapableInterface::class],
+            serviceName: 'aim.symfony_ai.anthropic',
+            container: $this->createStub(ContainerInterface::class),
+        );
+
+        $registry = $this->createStub(AiProviderRegistry::class);
+        $registry->method('hasProvider')->willReturnCallback(
+            static fn(string $identifier): bool => $identifier === 'anthropic',
+        );
+        $registry->method('getProvider')->willReturn($manifest);
+
+        $configurationRepository = $this->createStub(ProviderConfigurationRepository::class);
+        $configurationRepository->method('findByUid')->willReturn($configuration);
+
+        $disabledModelRegistry = $this->createStub(DisabledModelRegistry::class);
+        $disabledModelRegistry->method('isDisabled')->willReturn(false);
+
+        $logRepository = $this->createStub(RequestLogRepository::class);
+
+        $resolver = new ProviderResolver($registry, $configurationRepository, $disabledModelRegistry, $logRepository);
+
+        // First entry is an unregistered provider notation and must fail over to the
+        // second entry, a plain configuration uid, rather than throwing immediately.
+        $resolved = $resolver->resolveWithFallback(ConversationCapableInterface::class, ['unknown-provider:some-model', 1]);
+
+        self::assertSame('anthropic', $resolved->configuration->providerIdentifier);
+    }
 }

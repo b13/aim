@@ -253,26 +253,32 @@ final class ProviderResolver
     }
 
     /**
-     * Try multiple configurations in order, return the first that supports the capability.
+     * Try multiple configurations or provider notations in order, return the first that resolves.
      *
      * @template T of AiCapabilityInterface
      * @param class-string<T> $capabilityFqcn
-     * @param list<int> $configurationUids
+     * @param list<int|string> $providers Configuration UIDs (int) or "provider:model" / "provider:*" notation (string), tried in order
      */
-    public function resolveWithFallback(string $capabilityFqcn, array $configurationUids): ResolvedProvider
+    public function resolveWithFallback(string $capabilityFqcn, array $providers): ResolvedProvider
     {
         $errors = [];
-        foreach ($configurationUids as $uid) {
+        foreach ($providers as $provider) {
             try {
-                return $this->resolveForCapability($capabilityFqcn, $uid);
+                return is_string($provider)
+                    ? $this->resolveByString($provider, $capabilityFqcn)
+                    : $this->resolveForCapability($capabilityFqcn, $provider);
             } catch (\Throwable $e) {
-                $errors[] = sprintf('Config %d: %s', $uid, $e->getMessage());
+                $errors[] = sprintf(
+                    '%s: %s',
+                    is_string($provider) ? $provider : 'Config ' . $provider,
+                    $e->getMessage(),
+                );
             }
         }
 
         throw new ProviderNotFoundException(sprintf(
             'No viable provider found after trying %d configurations for capability "%s": %s',
-            count($configurationUids),
+            count($providers),
             $capabilityFqcn,
             implode('; ', $errors),
         ), 1773874279);

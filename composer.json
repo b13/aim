@@ -38,6 +38,9 @@
 				"providesPackages": {}
 			},
 			"version": "0.3.0"
+		},
+		"branch-alias": {
+			"dev-main": "0.3.x-dev"
 		}
 	},
 	"authors": [
