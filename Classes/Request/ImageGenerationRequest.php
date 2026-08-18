@@ -14,8 +14,9 @@ namespace B13\Aim\Request;
 
 use B13\Aim\Domain\Model\ProviderConfiguration;
 use B13\Aim\Governance\PrivacyLevel;
+use B13\Aim\Prompt\PromptFragmentScope;
 
-final class ImageGenerationRequest implements AiRequestInterface
+final class ImageGenerationRequest implements AiRequestInterface, SupportsPageContextInterface
 {
     /**
      * @param string $referenceImageData Base64-encoded reference image. When set, the
@@ -29,6 +30,9 @@ final class ImageGenerationRequest implements AiRequestInterface
     public function __construct(
         public readonly ProviderConfiguration $configuration,
         public readonly string $prompt,
+        public readonly ?int $pageId = null,
+        public readonly bool $disableAutomaticSystemPrompt = false,
+        public readonly array $systemPromptOverride = [],
         public readonly string $referenceImageData = '',
         public readonly string $referenceMimeType = '',
         public readonly array $options = [],
@@ -41,6 +45,40 @@ final class ImageGenerationRequest implements AiRequestInterface
     public function getConfiguration(): ProviderConfiguration
     {
         return $this->configuration;
+    }
+
+    public function getPageId(): ?int
+    {
+        return $this->pageId;
+    }
+
+    public function isAutomaticPromptCompositionDisabled(): bool
+    {
+        return $this->disableAutomaticSystemPrompt;
+    }
+
+    public function getSystemPromptOverride(): array
+    {
+        return $this->systemPromptOverride;
+    }
+
+    public function getPromptFragmentScope(): PromptFragmentScope
+    {
+        return PromptFragmentScope::ImageGeneration;
+    }
+
+    /**
+     * Return a copy of this request with a different prompt. Used by
+     * TonePromptCompositionMiddleware/ProviderAddendumMiddleware to splice
+     * in the resolved tone-of-voice/watermark instructions after the
+     * caller's own prompt.
+     */
+    public function withPrompt(string $prompt): static
+    {
+        return new static(...array_merge(
+            get_object_vars($this),
+            ['prompt' => $prompt],
+        ));
     }
 
     public function withConfiguration(ProviderConfiguration $configuration): static

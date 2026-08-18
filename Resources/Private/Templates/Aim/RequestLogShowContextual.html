@@ -1,0 +1,10 @@
+<html xmlns:f="http://typo3.org/ns/TYPO3/CMS/Fluid/ViewHelpers"
+      xmlns:be="http://typo3.org/ns/TYPO3/CMS/Backend/ViewHelpers"
+      data-namespace-typo3-fluid="true">
+
+<div class="aim-console aim-request-log-detail">
+    <style>{consoleCss -> f:format.raw()}</style>
+    <f:render partial="RequestLogDetail" arguments="{entry: entry, username: username, extensionIcon: extensionIcon}" />
+</div>
+
+</html>

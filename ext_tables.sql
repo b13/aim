@@ -1,3 +1,19 @@
+CREATE TABLE pages (
+    tx_aim_disable_inherited_fragments tinyint(1) unsigned DEFAULT '0' NOT NULL
+);
+
+CREATE TABLE tx_aim_prompt_fragment (
+    parent_page int(11) unsigned DEFAULT '0' NOT NULL,
+    title varchar(255) DEFAULT '' NOT NULL,
+    prompt text,
+    examples text,
+    scope varchar(255) DEFAULT 'text,vision,translation,conversation,toolCalling,imageGeneration' NOT NULL,
+    inherit_to_subpages tinyint(1) unsigned DEFAULT '1' NOT NULL,
+    auto_generated tinyint(1) unsigned DEFAULT '0' NOT NULL,
+
+    KEY parent_page (parent_page)
+);
+
 CREATE TABLE tx_aim_configuration (
     ai_provider varchar(255) DEFAULT '' NOT NULL,
     title varchar(255) DEFAULT '' NOT NULL,
@@ -17,7 +33,8 @@ CREATE TABLE tx_aim_configuration (
     auto_model_switch tinyint(1) unsigned DEFAULT '1' NOT NULL,
     grading_enabled tinyint(1) unsigned DEFAULT '0' NOT NULL,
     judge_configuration_uid int(11) unsigned DEFAULT '0' NOT NULL,
-    grading_rubric text
+    grading_rubric text,
+    system_prompt_addition text
 );
 
 CREATE TABLE tx_aim_usage_budget (

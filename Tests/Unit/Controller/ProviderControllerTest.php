@@ -12,6 +12,7 @@ declare(strict_types=1);
 
 namespace B13\Aim\Tests\Unit\Controller;
 
+use B13\Aim\Backend\ConsoleStylesheetProvider;
 use B13\Aim\Backend\SortUrlBuilder;
 use B13\Aim\Capability\ConversationCapableInterface;
 use B13\Aim\Capability\EmbeddingCapableInterface;
@@ -169,7 +170,7 @@ final class ProviderControllerTest extends TestCase
         $registry->method('get')->willReturn([]);
 
         // ModuleTemplateFactory, LiveModelDiscovery, and SortUrlBuilder are `final`
-        // classes PHPUnit cannot generate test doubles for — and
+        // classes PHPUnit cannot generate test doubles for and
         // verifyProviderAction() never touches any of them, so an uninitialized
         // instance is a sufficient placeholder.
         $moduleTemplateFactory = (new \ReflectionClass(ModuleTemplateFactory::class))->newInstanceWithoutConstructor();
@@ -187,6 +188,7 @@ final class ProviderControllerTest extends TestCase
             $registry,
             $liveModelDiscovery,
             $sortUrlBuilder,
+            new ConsoleStylesheetProvider(),
         );
 
         $request = $this->createStub(ServerRequestInterface::class);

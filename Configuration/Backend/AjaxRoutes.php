@@ -1,6 +1,7 @@
 <?php
 
 use B13\Aim\Controller\ProviderController;
+use B13\Aim\Controller\PromptPreviewController;
 use B13\Aim\Controller\RequestLogController;
 
 return [
@@ -23,5 +24,20 @@ return [
         'path' => '/aim/request-log/poll',
         'target' => RequestLogController::class . '::pollAction',
         'methods' => ['GET'],
+    ],
+    'aim_prompt_preview' => [
+        'path' => '/aim/prompt-preview',
+        'target' => PromptPreviewController::class . '::previewAction',
+        'methods' => ['POST'],
+    ],
+    'aim_calibrate_voice' => [
+        'path' => '/aim/calibrate-voice',
+        'target' => PromptPreviewController::class . '::calibrateVoiceAction',
+        'methods' => ['POST'],
+    ],
+    'aim_extract_page_content' => [
+        'path' => '/aim/extract-page-content',
+        'target' => PromptPreviewController::class . '::extractPageContentAction',
+        'methods' => ['POST'],
     ],
 ];

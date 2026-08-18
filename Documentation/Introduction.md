@@ -72,6 +72,10 @@ Every editor prompting an image generator on their own produces a different look
 
 ## How it works for administrators
 
+Everything lives in one place: the **AiM** module under Admin Tools, with three sub-modules for providers, request monitoring, and page tone.
+
+![AiM module overview](Images/module-overview-light.png)
+
 ### 1. Install AiM and a provider bridge
 
 ```bash
@@ -199,11 +203,11 @@ Every AI request is tracked in the **AiM > Request Log** module:
 
 Filter by provider, extension, request type, or success/failure. Statistics dashboard shows totals at a glance.
 
-![Request Log](Images/request-log.png)
+![Request Log](Images/request-log-light.png)
 
 Click any row (or its dedicated details button) to open the **full request detail view**: the complete, untruncated prompt and response - the list only ever shows a short preview - alongside every other field recorded for that request. It's reachable via a stable, linkable URL (`aim_request_log.show`), so other extensions logging through AiM can link straight from their own UI to the exact request behind a piece of generated content, instead of sending editors to search the list manually.
 
-![Request Log Detail](Images/request-log-detail.png)
+![Request Log detail view](Images/request-log-detail-light.png)
 
 ### Response quality grading
 
@@ -219,7 +223,7 @@ This turns the request log into a quality dashboard: spot which models or prompt
 
 Click the verify button next to any provider configuration to test the connection. See "connected" or "disconnected" with the exact error message. Results are persisted so you see the last check status on every page load.
 
-![Provider Management](Images/provider-management.png)
+![Provider Management](Images/providers-light.png)
 
 ### Disabled models
 
@@ -227,6 +231,8 @@ In the Available Providers modal, click any model badge to disable it. Disabled 
 - Don't appear in the model selection dropdown
 - Are never picked by the resolver, smart router, or auto model switch
 - Are blocked by the capability validation middleware as a safety net
+
+![Available Providers modal with clickable model badges](Images/model-selection-light.png)
 
 ### Dashboard widgets
 
@@ -240,7 +246,43 @@ If the TYPO3 Dashboard extension is installed, AiM adds five widgets you can pla
 
 A pre-configured dashboard preset ("AiM: AI Analytics") is available when creating a new dashboard, placing all five widgets at once.
 
-![Dashboard Widgets](Images/dashboard-widgets.png)
+![Dashboard Widgets](Images/dashboard-light.png)
+
+---
+
+## A consistent tone of voice, site-wide
+
+Every extension calling AiM can inherit a shared brand voice automatically, without changing a line of its own code.
+
+### How the voice is defined
+
+Editors add named **prompt fragments** directly on any page (a repeatable "AI" tab, right next to the page's other properties): an instruction ("write in a warm, second-person voice"), optional example text to steer the model further, and which AI capability it applies to. A fragment on a page also applies to everything below it in the page tree by default, so setting the tone once on a site's root page covers the whole site; a subsection can add its own fragment on top, or opt out of what it would otherwise inherit entirely.
+
+For AI requests with no page context at all (e.g. generating alt text for a file in the media library), a single site-wide fallback tone applies instead. Either way, a provider-specific addendum and any organization-wide policy an extension developer registers in code (a watermark instruction, a compliance disclaimer) are layered in automatically, last.
+
+### Inspecting what will actually be sent
+
+The **AiM > Prompt Preview** module lists every page that has a configured fragment (only pages you're actually allowed to see), searchable and filterable by capability. Select a page in the built-in page tree to narrow the list to it and everything below it.
+
+![Prompt Preview module, filtered to a site's pages](Images/prompt-preview-light.png)
+
+Click "Preview" on any row to see, without spending a single AI call, exactly what would be composed and sent for that page: the page's own tone, anything assigned to you personally, and any organization-wide policy, with a running character/token count.
+
+![Compose and inspect preview showing the layered prompt composition](Images/prompt-preview-modal-light.png)
+
+### Calibrating the voice from real content
+
+Writing a good tone-of-voice instruction by hand is tedious, and it's easy for it to drift from how the site actually reads. The **"Calibrate Voice"** button (in the Prompt Preview module) does it for you: paste a sample of on-brand copy, or pick one or more existing pages directly from the page tree, and AiM derives a tone instruction plus illustrative example text from that real content, ready to copy into a fragment.
+
+![Calibrate Voice modal with a rendered page inserted](Images/calibrate-voice-light.png)
+
+For a whole site at once, run:
+
+```bash
+vendor/bin/typo3 aim:calibrateVoice
+```
+
+This crawls a site's root page and a representative slice of its subpages, derives the same tone instruction and examples from the combined real content, and saves the result directly as a fragment on the site's root page, schedulable as a recurring task, so a site's tone of voice can refresh itself as its content evolves.
 
 ---
 

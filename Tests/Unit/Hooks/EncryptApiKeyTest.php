@@ -83,12 +83,30 @@ final class EncryptApiKeyTest extends TestCase
     }
 
     #[Test]
-    public function ignoresEmptyApiKey(): void
+    public function removesEmptyApiKeyFromFieldArrayOnUpdate(): void
     {
+        // HideApiKey never pre-fills this field for an existing record, so
+        // an empty submission on an update must not overwrite the stored
+        // key with a blank value; it has to be dropped from the field
+        // array entirely so DataHandler leaves the column untouched.
+        $hook = new EncryptApiKey(new ApiKeyEncryption());
+        $fieldArray = ['api_key' => '', 'title' => 'Renamed'];
+
+        $hook->processDatamap_postProcessFieldArray('update', 'tx_aim_configuration', 1, $fieldArray, $this->createDataHandlerMock());
+
+        self::assertArrayNotHasKey('api_key', $fieldArray);
+        self::assertSame('Renamed', $fieldArray['title']);
+    }
+
+    #[Test]
+    public function keepsEmptyApiKeyAsIsForNewRecords(): void
+    {
+        // A brand-new record has nothing stored to preserve, so an empty
+        // key (e.g. a keyless local Ollama endpoint) saves as-is.
         $hook = new EncryptApiKey(new ApiKeyEncryption());
         $fieldArray = ['api_key' => ''];
 
-        $hook->processDatamap_postProcessFieldArray('update', 'tx_aim_configuration', 1, $fieldArray, $this->createDataHandlerMock());
+        $hook->processDatamap_postProcessFieldArray('new', 'tx_aim_configuration', 'NEW1', $fieldArray, $this->createDataHandlerMock());
 
         self::assertSame('', $fieldArray['api_key']);
     }

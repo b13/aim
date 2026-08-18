@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" id="b13-aim-prompt-fragment">
+  <title>AI Prompt Fragment</title>
+  <desc>TYPO3 record icon for ai_prompt_fragment, matching the b13 AiM extension icon colors.</desc>
+  <rect width="64" height="64" rx="4" ry="4" fill="#ffc857"/>
+
+  <!-- Reusable prompt fragment / text snippet -->
+  <path fill="#131313" d="M18 13h20.8L48 22.2V49a4 4 0 0 1-4 4H18a4 4 0 0 1-4-4V17a4 4 0 0 1 4-4Zm19 4.8V24h6.2L37 17.8ZM21 31a2 2 0 0 0 0 4h20a2 2 0 1 0 0-4H21Zm0 8a2 2 0 0 0 0 4h13a2 2 0 1 0 0-4H21Z"/>
+
+  <!-- Fragment marker: opening quote -->
+  <path fill="#ffc857" d="M20.5 19.5c-2.5 1.4-4 3.5-4 6.4 0 2.1 1.2 3.6 3.2 3.6 1.7 0 3-1.2 3-2.9 0-1.5-.9-2.5-2.2-2.8.3-1.2 1-2.1 2.1-2.8l-2.1-1.5Zm8 0c-2.5 1.4-4 3.5-4 6.4 0 2.1 1.2 3.6 3.2 3.6 1.7 0 3-1.2 3-2.9 0-1.5-.9-2.5-2.2-2.8.3-1.2 1-2.1 2.1-2.8l-2.1-1.5Z"/>
+</svg>

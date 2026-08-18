@@ -12,6 +12,7 @@ declare(strict_types=1);
 
 namespace B13\Aim\Controller;
 
+use B13\Aim\Backend\ConsoleStylesheetProvider;
 use B13\Aim\Backend\SortUrlBuilder;
 use B13\Aim\Capability\ConversationCapableInterface;
 use B13\Aim\Capability\EmbeddingCapableInterface;
@@ -64,6 +65,7 @@ class ProviderController
         private readonly Registry $registry,
         private readonly LiveModelDiscovery $liveModelDiscovery,
         private readonly SortUrlBuilder $sortUrlBuilder,
+        private readonly ConsoleStylesheetProvider $consoleStylesheetProvider,
     ) {}
 
     public function overviewAction(ServerRequestInterface $request): ResponseInterface
@@ -130,6 +132,7 @@ class ProviderController
 
         $rows = array_map(function (ProviderConfiguration $configuration): array {
             $row = $configuration->row;
+            unset($row['api_key']);
             $row['modelDisabled'] = $this->disabledModelRegistry->isDisabled(
                 $configuration->providerIdentifier,
                 $configuration->model,
@@ -193,6 +196,7 @@ class ProviderController
             'providers' => $providers,
             'disabledModels' => $this->disabledModelRegistry->getAll(),
             'toggleUrl' => (string)$this->uriBuilder->buildUriFromRoute('ajax_aim_toggle_model'),
+            'consoleCss' => $this->consoleStylesheetProvider->getCss(),
         ]);
         return $view->renderResponse('Aim/AvailableProviders');
     }
@@ -284,7 +288,7 @@ class ProviderController
      * Verify that a provider configuration can reach its AI backend.
      *
      * Sends a minimal 1-token request to validate the API key, endpoint,
-     * and model. Bypasses the middleware pipeline — this is a health probe,
+     * and model. Bypasses the middleware pipeline, since this is a health probe,
      * not a real AI request.
      */
     public function verifyProviderAction(ServerRequestInterface $request): ResponseInterface
@@ -309,7 +313,7 @@ class ProviderController
         $provider = $manifest->getInstance();
 
         // Build a minimal probe request to verify connectivity. The configured
-        // MODEL, not just the adapter class, determines which probe is valid —
+        // MODEL, not just the adapter class, determines which probe is valid:
         // a SymfonyAiPlatformAdapter implements every capability interface
         // regardless of the specific model configured, so e.g. an embeddings-only
         // model would otherwise get sent a conversational prompt it can't handle.
@@ -347,8 +351,8 @@ class ProviderController
             } elseif ($provider instanceof ImageGenerationCapableInterface
                 && $manifest->hasModelCapability($configuration->model, ImageGenerationCapableInterface::class)
             ) {
-                // Unlike the other probes, this generates a real (billable) image —
-                // there's no free-tier "ping" for image generation endpoints.
+                // Unlike the other probes, this generates a real (billable) image,
+                // since there's no free-tier "ping" for image generation endpoints.
                 $probeRequest = new ImageGenerationRequest(
                     configuration: $configuration,
                     prompt: 'a single red circle on a white background',
@@ -360,7 +364,7 @@ class ProviderController
         } catch (\Throwable $e) {
             $result = [
                 'ok' => false,
-                'message' => $e->getMessage(),
+                'message' => $this->sanitizeVerificationMessage($e->getMessage(), $configuration->apiKey),
                 'checkedAt' => time(),
             ];
             $this->saveVerificationResult($uid, $result);
@@ -371,7 +375,7 @@ class ProviderController
         if ($response->isSuccessful()) {
             $result = [
                 'ok' => true,
-                'message' => sprintf('Reachable — %s responded in %dms', $response->usage->modelUsed ?: $configuration->model, $latencyMs),
+                'message' => sprintf('Reachable: %s responded in %dms', $response->usage->modelUsed ?: $configuration->model, $latencyMs),
                 'model' => $response->usage->modelUsed ?: $configuration->model,
                 'latencyMs' => $latencyMs,
                 'checkedAt' => time(),
@@ -379,7 +383,7 @@ class ProviderController
         } else {
             $result = [
                 'ok' => false,
-                'message' => $response->errors[0] ?? 'Unknown error',
+                'message' => $this->sanitizeVerificationMessage($response->errors[0] ?? 'Unknown error', $configuration->apiKey),
                 'checkedAt' => time(),
             ];
         }
@@ -388,6 +392,14 @@ class ProviderController
         $this->saveVerificationResult($uid, $result);
 
         return new JsonResponse($result);
+    }
+
+    private function sanitizeVerificationMessage(string $message, string $apiKey): string
+    {
+        if ($apiKey === '' || !str_contains($message, $apiKey)) {
+            return $message;
+        }
+        return str_replace($apiKey, '***', $message);
     }
 
     private function saveVerificationResult(int $configUid, array $result): void

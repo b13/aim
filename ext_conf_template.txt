@@ -1,0 +1,2 @@
+# cat=basic; type=text; label=Default tone-of-voice system prompt: Fallback instructions used for AI requests with no page context (e.g. image alt-text generation for sys_file_metadata, which has no meaningful position in the page tree). Ignored for requests anchored to a page — those use that page's tx_aim_system_prompt (inherited down the page tree) instead.
+defaultSystemPrompt =

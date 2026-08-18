@@ -6,7 +6,7 @@ AiM is the central AI layer for TYPO3. Extensions describe what they need. AiM d
 
 > **Alpha state.** AiM is under active development. The API is functional but may change before 1.0. We'd love your feedback: [open an issue](https://github.com/b13/aim/issues) or reach out at [b13.com](https://b13.com).
 
-![AiM Request Log](Documentation/Images/request-log.png)
+![AiM module overview](Documentation/Images/request-log-dark.png)
 
 ## Quick start
 
@@ -36,12 +36,14 @@ A few lines to add AI to any TYPO3 extension. No API keys in your code, no provi
 - Structured output (JSON Schema), tool calling, streaming
 
 **For administrators:**
-- Backend modules for provider management and request monitoring
+- Backend modules for provider management, request monitoring, and prompt/tone preview
 - Disable specific models per provider via clickable badges
 - Budget limits and rate limiting per user (including admins as a safety net)
 - Privacy levels (standard / reduced / none) per provider
 - Provider group restrictions and capability permissions via native TYPO3 mechanisms
 - LLM grading: score response quality with a second model acting as a judge
+- Tone of voice / system prompts: page-tree inherited, with a global fallback and optional per-provider addendum
+- Voice calibration: derive a tone-of-voice fragment from real page content, interactively or via a site-wide crawl command
 
 **Under the hood:**
 - Zero provider dependencies. Install Symfony AI bridge packages as needed.
@@ -50,7 +52,7 @@ A few lines to add AI to any TYPO3 extension. No API keys in your code, no provi
 - Auto model switch: one config covers all capabilities
 - Smart routing: routes simple prompts to cheaper models based on historical cost, reliability, and (with grading) quality data
 - Fallback chains: automatic retry with alternative providers on failure
-- 9-layer middleware pipeline: retry, access control, smart routing, capability validation, grading, logging, cost tracking, events, dispatch
+- 10-layer middleware pipeline: retry, access control, smart routing, capability validation, system prompt resolution, grading, logging, cost tracking, events, dispatch
 
 ## Installation
 
@@ -297,7 +299,7 @@ $data = json_decode($response->content, true);
 
 ### Tool calling
 
-For simple cases, `$ai->toolCalling()` is the recommended Tier 1 entry point — no manual provider resolution or pipeline dispatch needed:
+For simple cases, `$ai->toolCalling()` is the recommended Tier 1 entry point; no manual provider resolution or pipeline dispatch needed:
 
 ```php
 use B13\Aim\Request\ToolDefinition;
@@ -330,7 +332,7 @@ if ($response instanceof ToolCallingResponse && $response->requiresToolExecution
 }
 ```
 
-The `instanceof` check is necessary because `toolCalling()` returns the base `TextResponse` type — governance middlewares (access control, budgets, rate limits) can short-circuit with a plain `TextResponse` before the provider is ever called, so a narrower return type would risk a `TypeError` on a denied request.
+The `instanceof` check is necessary because `toolCalling()` returns the base `TextResponse` type; governance middlewares (access control, budgets, rate limits) can short-circuit with a plain `TextResponse` before the provider is ever called, so a narrower return type would risk a `TypeError` on a denied request.
 
 For full control over the request (custom `maxTokens`, direct fallback-chain access, etc.), Tier 3 direct pipeline access is still available:
 
@@ -400,7 +402,7 @@ $response = $this->pipeline->dispatch($followUp, $resolvedProvider);
 // Repeat while $response->requiresToolExecution() for agentic, multi-step tool use.
 ```
 
-Keep looping (execute tool calls → send `toolResults` → check `requiresToolExecution()` again) until the model returns plain content. Always cap the number of rounds — nothing in AiM stops a model from calling tools indefinitely.
+Keep looping (execute tool calls → send `toolResults` → check `requiresToolExecution()` again) until the model returns plain content. Always cap the number of rounds: nothing in AiM stops a model from calling tools indefinitely.
 
 ## Capabilities
 
@@ -503,9 +505,11 @@ Provider API keys stored in `tx_aim_configuration.api_key` are encrypted using a
 | v14+ | XChaCha20-Poly1305 AEAD | Core `\TYPO3\CMS\Core\Crypto\Cipher\CipherService` |
 | v12 / v13 | XSalsa20-Poly1305 secretbox | Local libsodium implementation (CipherService not yet available) |
 
-Stored values carry a version prefix (`aim:enc:v1:` for the v12/v13 path, `aim:enc:v2:` for the v14 path) so decryption auto-selects the right routine even after an upgrade. Encryption is transparent: a DataHandler hook encrypts on save, a FormDataProvider decrypts for the backend edit form, and the repository decrypts on read. Legacy plaintext rows from earlier AiM versions are migrated via the **"[AiM] Encrypt stored provider API keys"** upgrade wizard in the Install Tool.
+Stored values carry a version prefix (`aim:enc:v1:` for the v12/v13 path, `aim:enc:v2:` for the v14 path) so decryption auto-selects the right routine even after an upgrade. A DataHandler hook encrypts on save; the repository decrypts on read, only where the plaintext is actually needed to call the provider. Legacy plaintext rows from earlier AiM versions are migrated via the **"[AiM] Encrypt stored provider API keys"** upgrade wizard in the Install Tool.
 
-For providers that put an **endpoint URL** in the `api_key` field instead of a real secret (Ollama, LM Studio, self-hosted OpenAI-compatible proxies), AiM detects the `http://` / `https://` prefix and skips encryption — the URL stays plaintext both in the column and in DB exports.
+**Once encrypted, a key is never shown again, anywhere in the backend.** The edit form's `HideApiKey` FormDataProvider blanks the field and switches it to a masked password input instead of decrypting it for display; saving with the field left empty keeps the existing key unchanged. The Providers overview and the connection-verification response both strip/redact the key before they ever reach a view or a JSON payload, so a decrypted secret never round-trips into the DOM, a log line, or an error message.
+
+For providers that put an **endpoint URL** in the `api_key` field instead of a real secret (Ollama, LM Studio, self-hosted OpenAI-compatible proxies), AiM detects the `http://` / `https://` prefix and skips both encryption and masking: the URL stays plaintext and fully visible, since it isn't a secret.
 
 If `SYS/encryptionKey` is rotated, existing API keys can no longer be decrypted with the new key. Run the rotation command *before* the rotation takes effect, or right after with the old value still in hand:
 
@@ -576,6 +580,149 @@ The strictest level between the config and the user always wins.
 
 Set `rerouting_allowed = 0` on a provider configuration to prevent the smart router from rerouting requests away from or to that configuration. Combined with `be_groups`, this ensures confidential data (e.g. HR data on a local Ollama) stays on the designated model.
 
+## Tone of Voice / System Prompts
+
+Two middlewares automatically compose the final prompt sent to the provider, from up to five layers, in this order:
+
+1. **The caller's own prompt**: the domain-specific instruction a consuming extension already sets (e.g. `descriptive_images`' "generate alt text...", or the creative prompt for image generation). Unchanged.
+2. **The resolved tone of voice**: page-tree prompt fragments, DB and Page-TSconfig sourced (see below), or the global fallback when there's no page context.
+3. **User/Group-TSconfig-assigned fragments**: see below. Apply whenever a backend user is present, regardless of page context.
+4. **Code-registered fragments**: see below. Apply regardless of page context.
+5. **The provider-specific addendum**: `system_prompt_addition` on the `tx_aim_configuration` row actually used (after any rerouting/fallback), for provider-specific quirks or instructions.
+
+Layers 1-4 are composed by `TonePromptCompositionMiddleware` (priority 80); layer 5 by a separate `ProviderAddendumMiddleware` (priority 10). They're split across two different points in the pipeline on purpose:
+
+- The addendum is tied to a specific provider configuration, so it must run after `CapabilityValidationMiddleware`/`SmartRoutingMiddleware` have settled on the *final* one (rerouting/downgrade already happened); same reasoning the original single combined middleware had.
+- Tone/user/registry fragments don't depend on the provider at all, so `TonePromptCompositionMiddleware` runs *before* `SmartRoutingMiddleware` instead. This matters: `SmartRoutingMiddleware`'s complexity classification only ever looks at the caller's bare task prompt. If tone composition ran later (as it originally did, in one combined middleware at priority 10), a short/simple task prompt could get waved through to a cheaper/weaker model even though the actual outbound payload (once tone-of-voice fragments were added) was large and instruction-heavy. Running tone composition first means smart routing sees the real prompt.
+
+Empty layers are skipped; the parts are joined with a blank line, and exact duplicates across layers are only sent once, including across the two middlewares (`ProviderAddendumMiddleware` skips the addendum if it exactly duplicates a part `TonePromptCompositionMiddleware` already included, via `RequestContext::$composedPromptParts`). For chat-shaped requests (text, vision, translation, conversation, tool calling) all five layers are composed into the system prompt. **Image generation has no system-role channel**: the same layers are spliced into `prompt` instead, after the caller's own creative prompt (e.g. to enforce a watermark or consistent brand style).
+
+Any caller can opt out of all of this entirely:
+
+```php
+$response = $ai->text('Diagnostic ping', disableSystemPromptComposition: true);
+
+// Fluent builder
+$response = $ai->request()->text()->prompt('...')->disableSystemPromptComposition()->send();
+```
+
+Or replace layers 2-5 with caller-supplied content for one specific call, without giving up composition altogether: the caller's own base prompt (layer 1) is still combined with the given fragment(s), but page tone, user/registry fragments, and the provider addendum are all skipped:
+
+```php
+$response = $ai->text('Summarize this article: ...', systemPromptOverride: 'Use a playful tone just for this call.');
+$response = $ai->text('...', systemPromptOverride: ['First instruction.', 'Second instruction.']); // string or array
+
+// Fluent builder
+$response = $ai->request()->text()->prompt('...')->systemPromptOverride('Use a playful tone.')->send();
+```
+
+`disableSystemPromptComposition` and `systemPromptOverride` are two separate parameters rather than one polymorphic one: PHP 8.1 (still supported here) doesn't allow `false` as a standalone type in a union, so a single `string|array|false|null` signature isn't possible until PHP 8.2. If both are set, `disableSystemPromptComposition` wins (pure passthrough, `systemPromptOverride` is ignored).
+
+### Full parity for an extension with its own tone-of-voice system
+
+If another extension already has its own page-level tone-of-voice/system-prompt configuration and wants to dispatch through AiM anyway (to still get provider abstraction, governance, smart routing, fallback, and logging "for free"), `disableSystemPromptComposition` alone gets most of the way there, but skips AiM's provider-specific addendum too. To keep that as well, without AiM's own resolution getting in the way, ship a middleware of your own rather than composing the addendum outside the pipeline:
+
+```php
+#[AsAiMiddleware(priority: 5)] // anywhere below 50, same reasoning TonePromptCompositionMiddleware/
+                                // ProviderAddendumMiddleware have: CapabilityValidationMiddleware/
+                                // SmartRoutingMiddleware must have already settled on the final provider
+final class MyExtensionToneMiddleware implements AiMiddlewareInterface
+{
+    public function process($request, $provider, $configuration, $next): TextResponse
+    {
+        // disableSystemPromptComposition: true already made both of AiM's
+        // own middlewares no-op; that flag doubles as "someone else is
+        // handling this." $configuration here is guaranteed final/
+        // post-rerouting, the same guarantee AiM's own middlewares get.
+        if ($request instanceof SupportsSystemPromptInterface && $request->isAutomaticPromptCompositionDisabled()) {
+            $tone = $this->myOwnResolver->resolve($request->getPageId());
+            $composed = PromptComposer::compose([$request->getSystemPrompt(), $tone, $configuration->systemPromptAddition]);
+            $request = $request->withSystemPrompt($composed);
+        }
+        return $next->handle($request, $provider, $configuration);
+    }
+}
+```
+
+Calling code stays exactly what's shown above (`disableSystemPromptComposition: true`); the middleware is the only new piece. This is possible with the public API as it stands today; nothing on AiM's side needs to change for a consumer to do this.
+
+### Page-tree prompt fragments (DB)
+
+Every page has a repeatable **AI** tab (`tx_aim_prompt_fragment`, an inline/IRRE field): add as many named fragments as needed, each with:
+
+- **Prompt**: the actual instruction text.
+- **Examples**: optional few-shot text, appended after the prompt (`"\n\nExamples:\n" . examples`) whenever this fragment is included. Pairing an instruction with concrete example text steers output more reliably than adjective-laden prose alone. Travels with its own fragment, so fragments with different tones never have their examples mixed together.
+- **Scope**: one or more capabilities it applies to, via checkboxes (`Text Generation`, `Vision`, `Translation`, `Conversation`, `Tool Calling`, `Image Generation`, all six checked by default on a new fragment). A fragment matches a request if any of its checked capabilities matches the request's own. Stored comma-separated, the same convention TYPO3 core uses for this shape (`be_groups.file_permissions`).
+- **Inherit to subpages** (default on): when enabled, this fragment also applies to every page below this one, in addition to this page itself.
+
+Inheritance is **additive per fragment**, not a single overridable value: a page's own fragments always apply to itself; an inheriting ancestor's fragments are added on top. A subpage adding its own fragment *supplements* what it inherited; it never silently drops an ancestor's fragment. Composition order is root-to-target, so general tone reads before page-specific instructions.
+
+A page can also check **"Disable inherited prompt fragments"** to skip every ancestor fragment for that page specifically (its own fragments still apply), useful for a microsite/campaign section that must not pick up the corporate tone. This is page-local, not a subtree boundary: the page's own children are unaffected and keep inheriting from the original ancestors normally.
+
+DB fragment inheritance stops at the nearest `is_siteroot` ancestor: in a nested-site install (one site's page tree living under another site's), a page's own fragments never leak into an unrelated site. Page TSconfig fragments deliberately don't get this treatment; `getPagesTSconfig()` has never respected site boundaries, and that's an established, technical-audience convention this extension doesn't override.
+
+DB fragments respect workspace overlays for edits to *existing* fragments: a fragment modified in a workspace is visible when resolving within that workspace, via the standard `PageRepository::versionOL()` idiom. A fragment created entirely new within a workspace (no live counterpart yet) won't appear until published (a narrower, known gap rather than full versioning-aware listing).
+
+To have a request resolve against a page, pass `pageId`:
+
+```php
+$response = $ai->text('Summarize this article: ...', pageId: $pageUid);
+
+// Fluent builder, works for image generation too
+$response = $ai->request()->image()->prompt('A mountain landscape at sunset')->forPage($pageUid)->send();
+```
+
+Not translatable: the record has no language field, since nothing in the resolution pipeline is language-aware yet.
+
+### Page-tree prompt fragments (TSconfig)
+
+The same tone-of-voice layer can also be authored via Page TSconfig; merged directly alongside the DB fragments above, after them, for the same page:
+
+```
+aim.promptFragments.watermark.prompt = Always add a small diagonal watermark reading "DRAFT".
+aim.promptFragments.watermark.scope = imageGeneration
+aim.promptFragments.brandVoice.prompt = Write in a warm, second-person voice.
+```
+
+`scope` defaults to `all` when omitted. Since this is plain Page TSconfig, TYPO3's own cascade and `>` clear operator apply as usual: `aim.promptFragments >` on a page resets everything inherited from above for this source specifically (the DB "disable inherited fragments" checkbox above is a separate, independent mechanism for the DB source only).
+
+### User/Group TSconfig fragments
+
+The exact same `aim.promptFragments.*` syntax also works in **User or Group TSconfig**, letting an admin assign a fragment to a specific person or role regardless of which page they're working on, a different axis entirely from page-tree tone:
+
+```
+# On a BE group or user's TSconfig field
+aim.promptFragments.legal.prompt = Always include a "content may be inaccurate" disclaimer.
+```
+
+No-ops when there's no logged-in backend user (CLI, frontend); same convention as the budget/rate-limit/privacy-level TSconfig settings below.
+
+### Code-registered fragments
+
+For instructions that should apply everywhere regardless of which page (or no page at all) is involved (e.g. a house-brand watermark policy or a compliance disclaimer), ship:
+
+```php
+// Configuration/SystemPrompt/PromptFragments.php
+return [
+    ['prompt' => 'Always add a small diagonal watermark reading "DRAFT".', 'scope' => 'imageGeneration'],
+    ['prompt' => 'Never use exclamation marks.'], // scope defaults to 'all'
+];
+```
+
+`PromptFragmentRegistry` scans every active extension for this file and merges the results, plus a `$GLOBALS['TYPO3_CONF_VARS']['EXTENSIONS']['aim']['promptFragments']` runtime-override escape hatch. These apply on **every** request matching their scope (with or without a `pageId`) since they represent extension-level policy, not page-specific tone. The package filesystem scan is cached persistently (`aim_prompt_fragments` cache pool, flushed by "flush all caches" / extension (de)activation like any other `system`-group cache); the `$GLOBALS` override is deliberately excluded from that cache, since it's meant to be set dynamically per request/context.
+
+### Global fallback (no page context)
+
+Requests without a `pageId` (the default) use the `defaultSystemPrompt` Extension Configuration setting for layer 2 instead of page fragments (layers 3 and 4, user and code-registered fragments, still apply). This is deliberate, not a gap: `sys_file_metadata` (used for image alt-text) always has `pid = 0` and a file can be referenced from many pages or none, so page-tree inheritance can't be meaningfully applied to it. `descriptive_images` and similar consumers need **no code changes** to benefit from any of this: every request without an explicit `pageId` automatically gets the global default plus any user-assigned and code-registered fragments.
+
+### Robustness notes
+
+- **Unknown scope values normalize to `all` with a logged warning**, across every source (DB, Page/User TSconfig, code-registered): a typo (`imageGeneraton`) makes a fragment apply everywhere rather than silently never firing. Far more noticeable, and thus fixable.
+- **Exact duplicate text across layers is sent only once**: e.g. if the same instruction ends up in both a DB fragment and a code-registered one, it's not sent to the provider twice.
+- **Extending `SupportsSystemPromptInterface` with a new request type is safe by construction**: each implementor self-declares its own scope via `getPromptFragmentScope()` rather than being looked up from a central map; there's no separate registry that a new class could forget to update and crash on.
+- **`tx_aim_prompt_fragment.prompt` has a soft (browser-enforced, HTML `maxlength`) 4000-character limit**: a fragment gets sent with every matching AI call on that page's subtree, so an oversized paste has real, ongoing cost consequences. Not a hard server-side limit (TYPO3 core never enforces `max` server-side for `type=text` fields); a raw `process_datamap` bypass could still exceed it.
+- **Both new `pages` fields (`tx_aim_prompt_fragments`, `tx_aim_disable_inherited_fragments`) are `exclude => true`**: invisible to a backend user/group unless explicitly granted under "Allowed excludefields". AI tone-of-voice is a brand-consistency concern many orgs want gated rather than implied by generic "can edit this page" rights; admins always retain access regardless of group settings.
+
 ## Smart Routing
 
 The `SmartRoutingMiddleware` classifies prompt complexity using language-agnostic structural heuristics:
@@ -626,7 +773,7 @@ On any provider configuration (Admin Tools > AiM > Providers), open the **LLM Gr
 | Field | Purpose |
 |---|---|
 | `grading_enabled` | Turns grading on for this configuration |
-| `judge_configuration_uid` | A *different* AiM configuration used to score responses — typically a cheaper or specialized model that supports the conversation capability |
+| `judge_configuration_uid` | A *different* AiM configuration used to score responses: typically a cheaper or specialized model that supports the conversation capability |
 | `grading_rubric` | The judge's instructions: what to evaluate (factual accuracy, relevance, tone, ...). The required JSON output format is appended automatically. |
 
 Grading covers `ConversationRequest` and `TextGenerationRequest`. It only runs when the effective privacy level is `standard`, `reduced` and `none` skip it, since the judge needs the prompt and response content.
@@ -683,7 +830,7 @@ class MyMiddleware implements AiMiddlewareInterface
 }
 ```
 
-`$response` can be an unconsumed stream (`ConversationResponse`/`ToolCallingResponse` with `stream: true`) — see [Streaming responses](#streaming-responses) below before reading `$response->content` or `$response->usage` in your own middleware.
+`$response` can be an unconsumed stream (`ConversationResponse`/`ToolCallingResponse` with `stream: true`); see [Streaming responses](#streaming-responses) below before reading `$response->content` or `$response->usage` in your own middleware.
 
 ### Streaming responses
 
@@ -771,10 +918,12 @@ The middleware pipeline is intentionally the only logging extension point: it gi
 |---|---|---|
 | `RetryWithFallbackMiddleware` | 100 | Catches errors, retries with fallback providers |
 | `AccessControlMiddleware` | 90 | Provider access, capability permissions, budgets, rate limits |
-| `SmartRoutingMiddleware` | 75 | Complexity classification, cost-based model downgrade |
+| `TonePromptCompositionMiddleware` | 80 | Composes caller prompt + tone-of-voice (page/user/registry fragments); see [Tone of Voice / System Prompts](#tone-of-voice--system-prompts). Deliberately *above* SmartRouting (see next row) |
+| `SmartRoutingMiddleware` | 75 | Complexity classification, cost-based model downgrade: sees the real, tone-inflated prompt, not just the caller's bare task text |
 | `CapabilityValidationMiddleware` | 50 | Validates provider capability, auto-reroutes if needed |
+| `ProviderAddendumMiddleware` | 10 | Appends the provider-specific addendum once $configuration is final (post-rerouting); see [Tone of Voice / System Prompts](#tone-of-voice--system-prompts) |
 | `GraderMiddleware` | -600 | Schedules LLM-as-a-judge grading after a successful response |
-| `RequestLoggingMiddleware` | -700 | Logs every request (respects privacy levels); defers via shutdown function for streaming responses — see [Streaming responses](#streaming-responses) |
+| `RequestLoggingMiddleware` | -700 | Logs every request (respects privacy levels); defers via shutdown function for streaming responses; see [Streaming responses](#streaming-responses) |
 | `CostTrackingMiddleware` | -800 | Updates cumulative cost per configuration; defers via shutdown function for streaming responses |
 | `EventDispatchMiddleware` | -900 | Fires `BeforeAiRequestEvent` / `AfterAiResponseEvent`; for a streaming response, `AfterAiResponseEvent` fires with the still-unconsumed response (listeners that need final content/usage should apply the same deferred pattern) |
 | `CoreDispatchMiddleware` | -1000 | Routes request to the correct provider capability method |
@@ -789,7 +938,9 @@ The middleware pipeline is intentionally the only logging extension point: it gi
 
 ## Backend Modules
 
-AiM adds an **AiM** module under Admin Tools with two sub-modules:
+AiM adds an **AiM** module under Admin Tools with three sub-modules:
+
+![AiM Backend module](Documentation/Images/module-overview-dark.png)
 
 ### Providers
 
@@ -800,7 +951,11 @@ Manage AI provider configurations:
 - **Provider verification**: test connectivity with a minimal probe request, results persisted
 - **Last used**: timestamp per configuration with link to request log
 
-![Provider Management](Documentation/Images/provider-management.png)
+![AiM Providers overview](Documentation/Images/providers-dark.png)
+
+Click **Available Providers** to see every auto-discovered provider's models at a glance, and click any model badge to enable or disable it:
+
+![Available Providers modal with clickable model badges](Documentation/Images/model-selection-dark.png)
 
 ### Request Log
 
@@ -813,6 +968,61 @@ Monitor all AI requests:
 - **Quality grades**: LLM-as-a-judge score, label, and reason per request when grading is enabled
 - **Token details**: prompt, completion, cached, and reasoning token breakdowns
 - **Rerouting info**: fallback and capability rerouting details
+
+![AiM Request Log](Documentation/Images/request-log-dark.png)
+
+Every row opens a full detail view, including the grading rationale and reroute reason when applicable:
+
+![Request Log detail view](Documentation/Images/request-log-detail-dark.png)
+
+### Prompt Preview
+
+Manage and inspect [page-level tone-of-voice fragments](#tone-of-voice--system-prompts). Unlike the other two, this module is **grantable per backend user/group** (`access => 'user'`, not hardcoded admin); it only inspects a composition, never dispatches or changes anything, so the editors who actually author fragments day-to-day can preview their own work without an admin doing it on their behalf:
+
+- **Permission-scoped list**: only pages with at least one prompt fragment, and only those the current user is actually allowed to see (own webmounts + page permissions; unrestricted for admins); a non-admin can never probe a page they don't have access to, by construction
+- **Page tree in the left panel**: select a page to narrow the list to it and its subtree; a **"Create prompt"** doc-header button appears whenever a page with `PAGE_EDIT` rights is selected, opening that page's edit form (AI tab only) even if it has zero fragments yet
+- **Filter by capability, free-text search** across each fragment's prompt, examples, and title
+- **Per-row "Preview"**: expands inline to show the exact composition breakdown for that page: page tone, user-assigned fragments, code-registered fragments, and (optionally) a chosen provider's addendum, with a running character/token count, without triggering a real, billable AI call
+- **"Edit fragments"** opens the page's normal edit form restricted to just the AI tab fields (`columnsOnly`), never the full page properties; hidden per-row when the user lacks `PAGE_EDIT` on that page
+- **"Calibrate Voice"** doc-header button: see [Voice Calibration](#voice-calibration) below
+
+![Prompt Preview module, filtered to a site's pages](Documentation/Images/prompt-preview-dark.png)
+
+Click **"Preview"** on any row to see the exact layered composition without spending an AI call:
+
+![Compose and inspect preview showing the layered prompt composition](Documentation/Images/prompt-preview-modal-dark.png)
+
+## Voice Calibration
+
+Writing a good tone-of-voice prompt fragment by hand, one that actually sounds like the site, is tedious. Voice calibration derives one from real page content instead, two ways:
+
+### Interactively, from the Prompt Preview module
+
+The **"Calibrate Voice"** button (always available in the [Prompt Preview](#prompt-preview) module's doc header) opens a modal where you either paste a sample of on-brand copy directly, or click **"Select page"** to pick one or more pages via TYPO3's native element browser. Picking a page:
+
+1. Renders that page through TYPO3's real frontend rendering pipeline to extract genuine, representative copy, not just raw field values.
+2. Falls back automatically to the page's stored DB fields (title, headers, bodytext) if no site/frontend can be resolved for it (e.g. no site configuration, a broken TypoScript setup), so the feature degrades gracefully instead of failing outright. The status line always shows which path was used ("rendered page" vs. "stored fields only (page render unavailable)"), so it's never a silent guess.
+
+![Calibrate Voice modal with a rendered page inserted](Documentation/Images/calibrate-voice-dark.png)
+
+Click **"Analyze"** and AiM derives a tone-of-voice instruction plus illustrative Q/A examples from the combined text, ready to copy into a fragment's **Prompt**/**Examples** fields.
+
+### Automatically, for a whole site
+
+```bash
+vendor/bin/typo3 aim:calibrateVoice
+```
+
+Crawls every configured site's root page and a bounded, breadth-first slice of its subpages (root always included first, deepest/least-prominent pages dropped first if the slice needs to shrink), accumulates their real extracted content up to a size budget (stopping at whole-page boundaries rather than truncating mid-sentence, so the AI always analyzes complete, coherent pages), and derives a tone instruction + examples the same way the interactive modal does. The result is saved as an auto-calibrated `tx_aim_prompt_fragment` on the site's root page, tagged `auto_generated = 1` so re-running the command refreshes that same fragment instead of piling up duplicates, and so it never touches an editor's own hand-authored fragments.
+
+| Option | Purpose | Default |
+|---|---|---|
+| `--page` | Only process this one root page uid, instead of every configured site | - |
+| `--max-pages` | Maximum number of pages to crawl per site | 25 |
+| `--max-depth` | Maximum tree depth below the root page to crawl (0 = root page only) | 2 |
+| `--dry-run` | Calibrate and print the result without saving a fragment | - |
+
+Schedulable as-is via TYPO3's built-in "Execute console command" Scheduler task: no dedicated Task class needed.
 
 ## Dashboard Widgets
 
@@ -828,15 +1038,16 @@ When `typo3/cms-dashboard` is installed, AiM registers five widgets and a pre-co
 
 All widgets are refreshable and grouped under "AiM" in the widget picker. The recent requests widget includes a button to open the full request log module.
 
-![Dashboard Widgets](Documentation/Images/dashboard-widgets.png)
+![AiM dashboard widgets](Documentation/Images/dashboard-light.png)
 
 ## Database Tables
 
 | Table | Purpose |
 |---|---|
-| `tx_aim_configuration` | Provider configurations (TCA-managed). API keys, models, cost tracking, governance settings. |
+| `tx_aim_configuration` | Provider configurations (TCA-managed). API keys, models, cost tracking, governance settings, per-provider system prompt addendum. |
 | `tx_aim_request_log` | Per-request log (no TCA). Tokens, cost, duration, prompt/response content, complexity classification, rerouting details, LLM grading results. |
 | `tx_aim_usage_budget` | Per-user budget tracking. Rolling period counters for tokens, cost, and request count. |
+| `tx_aim_prompt_fragment` | Page-tree tone-of-voice fragments (TCA-managed, IRRE child of `pages`). Prompt text, few-shot examples, multi-value scope, per-fragment `inherit_to_subpages` flag, and an `auto_generated` marker for fragments written by `aim:calibrateVoice`. |
 
 See `ext_tables.sql` for the full schema.
 
@@ -845,10 +1056,10 @@ See `ext_tables.sql` for the full schema.
 ```bash
 cd typo3conf/ext/aim
 
-# Unit tests (30 tests, 54 assertions)
+# Unit tests
 Build/Scripts/runTests.sh -s unit
 
-# Functional tests (24 tests, 57 assertions)
+# Functional tests
 Build/Scripts/runTests.sh -s functional
 
 # With specific PHP version

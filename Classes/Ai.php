@@ -20,6 +20,7 @@ use B13\Aim\Capability\ToolCallingCapableInterface;
 use B13\Aim\Capability\TranslationCapableInterface;
 use B13\Aim\Capability\VisionCapableInterface;
 use B13\Aim\Middleware\AiMiddlewarePipeline;
+use B13\Aim\Prompt\PromptOverrideNormalizer;
 use B13\Aim\Provider\ProviderResolver;
 use B13\Aim\Provider\ResolvedProvider;
 use B13\Aim\Request\AiRequestInterface;
@@ -87,6 +88,9 @@ final class Ai
         string $mimeType,
         string $prompt,
         string $systemPrompt = '',
+        ?int $pageId = null,
+        bool $disableSystemPromptComposition = false,
+        string|array $systemPromptOverride = '',
         int $maxTokens = 150,
         float $temperature = 0.2,
         string $extensionKey = '',
@@ -100,6 +104,9 @@ final class Ai
             mimeType: $mimeType,
             prompt: $prompt,
             systemPrompt: $systemPrompt,
+            pageId: $pageId,
+            disableAutomaticSystemPrompt: $disableSystemPromptComposition,
+            systemPromptOverride: PromptOverrideNormalizer::normalize($systemPromptOverride),
             maxTokens: $maxTokens,
             temperature: $temperature,
             user: $user,
@@ -114,6 +121,9 @@ final class Ai
     public function text(
         string $prompt,
         string $systemPrompt = '',
+        ?int $pageId = null,
+        bool $disableSystemPromptComposition = false,
+        string|array $systemPromptOverride = '',
         int $maxTokens = 500,
         float $temperature = 0.7,
         string $extensionKey = '',
@@ -125,6 +135,9 @@ final class Ai
             configuration: $resolvedProvider->configuration,
             prompt: $prompt,
             systemPrompt: $systemPrompt,
+            pageId: $pageId,
+            disableAutomaticSystemPrompt: $disableSystemPromptComposition,
+            systemPromptOverride: PromptOverrideNormalizer::normalize($systemPromptOverride),
             maxTokens: $maxTokens,
             temperature: $temperature,
             user: $user,
@@ -141,6 +154,9 @@ final class Ai
         string $sourceLanguage,
         string $targetLanguage,
         string $systemPrompt = '',
+        ?int $pageId = null,
+        bool $disableSystemPromptComposition = false,
+        string|array $systemPromptOverride = '',
         int $maxTokens = 500,
         float $temperature = 0.3,
         string $extensionKey = '',
@@ -154,6 +170,9 @@ final class Ai
             sourceLanguage: $sourceLanguage,
             targetLanguage: $targetLanguage,
             systemPrompt: $systemPrompt,
+            pageId: $pageId,
+            disableAutomaticSystemPrompt: $disableSystemPromptComposition,
+            systemPromptOverride: PromptOverrideNormalizer::normalize($systemPromptOverride),
             maxTokens: $maxTokens,
             temperature: $temperature,
             user: $user,
@@ -170,6 +189,9 @@ final class Ai
     public function conversation(
         array $messages,
         string $systemPrompt = '',
+        ?int $pageId = null,
+        bool $disableSystemPromptComposition = false,
+        string|array $systemPromptOverride = '',
         int $maxTokens = 1000,
         float $temperature = 0.7,
         string $extensionKey = '',
@@ -181,6 +203,9 @@ final class Ai
             configuration: $resolvedProvider->configuration,
             messages: $messages,
             systemPrompt: $systemPrompt,
+            pageId: $pageId,
+            disableAutomaticSystemPrompt: $disableSystemPromptComposition,
+            systemPromptOverride: PromptOverrideNormalizer::normalize($systemPromptOverride),
             maxTokens: $maxTokens,
             temperature: $temperature,
             user: $user,
@@ -210,6 +235,9 @@ final class Ai
     public function conversationStream(
         array $messages,
         string $systemPrompt = '',
+        ?int $pageId = null,
+        bool $disableSystemPromptComposition = false,
+        string|array $systemPromptOverride = '',
         int $maxTokens = 1000,
         float $temperature = 0.7,
         string $extensionKey = '',
@@ -221,6 +249,9 @@ final class Ai
             configuration: $resolvedProvider->configuration,
             messages: $messages,
             systemPrompt: $systemPrompt,
+            pageId: $pageId,
+            disableAutomaticSystemPrompt: $disableSystemPromptComposition,
+            systemPromptOverride: PromptOverrideNormalizer::normalize($systemPromptOverride),
             maxTokens: $maxTokens,
             temperature: $temperature,
             user: $user,
@@ -263,6 +294,9 @@ final class Ai
         array $tools,
         array $toolResults = [],
         string $systemPrompt = '',
+        ?int $pageId = null,
+        bool $disableSystemPromptComposition = false,
+        string|array $systemPromptOverride = '',
         int $maxTokens = 1000,
         float $temperature = 0.7,
         string $extensionKey = '',
@@ -275,6 +309,9 @@ final class Ai
             messages: $messages,
             tools: $tools,
             systemPrompt: $systemPrompt,
+            pageId: $pageId,
+            disableAutomaticSystemPrompt: $disableSystemPromptComposition,
+            systemPromptOverride: PromptOverrideNormalizer::normalize($systemPromptOverride),
             toolResults: $toolResults,
             maxTokens: $maxTokens,
             temperature: $temperature,
@@ -314,6 +351,13 @@ final class Ai
      * $referenceImageData/$referenceMimeType to guide style and composition
      * (image-to-image) instead of generating from the prompt alone.
      *
+     * Image generation has no separate system-role channel (providers take a
+     * single prompt string), so unlike the other proxy methods, $pageId's
+     * resolved tone-of-voice/fragments and $systemPromptOverride are not
+     * sent as a distinct instruction — they're appended as literal, visible
+     * text onto $prompt itself (e.g. "<your prompt>\n\n<watermark policy>").
+     * Phrase $systemPromptOverride accordingly if you use it here.
+     *
      * @param array<string, mixed> $options Provider-specific options passed through as-is
      *        (e.g. ['size' => '1536x1024', 'quality' => 'high', 'background' => 'transparent']).
      */
@@ -323,6 +367,9 @@ final class Ai
         string $referenceMimeType = '',
         array $options = [],
         int $count = 1,
+        ?int $pageId = null,
+        bool $disableSystemPromptComposition = false,
+        string|array $systemPromptOverride = '',
         string $extensionKey = '',
         string $user = '',
         string $provider = '',
@@ -331,6 +378,9 @@ final class Ai
         $request = new ImageGenerationRequest(
             configuration: $resolvedProvider->configuration,
             prompt: $prompt,
+            pageId: $pageId,
+            disableAutomaticSystemPrompt: $disableSystemPromptComposition,
+            systemPromptOverride: PromptOverrideNormalizer::normalize($systemPromptOverride),
             referenceImageData: $referenceImageData,
             referenceMimeType: $referenceMimeType,
             options: $options,

@@ -7,7 +7,7 @@
                 <source>AiM</source>
             </trans-unit>
             <trans-unit id="aim.description" resname="aim.description">
-                <source>Intelligent AI proxy for TYPO3 — provider management, request routing, and usage analytics.</source>
+                <source>Intelligent AI proxy for TYPO3. Provider management, prompt handling, request routing, and usage analytics.</source>
             </trans-unit>
             <trans-unit id="aim.shortDescription" resname="aim.shortDescription">
                 <source>AI proxy and provider management</source>
@@ -29,6 +29,189 @@
             </trans-unit>
             <trans-unit id="aim.requestLog.shortDescription" resname="aim.requestLog.shortDescription">
                 <source>AI request history and statistics</source>
+            </trans-unit>
+            <trans-unit id="aim.promptPreview.title" resname="aim.promptPreview.title">
+                <source>Prompt Preview</source>
+            </trans-unit>
+            <trans-unit id="aim.promptPreview.description" resname="aim.promptPreview.description">
+                <source>Manage pages with configured system prompt and tone-of-voice fragments.</source>
+            </trans-unit>
+            <trans-unit id="aim.promptPreview.shortDescription" resname="aim.promptPreview.shortDescription">
+                <source>Manage and preview page prompt fragments</source>
+            </trans-unit>
+            <trans-unit id="promptPreview.createPrompt" resname="promptPreview.createPrompt">
+                <source>New prompt</source>
+            </trans-unit>
+            <trans-unit id="promptPreview.filteringToSubtree" resname="promptPreview.filteringToSubtree">
+                <source>Showing prompts from "%s" and its subpages only.</source>
+            </trans-unit>
+            <trans-unit id="promptPreview.filteringToSubtree.clear" resname="promptPreview.filteringToSubtree.clear">
+                <source>Show all pages</source>
+            </trans-unit>
+            <trans-unit id="promptPreview.filter.scope.label" resname="promptPreview.filter.scope.label">
+                <source>Capability</source>
+            </trans-unit>
+            <trans-unit id="promptPreview.filter.scope.showAll" resname="promptPreview.filter.scope.showAll">
+                <source>Any capability</source>
+            </trans-unit>
+            <trans-unit id="promptPreview.filter.search.label" resname="promptPreview.filter.search.label">
+                <source>Search prompt content</source>
+            </trans-unit>
+            <trans-unit id="promptPreview.list.column.title" resname="promptPreview.list.column.title">
+                <source>Page</source>
+            </trans-unit>
+            <trans-unit id="promptPreview.list.column.scopes" resname="promptPreview.list.column.scopes">
+                <source>Capabilities</source>
+            </trans-unit>
+            <trans-unit id="promptPreview.list.column.fragments" resname="promptPreview.list.column.fragments">
+                <source>Fragments</source>
+            </trans-unit>
+            <trans-unit id="promptPreview.list.inheritanceDisabled" resname="promptPreview.list.inheritanceDisabled">
+                <source>Inheritance disabled</source>
+            </trans-unit>
+            <trans-unit id="promptPreview.list.editFragments" resname="promptPreview.list.editFragments">
+                <source>Edit fragments</source>
+            </trans-unit>
+            <trans-unit id="promptPreview.list.preview" resname="promptPreview.list.preview">
+                <source>Preview</source>
+            </trans-unit>
+            <trans-unit id="promptPreview.modalTitle" resname="promptPreview.modalTitle">
+                <source>Prompt preview: %s</source>
+            </trans-unit>
+            <trans-unit id="promptPreview.list.noFragmentsAtAll.title" resname="promptPreview.list.noFragmentsAtAll.title">
+                <source>No prompt fragments yet</source>
+            </trans-unit>
+            <trans-unit id="promptPreview.list.noFragmentsAtAll.message" resname="promptPreview.list.noFragmentsAtAll.message">
+                <source>No page in this installation has an AI prompt fragment configured yet. Select a page in the tree to create one.</source>
+            </trans-unit>
+            <trans-unit id="promptPreview.list.noFragmentsInSubtree.title" resname="promptPreview.list.noFragmentsInSubtree.title">
+                <source>No prompt fragments here yet</source>
+            </trans-unit>
+            <trans-unit id="promptPreview.list.noFragmentsInSubtree.message" resname="promptPreview.list.noFragmentsInSubtree.message">
+                <source>Neither "%s" nor any of its subpages has its own AI prompt fragment configured, though pages here may still inherit one from an ancestor page further up the tree.</source>
+            </trans-unit>
+            <trans-unit id="promptPreview.list.noMatches.title" resname="promptPreview.list.noMatches.title">
+                <source>No matches</source>
+            </trans-unit>
+            <trans-unit id="promptPreview.list.noMatches.message" resname="promptPreview.list.noMatches.message">
+                <source>No pages with prompt fragments match the current filter.</source>
+            </trans-unit>
+            <trans-unit id="promptPreview.list.noAccessiblePages.title" resname="promptPreview.list.noAccessiblePages.title">
+                <source>No accessible pages</source>
+            </trans-unit>
+            <trans-unit id="promptPreview.list.noAccessiblePages.message" resname="promptPreview.list.noAccessiblePages.message">
+                <source>You don't have access to any pages, so there's nothing this list can show you.</source>
+            </trans-unit>
+            <trans-unit id="promptPreview.scope.label" resname="promptPreview.scope.label">
+                <source>Capability</source>
+            </trans-unit>
+            <trans-unit id="promptPreview.provider.label" resname="promptPreview.provider.label">
+                <source>Provider configuration (optional)</source>
+            </trans-unit>
+            <trans-unit id="promptPreview.provider.none" resname="promptPreview.provider.none">
+                <source>None (don't show a provider addendum)</source>
+            </trans-unit>
+            <trans-unit id="promptPreview.submit" resname="promptPreview.submit">
+                <source>Preview</source>
+            </trans-unit>
+            <trans-unit id="promptPreview.previewGeneral" resname="promptPreview.previewGeneral">
+                <source>Prompt Preview</source>
+            </trans-unit>
+            <trans-unit id="promptPreview.modalTitle.general" resname="promptPreview.modalTitle.general">
+                <source>Prompt preview (no page selected)</source>
+            </trans-unit>
+            <trans-unit id="promptPreview.calibrateVoice" resname="promptPreview.calibrateVoice">
+                <source>Calibrate Voice</source>
+            </trans-unit>
+            <trans-unit id="promptPreview.calibrateVoice.modalTitle" resname="promptPreview.calibrateVoice.modalTitle">
+                <source>Calibrate voice from example text</source>
+            </trans-unit>
+            <trans-unit id="promptPreview.calibrateVoice.intro" resname="promptPreview.calibrateVoice.intro">
+                <source>Paste a sample of real, on-brand copy, or select one or more pages below to pull their text in automatically (a few paragraphs works best). AiM analyzes it and suggests a prompt and examples you can reuse in a fragment.</source>
+            </trans-unit>
+            <trans-unit id="promptPreview.calibrateVoice.placeholder" resname="promptPreview.calibrateVoice.placeholder">
+                <source>Paste example content here...</source>
+            </trans-unit>
+            <trans-unit id="promptPreview.calibrateVoice.analyze" resname="promptPreview.calibrateVoice.analyze">
+                <source>Analyze</source>
+            </trans-unit>
+            <trans-unit id="promptPreview.calibrateVoice.analyzing" resname="promptPreview.calibrateVoice.analyzing">
+                <source>Analyzing...</source>
+            </trans-unit>
+            <trans-unit id="promptPreview.calibrateVoice.toneLabel" resname="promptPreview.calibrateVoice.toneLabel">
+                <source>Tone</source>
+            </trans-unit>
+            <trans-unit id="promptPreview.calibrateVoice.examplesLabel" resname="promptPreview.calibrateVoice.examplesLabel">
+                <source>Examples</source>
+            </trans-unit>
+            <trans-unit id="promptPreview.calibrateVoice.copy" resname="promptPreview.calibrateVoice.copy">
+                <source>Copy</source>
+            </trans-unit>
+            <trans-unit id="promptPreview.calibrateVoice.copied" resname="promptPreview.calibrateVoice.copied">
+                <source>Copied!</source>
+            </trans-unit>
+            <trans-unit id="promptPreview.calibrateVoice.errorGeneric" resname="promptPreview.calibrateVoice.errorGeneric">
+                <source>The request failed. Please try again.</source>
+            </trans-unit>
+            <trans-unit id="promptPreview.calibrateVoice.noProvider.message" resname="promptPreview.calibrateVoice.noProvider.message">
+                <source>No AI provider is configured for text generation, so voice calibration isn't available yet.</source>
+            </trans-unit>
+            <trans-unit id="promptPreview.calibrateVoice.noProvider.linkLabel" resname="promptPreview.calibrateVoice.noProvider.linkLabel">
+                <source>Manage providers</source>
+            </trans-unit>
+            <trans-unit id="promptPreview.calibrateVoice.selectPages" resname="promptPreview.calibrateVoice.selectPages">
+                <source>Select page...</source>
+            </trans-unit>
+            <trans-unit id="promptPreview.calibrateVoice.selectPagesModalTitle" resname="promptPreview.calibrateVoice.selectPagesModalTitle">
+                <source>Select pages to pull example content from</source>
+            </trans-unit>
+            <trans-unit id="promptPreview.calibrateVoice.pagesExtracting" resname="promptPreview.calibrateVoice.pagesExtracting">
+                <source>Extracting...</source>
+            </trans-unit>
+            <trans-unit id="promptPreview.calibrateVoice.pagesInserted" resname="promptPreview.calibrateVoice.pagesInserted">
+                <source>Inserted:</source>
+            </trans-unit>
+            <trans-unit id="promptPreview.calibrateVoice.sourceRendered" resname="promptPreview.calibrateVoice.sourceRendered">
+                <source>rendered page</source>
+            </trans-unit>
+            <trans-unit id="promptPreview.calibrateVoice.sourceFallback" resname="promptPreview.calibrateVoice.sourceFallback">
+                <source>stored fields only (page render unavailable)</source>
+            </trans-unit>
+            <trans-unit id="promptPreview.calibrateVoice.pagesNoContent" resname="promptPreview.calibrateVoice.pagesNoContent">
+                <source>No text content found on that page.</source>
+            </trans-unit>
+            <trans-unit id="promptPreview.result.composed" resname="promptPreview.result.composed">
+                <source>Composed system prompt</source>
+            </trans-unit>
+            <trans-unit id="promptPreview.result.composed.imageGeneration" resname="promptPreview.result.composed.imageGeneration">
+                <source>Appended to the image prompt</source>
+            </trans-unit>
+            <trans-unit id="promptPreview.result.characters.label" resname="promptPreview.result.characters.label">
+                <source>characters</source>
+            </trans-unit>
+            <trans-unit id="promptPreview.result.tokens.label" resname="promptPreview.result.tokens.label">
+                <source>≈ tokens</source>
+            </trans-unit>
+            <trans-unit id="promptPreview.result.callerNote" resname="promptPreview.result.callerNote">
+                <source>Not shown: the calling extension's own task instruction is prepended before all of this at request time.</source>
+            </trans-unit>
+            <trans-unit id="promptPreview.result.empty" resname="promptPreview.result.empty">
+                <source>(nothing contributed by this layer)</source>
+            </trans-unit>
+            <trans-unit id="promptPreview.layer.pageTone" resname="promptPreview.layer.pageTone">
+                <source>Page prompt</source>
+            </trans-unit>
+            <trans-unit id="promptPreview.layer.globalFallback" resname="promptPreview.layer.globalFallback">
+                <source>Global fallback (no page selected)</source>
+            </trans-unit>
+            <trans-unit id="promptPreview.layer.userFragments" resname="promptPreview.layer.userFragments">
+                <source>TSconfig fragments</source>
+            </trans-unit>
+            <trans-unit id="promptPreview.layer.registryFragments" resname="promptPreview.layer.registryFragments">
+                <source>Code-registered fragments</source>
+            </trans-unit>
+            <trans-unit id="promptPreview.layer.providerAddendum" resname="promptPreview.layer.providerAddendum">
+                <source>Provider addendum</source>
             </trans-unit>
             <trans-unit id="overview.title" resname="overview.title">
                 <source>Providers</source>
@@ -233,7 +416,7 @@
                 <source>Pending grades</source>
             </trans-unit>
             <trans-unit id="requestLog.pendingGrades.message" resname="requestLog.pendingGrades.message">
-                <source>%d request log row(s) have been waiting more than an hour to be graded. The shutdown handler appears to have missed them — run "vendor/bin/typo3 aim:grade-pending" or schedule it via the TYPO3 scheduler.</source>
+                <source>%d request log row(s) have been waiting more than an hour to be graded. The shutdown handler appears to have missed them: run "vendor/bin/typo3 aim:grade-pending" or schedule it via the TYPO3 scheduler.</source>
             </trans-unit>
             <trans-unit id="requestLog.status.success" resname="requestLog.status.success">
                 <source>Success</source>

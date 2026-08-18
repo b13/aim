@@ -55,6 +55,27 @@ return [
             'show' => [
                 'target' => \B13\Aim\Controller\RequestLogController::class . '::showAction',
             ],
+            'showContextual' => [
+                'target' => \B13\Aim\Controller\RequestLogController::class . '::showContextualAction',
+            ],
+        ],
+    ],
+    'aim_prompt_preview' => [
+        'parent' => 'aim',
+        'access' => 'user',
+        'position' => ['after' => 'aim_request_log'],
+        'path' => '/module/admin/aim/prompt-preview',
+        'iconIdentifier' => 'tx-aim',
+        'navigationComponent' => '@typo3/backend/tree/page-tree-element',
+        'labels' => [
+            'title' => 'LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:aim.promptPreview.title',
+            'description' => 'LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:aim.promptPreview.description',
+            'shortDescription' => 'LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:aim.promptPreview.shortDescription',
+        ],
+        'routes' => [
+            '_default' => [
+                'target' => \B13\Aim\Controller\PromptPreviewController::class . '::overviewAction',
+            ],
         ],
     ],
 ];

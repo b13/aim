@@ -42,6 +42,14 @@ final class EncryptApiKey
 
         $value = (string)$fieldArray['api_key'];
         if ($value === '') {
+            // HideApiKey (FormDataProvider) never pre-fills this field with
+            // the existing key, so an empty submission on an update means
+            // "leave it untouched", not "clear it". Drop it from the field
+            // array entirely so DataHandler doesn't overwrite the column,
+            // and the previously encrypted value on disk survives.
+            if ($status === 'update') {
+                unset($fieldArray['api_key']);
+            }
             return;
         }
 

@@ -1,0 +1,48 @@
+<html xmlns:f="http://typo3.org/ns/TYPO3/CMS/Fluid/ViewHelpers"
+      data-namespace-typo3-fluid="true">
+
+<div class="aim-console">
+    <div class="form-row">
+        <div class="form-group">
+            <label class="form-label"><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:promptPreview.scope.label" /></label>
+            <select class="form-select" data-role="scope">
+                <f:for each="{scopeOptions}" as="option">
+                    <option value="{option.value}">{option.label}</option>
+                </f:for>
+            </select>
+        </div>
+        <div class="form-group">
+            <label class="form-label"><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:promptPreview.provider.label" /></label>
+            <select class="form-select" data-role="provider">
+                <option value=""><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:promptPreview.provider.none" /></option>
+                <f:for each="{providerConfigurations}" as="config">
+                    <option value="{config.uid}">{config.title} ({config.ai_provider} / {config.model})</option>
+                </f:for>
+            </select>
+        </div>
+    </div>
+    <div data-role="loading" class="aim-loading" hidden>
+        <typo3-backend-spinner size="large"></typo3-backend-spinner>
+    </div>
+    <div class="aim-channels" data-role="layers"></div>
+    <p class="text-body-secondary aim-caller-note"><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:promptPreview.result.callerNote" /></p>
+    <div class="aim-master">
+        <span class="aim-master__corner aim-master__corner--tl"></span>
+        <span class="aim-master__corner aim-master__corner--tr"></span>
+        <span class="aim-master__corner aim-master__corner--bl"></span>
+        <span class="aim-master__corner aim-master__corner--br"></span>
+        <div class="aim-master__head">
+            <span
+                class="aim-master__name"
+                data-role="composed-heading"
+                data-label-system-prompt="{f:translate(key: 'LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:promptPreview.result.composed')}"
+                data-label-image-generation="{f:translate(key: 'LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:promptPreview.result.composed.imageGeneration')}"
+            ></span>
+            <span class="aim-master__stats" data-role="stats"></span>
+        </div>
+        <pre class="aim-master__readout" data-role="composed"></pre>
+    </div>
+    <div data-role="error" class="alert alert-danger" hidden></div>
+</div>
+
+</html>

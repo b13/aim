@@ -32,4 +32,27 @@ final class RequestContext
      * surfaced so GraderMiddleware can attach a grade to it later.
      */
     public ?int $logUid = null;
+
+    /**
+     * The deduped list of parts TonePromptCompositionMiddleware composed
+     * the tone-of-voice prompt from (caller instruction + page/user/registry
+     * fragments, or the override list). Surfaced so ProviderAddendumMiddleware
+     * can skip appending its addendum if it's an exact duplicate of a part
+     * already included, preserving full cross-phase dedup even though the
+     * two middlewares run at different priorities. Empty when the tone
+     * phase didn't run (e.g. composition disabled) or produced nothing.
+     *
+     * @var list<string>
+     */
+    public array $composedPromptParts = [];
+
+    /**
+     * Whether TonePromptCompositionMiddleware found a non-empty
+     * systemPromptOverride and used it instead of automatic composition.
+     * Surfaced so ProviderAddendumMiddleware can skip appending its
+     * addendum in that case (a full override means total, not "everything
+     * except the bit AiM insists on") without re-normalizing
+     * getSystemPromptOverride() itself a second time for the same request.
+     */
+    public bool $promptOverrideApplied = false;
 }

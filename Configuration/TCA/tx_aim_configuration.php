@@ -15,7 +15,7 @@ return [
         'type' => 'ai_provider',
         'typeicon_column' => 'ai_provider',
         'typeicon_classes' => [
-            'default' => 'tx-aim',
+            'default' => 'tx-aim-configuration',
         ],
         'delete' => 'deleted',
         'enablecolumns' => [
@@ -41,7 +41,7 @@ return [
     'palettes' => [
         'config' => [
             'label' => 'LLL:EXT:aim/Resources/Private/Language/locallang_tca.xlf:tx_aim_configuration.palette.config.label',
-            'showitem' => 'ai_provider, --linebreak--, title, description, --linebreak--, api_key, model, --linebreak--, default',
+            'showitem' => 'ai_provider, --linebreak--, title, description, --linebreak--, api_key, model, --linebreak--, default, system_prompt_addition',
         ],
         'tokenCosts' => [
             'label' => 'LLL:EXT:aim/Resources/Private/Language/locallang_tca.xlf:tx_aim_configuration.palette.tokenCosts.label',
@@ -107,7 +107,7 @@ return [
             'onChange' => 'reload',
             'config' => [
                 'type' => 'input',
-                'required' => true,
+                'size' => 30,
             ],
         ],
         'model' => [
@@ -249,6 +249,15 @@ return [
                 'rows' => 6,
                 'cols' => 40,
                 'placeholder' => 'LLL:EXT:aim/Resources/Private/Language/locallang_tca.xlf:tx_aim_configuration.columns.grading_rubric.placeholder',
+            ],
+        ],
+        'system_prompt_addition' => [
+            'label' => 'LLL:EXT:aim/Resources/Private/Language/locallang_tca.xlf:tx_aim_configuration.columns.system_prompt_addition.label',
+            'description' => 'LLL:EXT:aim/Resources/Private/Language/locallang_tca.xlf:tx_aim_configuration.columns.system_prompt_addition.description',
+            'config' => [
+                'type' => 'text',
+                'rows' => 4,
+                'cols' => 40,
             ],
         ],
     ],

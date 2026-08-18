@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+Site-wide tone of voice / system prompts, voice calibration, a new Prompt Preview module, and a redesigned AiM-specific look across the backend.
+
+- Page-tree prompt fragments: add named tone-of-voice instructions (plus optional few-shot examples) to any page's new **AI** tab, scoped to one or more AI capabilities, inherited additively down the page tree, with a global fallback for requests with no page context
+- Two more fragment sources apply regardless of page context: Page/User/Group TSconfig (`aim.promptFragments.*`) and code-registered fragments (`Configuration/SystemPrompt/PromptFragments.php`), for a person/role-level or organization-wide policy (e.g. a watermark instruction, a compliance disclaimer)
+- Image generation requests get the same tone/policy layers spliced into the prompt itself, since image APIs have no system-role channel
+- New **Prompt Preview** backend module: a permission-scoped, searchable list of pages with configured fragments, with page-tree integration and a per-row "compose & inspect" preview that shows the exact layered composition for a page without spending an AI call. Unlike AiM's other modules, it's grantable per user/group rather than admin-only
+- **Voice calibration**: derive a tone-of-voice fragment from real page content instead of writing one by hand: interactively via the "Calibrate Voice" button (paste sample copy, or pick pages through the element browser, with real frontend-rendered content extraction and a safe fallback to stored fields), or for a whole site at once via the new `aim:calibrateVoice` CLI command, which crawls a bounded, representative slice of a site's pages and saves the result as a fragment on its root page (schedulable, safe to re-run)
+- `disableSystemPromptComposition` and `systemPromptOverride` request options let a caller opt out of automatic composition entirely, or override the tone/policy layers for one specific call
+- Security hardening: once a provider API key is encrypted, it is never decrypted for display again anywhere in the backend: the edit form masks it behind a password input instead, and the Providers overview / connection-verification response never expose it either
+- Redesigned AiM's own screens with a distinctive "mixing console" visual identity: composed prompt layers render as colored channel strips feeding a "master out" readout, model/provider status reads as glowing LED indicators instead of plain badges, and request log statistics read as a meter bank rather than plain stat cards. Applied across the Providers overview, Available Providers modal, Request Log (list, statistics, detail), Prompt Preview, and the Calibrate Voice modal, with full light/dark theme support; standard TYPO3 chrome (doc header, module navigation, forms) is left untouched, so only AiM's own content areas carry the distinctive look
+
 ## 0.3.0
 
 Tool calling improvements, image generation, request log detail view, and sortable listings.

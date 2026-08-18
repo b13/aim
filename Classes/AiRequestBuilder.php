@@ -17,6 +17,7 @@ use B13\Aim\Capability\TextGenerationCapableInterface;
 use B13\Aim\Capability\TranslationCapableInterface;
 use B13\Aim\Capability\VisionCapableInterface;
 use B13\Aim\Middleware\AiMiddlewarePipeline;
+use B13\Aim\Prompt\PromptOverrideNormalizer;
 use B13\Aim\Provider\ProviderResolver;
 use B13\Aim\Provider\ResolvedProvider;
 use B13\Aim\Request\ImageGenerationRequest;
@@ -45,6 +46,9 @@ final class AiRequestBuilder
     private string $type = '';
     private string $prompt = '';
     private string $systemPrompt = '';
+    private ?int $pageId = null;
+    private bool $disableSystemPromptComposition = false;
+    private array $systemPromptOverride = [];
     private int $maxTokens = 150;
     private float $temperature = 0.2;
     private string $extensionKey = '';
@@ -98,6 +102,11 @@ final class AiRequestBuilder
 
     /**
      * Generate an image. Use prompt() to set the description.
+     *
+     * No system-role channel exists for image generation — forPage()'s
+     * resolved tone/fragments and systemPromptOverride() both get appended
+     * as literal, visible text onto prompt() instead of a separate
+     * instruction, since providers take a single prompt string here.
      */
     public function image(): self
     {
@@ -143,6 +152,41 @@ final class AiRequestBuilder
     public function systemPrompt(string $systemPrompt): self
     {
         $this->systemPrompt = $systemPrompt;
+        return $this;
+    }
+
+    /**
+     * Anchor this request to a page, so TonePromptCompositionMiddleware
+     * can resolve the page-tree tone-of-voice prompt for it. Without this,
+     * the global default (Extension Configuration) applies instead.
+     */
+    public function forPage(?int $pageId): self
+    {
+        $this->pageId = $pageId;
+        return $this;
+    }
+
+    /**
+     * Opt out of all automatic prompt composition (page/TSconfig/user/registry
+     * fragments, provider addendum) — whatever systemPrompt()/prompt() was set
+     * is sent as-is.
+     */
+    public function disableSystemPromptComposition(bool $disable = true): self
+    {
+        $this->disableSystemPromptComposition = $disable;
+        return $this;
+    }
+
+    /**
+     * Supply fragment(s) that totally replace the automatic tone/user/registry/
+     * addendum resolution for this call — still composed with prompt()/
+     * systemPrompt(), but nothing else. Unlike disableSystemPromptComposition(),
+     * this still runs composition, just against these fragments instead of
+     * the resolved ones.
+     */
+    public function systemPromptOverride(string|array $override): self
+    {
+        $this->systemPromptOverride = PromptOverrideNormalizer::normalize($override);
         return $this;
     }
 
@@ -218,6 +262,9 @@ final class AiRequestBuilder
         $request = new ImageGenerationRequest(
             configuration: $resolvedProvider->configuration,
             prompt: $this->prompt,
+            pageId: $this->pageId,
+            disableAutomaticSystemPrompt: $this->disableSystemPromptComposition,
+            systemPromptOverride: $this->systemPromptOverride,
             referenceImageData: $this->referenceImageData,
             referenceMimeType: $this->referenceMimeType,
             options: $this->imageOptions,
@@ -241,6 +288,9 @@ final class AiRequestBuilder
             mimeType: $this->mimeType,
             prompt: $this->prompt,
             systemPrompt: $this->systemPrompt,
+            pageId: $this->pageId,
+            disableAutomaticSystemPrompt: $this->disableSystemPromptComposition,
+            systemPromptOverride: $this->systemPromptOverride,
             maxTokens: $this->maxTokens,
             temperature: $this->temperature,
             user: $this->user,
@@ -260,6 +310,9 @@ final class AiRequestBuilder
             configuration: $resolvedProvider->configuration,
             prompt: $this->prompt,
             systemPrompt: $this->systemPrompt,
+            pageId: $this->pageId,
+            disableAutomaticSystemPrompt: $this->disableSystemPromptComposition,
+            systemPromptOverride: $this->systemPromptOverride,
             responseFormat: $this->responseFormat,
             maxTokens: $this->maxTokens,
             temperature: $this->temperature,
@@ -282,6 +335,9 @@ final class AiRequestBuilder
             sourceLanguage: $this->sourceLanguage,
             targetLanguage: $this->targetLanguage,
             systemPrompt: $this->systemPrompt,
+            pageId: $this->pageId,
+            disableAutomaticSystemPrompt: $this->disableSystemPromptComposition,
+            systemPromptOverride: $this->systemPromptOverride,
             maxTokens: $this->maxTokens,
             temperature: $this->temperature,
             user: $this->user,

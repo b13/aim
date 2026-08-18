@@ -21,6 +21,7 @@ use B13\Aim\Provider\ProviderResolver;
 use B13\Aim\Request\ConversationRequest;
 use B13\Aim\Request\Message\UserMessage;
 use B13\Aim\Request\ResponseFormat;
+use B13\Aim\Utility\JsonExtractor;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\Attribute\Autoconfigure;
 
@@ -43,6 +44,24 @@ class GradingService
     private const JSON_INSTRUCTION = "\n\nRespond with a single valid JSON object and nothing else:\n"
         . '{"score": <float between 0.0 and 1.0>, "label": "<poor|fair|good|excellent>", "reason": "<one short sentence>"}'
         . "\nDo not wrap the JSON in markdown or prose.";
+
+    /**
+     * Strict JSON Schema, not ResponseFormat::json() (generic "json_object")
+     * — see VoiceCalibrationService::RESPONSE_SCHEMA's docblock for why:
+     * OpenAI's Responses-API bridge only rewrites response_format into its
+     * own shape for a json_schema payload, and otherwise sends
+     * "response_format" straight through to an endpoint that rejects it.
+     */
+    private const RESPONSE_SCHEMA = [
+        'type' => 'object',
+        'properties' => [
+            'score' => ['type' => 'number'],
+            'label' => ['type' => 'string', 'enum' => ['poor', 'fair', 'good', 'excellent']],
+            'reason' => ['type' => 'string'],
+        ],
+        'required' => ['score', 'label', 'reason'],
+        'additionalProperties' => false,
+    ];
 
     public function __construct(
         private readonly RequestLogRepository $logRepository,
@@ -167,7 +186,7 @@ class GradingService
             configuration: $judgeConfig,
             messages: [new UserMessage($userContent)],
             systemPrompt: $systemPrompt,
-            responseFormat: ResponseFormat::json(),
+            responseFormat: ResponseFormat::jsonSchema('grading_result', self::RESPONSE_SCHEMA),
             maxTokens: 300,
             temperature: 0.0,
             metadata: [
@@ -185,7 +204,7 @@ class GradingService
      */
     private function parseJudgeOutput(string $raw): ?array
     {
-        $json = $this->extractJsonObject($raw);
+        $json = JsonExtractor::extractJsonObject($raw);
         if ($json === null) {
             return null;
         }
@@ -215,28 +234,5 @@ class GradingService
         }
 
         return ['score' => $score, 'label' => $label, 'reason' => $reason];
-    }
-
-    /**
-     * Strip code fences and locate the first balanced JSON object in the string.
-     * Tolerates the common failure mode of LLMs wrapping JSON in markdown.
-     */
-    private function extractJsonObject(string $raw): ?string
-    {
-        $raw = trim($raw);
-        if ($raw === '') {
-            return null;
-        }
-        // Strip ```json ... ``` fence if present
-        if (str_starts_with($raw, '```')) {
-            $raw = preg_replace('/^```(?:json)?\s*\n?|\n?```$/m', '', $raw) ?? $raw;
-            $raw = trim($raw);
-        }
-        $start = strpos($raw, '{');
-        $end = strrpos($raw, '}');
-        if ($start === false || $end === false || $end <= $start) {
-            return null;
-        }
-        return substr($raw, $start, $end - $start + 1);
     }
 }

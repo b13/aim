@@ -14,6 +14,8 @@ namespace B13\Aim\Request;
 
 use B13\Aim\Domain\Model\ProviderConfiguration;
 use B13\Aim\Governance\PrivacyLevel;
+use B13\Aim\Prompt\PromptFragmentScope;
+use B13\Aim\Request\Concern\CarriesSystemPromptTrait;
 use B13\Aim\Request\Message\AbstractMessage;
 
 /**
@@ -23,8 +25,15 @@ use B13\Aim\Request\Message\AbstractMessage;
  * instructions instead of (or alongside) text content. The caller is
  * responsible for executing the tool and feeding results back.
  */
-final class ToolCallingRequest implements AiRequestInterface
+final class ToolCallingRequest implements AiRequestInterface, SupportsSystemPromptInterface
 {
+    use CarriesSystemPromptTrait;
+
+    public function getPromptFragmentScope(): PromptFragmentScope
+    {
+        return PromptFragmentScope::ToolCalling;
+    }
+
     /**
      * @param list<AbstractMessage> $messages Conversation messages
      * @param list<ToolDefinition> $tools Available tools the model may call
@@ -37,6 +46,9 @@ final class ToolCallingRequest implements AiRequestInterface
         public readonly array $messages,
         public readonly array $tools,
         public readonly string $systemPrompt = '',
+        public readonly ?int $pageId = null,
+        public readonly bool $disableAutomaticSystemPrompt = false,
+        public readonly array $systemPromptOverride = [],
         public readonly array $toolResults = [],
         public readonly ?ResponseFormat $responseFormat = null,
         public readonly int $maxTokens = 1000,

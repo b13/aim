@@ -69,4 +69,41 @@ final class SortUrlBuilderTest extends TestCase
         self::assertStringContainsString('demand%5Btitle%5D=foo', $sortUrls['cost']['ascUrl']);
         self::assertStringContainsString('orderField=cost', $sortUrls['cost']['ascUrl']);
     }
+
+    #[Test]
+    public function additionalParametersSurviveInEverySortLinkUnnamespaced(): void
+    {
+        // e.g. a page-tree module's selected `id`, sorting must not drop it.
+        $demand = new class implements SortableDemandInterface {
+            public function getOrderField(): string
+            {
+                return 'title';
+            }
+
+            public function getOrderDirection(): string
+            {
+                return 'asc';
+            }
+
+            public function getParameters(): array
+            {
+                return [];
+            }
+
+            public static function getOrderFields(): array
+            {
+                return ['title'];
+            }
+        };
+
+        $uriBuilder = $this->createStub(UriBuilder::class);
+        $uriBuilder->method('buildUriFromRoute')->willReturnCallback(
+            static fn(string $route, array $params) => new Uri($route . '?' . http_build_query($params)),
+        );
+
+        $sortUrls = (new SortUrlBuilder($uriBuilder))->build($demand, 'aim_test_route', ['id' => 42]);
+
+        self::assertStringContainsString('id=42', $sortUrls['title']['ascUrl']);
+        self::assertStringContainsString('id=42', $sortUrls['title']['descUrl']);
+    }
 }

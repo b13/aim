@@ -14,13 +14,25 @@ namespace B13\Aim\Request;
 
 use B13\Aim\Domain\Model\ProviderConfiguration;
 use B13\Aim\Governance\PrivacyLevel;
+use B13\Aim\Prompt\PromptFragmentScope;
+use B13\Aim\Request\Concern\CarriesSystemPromptTrait;
 
-final class TextGenerationRequest implements AiRequestInterface
+final class TextGenerationRequest implements AiRequestInterface, SupportsSystemPromptInterface
 {
+    use CarriesSystemPromptTrait;
+
+    public function getPromptFragmentScope(): PromptFragmentScope
+    {
+        return PromptFragmentScope::Text;
+    }
+
     public function __construct(
         public readonly ProviderConfiguration $configuration,
         public readonly string $prompt,
         public readonly string $systemPrompt = '',
+        public readonly ?int $pageId = null,
+        public readonly bool $disableAutomaticSystemPrompt = false,
+        public readonly array $systemPromptOverride = [],
         public readonly ?ResponseFormat $responseFormat = null,
         public readonly int $maxTokens = 150,
         public readonly float $temperature = 0.2,

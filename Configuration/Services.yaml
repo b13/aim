@@ -19,5 +19,14 @@ services:
   B13\Aim\Hooks\EncryptApiKey:
     public: true
 
-  B13\Aim\Backend\FormDataProvider\DecryptApiKey:
+  B13\Aim\Backend\FormDataProvider\HideApiKey:
+    public: true
+
+  B13\Aim\Prompt\PagePromptResolver:
+    public: true
+
+  B13\Aim\Domain\Repository\PagePromptFragmentRepository:
+    public: true
+
+  B13\Aim\Backend\PageTreeResolver:
     public: true

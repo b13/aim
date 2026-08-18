@@ -19,8 +19,7 @@ use TYPO3\CMS\Backend\Routing\UriBuilder;
  * Builds the asc/desc sort URLs per sortable column for a backend listing,
  * preserving all active filters.
  *
- * Shared by multiple controllers with a sortable lists (RequestLogController,
- * ProviderController): each just supplies its own demand object and route.
+ * Shared by multiple controllers with a sortable lists: each just supplies its own demand object and route.
  */
 final class SortUrlBuilder
 {
@@ -29,11 +28,15 @@ final class SortUrlBuilder
     ) {}
 
     /**
+     * @param array<string, mixed> $additionalParameters merged in verbatim (not
+     *        namespaced under `demand[...]`) — e.g. a page-tree module's
+     *        currently selected `id`, so sorting doesn't drop it. Defaults to
+     *        empty so existing callers are unaffected.
      * @return array<string, array{ascUrl: string, descUrl: string, active: bool, direction: string}>
      */
-    public function build(SortableDemandInterface $demand, string $route): array
+    public function build(SortableDemandInterface $demand, string $route, array $additionalParameters = []): array
     {
-        $filterParams = [];
+        $filterParams = $additionalParameters;
         foreach ($demand->getParameters() as $key => $value) {
             $filterParams['demand[' . $key . ']'] = $value;
         }

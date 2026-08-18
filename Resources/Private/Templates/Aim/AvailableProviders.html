@@ -2,7 +2,8 @@
       xmlns:core="http://typo3.org/ns/TYPO3/CMS/Core/ViewHelpers"
       data-namespace-typo3-fluid="true">
 
-<div data-toggle-url="{toggleUrl}">
+<div class="aim-console aim-provider-table" data-toggle-url="{toggleUrl}">
+    <style>{consoleCss -> f:format.raw()}</style>
     <div class="table-fit">
         <table class="table table-striped table-hover">
             <thead>
@@ -23,17 +24,19 @@
                         </td>
                         <td>
                             <f:for each="{provider.capabilities}" as="capability">
-                                <span class="badge badge-info">{capability}</span>
+                                <span class="aim-capability-chip">{capability}</span>
                             </f:for>
                         </td>
                         <td>
                             <f:for each="{provider.models}" as="model">
                                 <button type="button"
-                                        class="badge {f:if(condition: model.disabled, then: 'badge-notice', else: 'badge-success')}"
-                                        style="cursor:pointer;border:none;"
+                                        class="aim-model-toggle"
+                                        data-disabled="{f:if(condition: model.disabled, then: '1', else: '0')}"
                                         data-model-toggle
                                         data-provider="{provider.identifier}"
-                                        data-model="{model.id}">{model.id}</button>
+                                        data-model="{model.id}">
+                                    <span class="aim-led"></span>{model.id}
+                                </button>
                             </f:for>
                         </td>
                     </tr>

@@ -34,7 +34,10 @@
                 <source>API Key / Endpoint URL</source>
             </trans-unit>
             <trans-unit id="tx_aim_configuration.columns.api_key.description" resname="tx_aim_configuration.columns.api_key.description">
-                <source>For local/self-hosted providers like Ollama or LM Studio, enter the endpoint URL (e.g. http://localhost:11434) instead of an API key.</source>
+                <source>For local/self-hosted providers like Ollama or LM Studio, enter the endpoint URL (e.g. http://localhost:11434) instead of an API key. For security, an already-saved key is never shown again; leave this empty to keep it unchanged, or enter a new value to replace it.</source>
+            </trans-unit>
+            <trans-unit id="tx_aim_configuration.columns.api_key.placeholder.configured" resname="tx_aim_configuration.columns.api_key.placeholder.configured">
+                <source>A key is configured; leave empty to keep it</source>
             </trans-unit>
             <trans-unit id="tx_aim_configuration.columns.model.label" resname="tx_aim_configuration.columns.model.label">
                 <source>Model</source>
@@ -107,6 +110,81 @@
             </trans-unit>
             <trans-unit id="tx_aim_configuration.columns.grading_rubric.placeholder" resname="tx_aim_configuration.columns.grading_rubric.placeholder">
                 <source>Evaluate the response for factual accuracy and relevance to the user's prompt.</source>
+            </trans-unit>
+            <trans-unit id="pages.tab_ai" resname="pages.tab_ai">
+                <source>AI</source>
+            </trans-unit>
+            <trans-unit id="pages.tx_aim_disable_inherited_fragments.label" resname="pages.tx_aim_disable_inherited_fragments.label">
+                <source>Disable inherited prompt fragments</source>
+            </trans-unit>
+            <trans-unit id="pages.tx_aim_disable_inherited_fragments.description" resname="pages.tx_aim_disable_inherited_fragments.description">
+                <source>When enabled, this page ignores prompt fragments inherited from ancestor pages (even ones with "Inherit to subpages" checked); only this page's own fragments apply. Affects this page only, not its subpages, which keep inheriting from the original ancestors normally. Does not affect fragments set via TSconfig.</source>
+            </trans-unit>
+            <trans-unit id="pages.tx_aim_prompt_fragments.label" resname="pages.tx_aim_prompt_fragments.label">
+                <source>Tone of Voice / System Prompt Fragments</source>
+            </trans-unit>
+            <trans-unit id="pages.tx_aim_prompt_fragments.description" resname="pages.tx_aim_prompt_fragments.description">
+                <source>Instructions for AI-generated content (e.g. formality, brand voice, forbidden phrasing, image watermark policy). Each fragment applies only to the capability set in its Scope. Fragments with "Inherit to subpages" enabled also apply to every page below this one, until a descendant page adds its own fragments of the same scope (which supplement, not replace, inherited ones). Does not apply to image alt-text generation, which uses the global default instead.</source>
+            </trans-unit>
+            <trans-unit id="tx_aim_prompt_fragment.title" resname="tx_aim_prompt_fragment.title">
+                <source>AI Prompt Fragment</source>
+            </trans-unit>
+            <trans-unit id="tx_aim_prompt_fragment.columns.title.label" resname="tx_aim_prompt_fragment.columns.title.label">
+                <source>Title</source>
+            </trans-unit>
+            <trans-unit id="tx_aim_prompt_fragment.columns.title.description" resname="tx_aim_prompt_fragment.columns.title.description">
+                <source>Internal label only, never sent to the AI.</source>
+            </trans-unit>
+            <trans-unit id="tx_aim_prompt_fragment.columns.prompt.label" resname="tx_aim_prompt_fragment.columns.prompt.label">
+                <source>Prompt</source>
+            </trans-unit>
+            <trans-unit id="tx_aim_prompt_fragment.columns.prompt.description" resname="tx_aim_prompt_fragment.columns.prompt.description">
+                <source>Sent with every matching AI call on this subtree; keep it concise to limit the ongoing token cost.</source>
+            </trans-unit>
+            <trans-unit id="tx_aim_prompt_fragment.columns.examples.label" resname="tx_aim_prompt_fragment.columns.examples.label">
+                <source>Examples</source>
+            </trans-unit>
+            <trans-unit id="tx_aim_prompt_fragment.columns.examples.description" resname="tx_aim_prompt_fragment.columns.examples.description">
+                <source>Optional. One "Q: ..." / "A: ..." pair per example, blank line between examples; steers the AI more reliably than the prompt alone. Keep it to a few short ones; it adds to every call's token cost.</source>
+            </trans-unit>
+            <trans-unit id="tx_aim_prompt_fragment.columns.scope.label" resname="tx_aim_prompt_fragment.columns.scope.label">
+                <source>Scope</source>
+            </trans-unit>
+            <trans-unit id="tx_aim_prompt_fragment.columns.scope.description" resname="tx_aim_prompt_fragment.columns.scope.description">
+                <source>Which capabilities this fragment applies to. All are checked by default; uncheck what doesn't apply.</source>
+            </trans-unit>
+            <trans-unit id="tx_aim_prompt_fragment.columns.scope.all" resname="tx_aim_prompt_fragment.columns.scope.all">
+                <source>All capabilities</source>
+            </trans-unit>
+            <trans-unit id="tx_aim_prompt_fragment.columns.scope.text" resname="tx_aim_prompt_fragment.columns.scope.text">
+                <source>Text Generation</source>
+            </trans-unit>
+            <trans-unit id="tx_aim_prompt_fragment.columns.scope.vision" resname="tx_aim_prompt_fragment.columns.scope.vision">
+                <source>Vision</source>
+            </trans-unit>
+            <trans-unit id="tx_aim_prompt_fragment.columns.scope.translation" resname="tx_aim_prompt_fragment.columns.scope.translation">
+                <source>Translation</source>
+            </trans-unit>
+            <trans-unit id="tx_aim_prompt_fragment.columns.scope.conversation" resname="tx_aim_prompt_fragment.columns.scope.conversation">
+                <source>Conversation</source>
+            </trans-unit>
+            <trans-unit id="tx_aim_prompt_fragment.columns.scope.toolCalling" resname="tx_aim_prompt_fragment.columns.scope.toolCalling">
+                <source>Tool Calling</source>
+            </trans-unit>
+            <trans-unit id="tx_aim_prompt_fragment.columns.scope.imageGeneration" resname="tx_aim_prompt_fragment.columns.scope.imageGeneration">
+                <source>Image Generation</source>
+            </trans-unit>
+            <trans-unit id="tx_aim_prompt_fragment.columns.inherit_to_subpages.label" resname="tx_aim_prompt_fragment.columns.inherit_to_subpages.label">
+                <source>Inherit to subpages</source>
+            </trans-unit>
+            <trans-unit id="tx_aim_prompt_fragment.columns.inherit_to_subpages.description" resname="tx_aim_prompt_fragment.columns.inherit_to_subpages.description">
+                <source>When enabled (default), also applies to every page below this one in the tree.</source>
+            </trans-unit>
+            <trans-unit id="tx_aim_configuration.columns.system_prompt_addition.label" resname="tx_aim_configuration.columns.system_prompt_addition.label">
+                <source>Provider-specific Prompt Addendum</source>
+            </trans-unit>
+            <trans-unit id="tx_aim_configuration.columns.system_prompt_addition.description" resname="tx_aim_configuration.columns.system_prompt_addition.description">
+                <source>Optional extra instructions appended only when this provider configuration is used, after the page/site system prompt fragments (e.g. a model-specific quirk or formatting instruction).</source>
             </trans-unit>
             <trans-unit id="permissions.header" resname="permissions.header">
                 <source>AI Management</source>

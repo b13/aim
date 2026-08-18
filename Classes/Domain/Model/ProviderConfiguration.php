@@ -40,6 +40,7 @@ final class ProviderConfiguration
     public readonly bool $gradingEnabled;
     public readonly int $judgeConfigurationUid;
     public readonly string $gradingRubric;
+    public readonly string $systemPromptAddition;
 
     public function __construct(
         public readonly array $row,
@@ -60,6 +61,7 @@ final class ProviderConfiguration
         $this->gradingEnabled = (bool)($row['grading_enabled'] ?? false);
         $this->judgeConfigurationUid = (int)($row['judge_configuration_uid'] ?? 0);
         $this->gradingRubric = (string)($row['grading_rubric'] ?? '');
+        $this->systemPromptAddition = (string)($row['system_prompt_addition'] ?? '');
     }
 
     /**

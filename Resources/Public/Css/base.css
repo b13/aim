@@ -15,19 +15,520 @@
     background-color: rgb(170,58,80);
 }
 
-.card-info-icon {
-    position: absolute;
-    top: 8px;
-    right: 8px;
-    opacity: 0.5;
-    cursor: help;
+/*
+ * Core's .alert a { text-decoration: underline; } is meant for a plain text
+ * link inside an alert (the underline is its only affordance once color is
+ * inherited); it shouldn't apply to a link styled as a button, which
+ * already has its own visual affordance. .btn-link is the one button
+ * variant that's deliberately styled to look like a text link, so it's
+ * excluded from this reset.
+ */
+.alert a.btn:not(.btn-link) {
+    text-decoration: none;
 }
 
-.card-info-icon:hover {
-    opacity: 1;
-}
-
-aim-available-providers .btn {
+/*
+ * This gold highlight is a fixed brand color, not a light-dark() aware
+ * token: it's meant to stand out identically in both backend themes, not
+ * blend into either. TYPO3's base .btn sets --typo3-btn-color: inherit, so
+ * without an explicit override here the text/icon color is whatever the
+ * surrounding chrome's ambient text color is: dark in the light theme
+ * (readable on this gold), but light/white in the dark theme, which reads
+ * as broken low-contrast text on a bright background. Pin it to a fixed
+ * dark tone so it stays legible regardless of theme.
+ *
+ * The first four selectors cover our doc-header trigger buttons (styled via
+ * the wrapping custom element, no class needed on the button itself).
+ * .aim-btn-primary is the same treatment as a plain, explicit class; use
+ * it (alongside .btn) instead of Bootstrap's .btn-primary anywhere else in
+ * the extension that wants this same "primary AI action" look, so it stays
+ * one shared definition rather than copies of the same six color values.
+ *
+ * All three states (base, hover, focus) need setting explicitly: core's
+ * .btn:focus reads --typo3-btn-focus-bg/-color, a separate pair from the
+ * hover ones. Without a focus override here, the button falls back to the
+ * base .btn's own default (--typo3-btn-focus-bg: transparent), so clicking
+ * or tabbing to the button drops the gold background entirely and leaves
+ * only the ambient-colored text visible.
+ */
+aim-available-providers .btn,
+aim-prompt-preview-toggle.btn,
+aim-prompt-preview-toggle .btn,
+aim-calibrate-voice-trigger .btn,
+.aim-btn-primary {
     --typo3-btn-bg: rgb(255,200,87);
     --typo3-btn-hover-bg: rgb(255, 180, 0);
+    --typo3-btn-focus-bg: rgb(255, 180, 0);
+    --typo3-btn-color: rgb(43, 29, 0);
+    --typo3-btn-hover-color: rgb(43, 29, 0);
+    --typo3-btn-focus-color: rgb(43, 29, 0);
+    --typo3-btn-focus-border-color: rgb(255, 180, 0);
+}
+
+/*
+ * Prompt Preview "mixing console": each composition layer as a channel
+ * strip (colored rail + a meter sized by its share of the final composed
+ * prompt), feeding a "master out" readout. Anchored on the same brand gold
+ * as .btn above; the other three channel hues are new. Uses the native CSS
+ * light-dark() function rather than a manual [data-color-scheme]/prefers-
+ * color-scheme override block: TYPO3 core's own backend.css already sets
+ * `color-scheme` on the document root from the backend user's actual
+ * light/dark/auto preference (see PageRenderer's data-color-scheme
+ * attribute), so light-dark() here automatically follows it for free.
+ */
+.aim-console {
+    --aim-gold: light-dark(#a9740a, #ffc857);
+    --aim-gold-glow: light-dark(rgba(169, 116, 10, 0.18), rgba(255, 200, 87, 0.5));
+    --aim-magenta: light-dark(#c22d78, #ff4fa3);
+    --aim-magenta-glow: light-dark(rgba(194, 45, 120, 0.16), rgba(255, 79, 163, 0.45));
+    --aim-cyan: light-dark(#0b7f92, #35e6ff);
+    --aim-cyan-glow: light-dark(rgba(11, 127, 146, 0.16), rgba(53, 230, 255, 0.45));
+    --aim-violet: light-dark(#6a4fc4, #9d7bff);
+    --aim-violet-glow: light-dark(rgba(106, 79, 196, 0.16), rgba(157, 123, 255, 0.45));
+    /* 0 in light mode (flat color reads better on a light ground than a
+       diluted glow would), 1 in dark mode (where the glow is the point). */
+    --aim-glow-op: light-dark(0, 1);
+    --aim-panel-strip: light-dark(#f7f9fc, #10182a);
+    --aim-hairline: light-dark(#dde3ee, rgba(130, 170, 220, 0.16));
+    --aim-good: light-dark(#1f8f5c, #4ee08a);
+    --aim-good-glow: light-dark(rgba(31, 143, 92, 0.18), rgba(78, 224, 138, 0.5));
+    --aim-critical: light-dark(#b2482f, #ff6b52);
+    --aim-critical-glow: light-dark(rgba(178, 72, 47, 0.18), rgba(255, 107, 82, 0.5));
+}
+
+.aim-loading {
+    text-align: center;
+    padding: 24px 0;
+}
+
+/*
+ * Plain CSS spinner, not <typo3-backend-spinner>: that's a Lit Shadow DOM
+ * component whose cached constructed stylesheet (IconStyles.getStyles())
+ * is tied to the document/realm it was first created in. Used inside a
+ * modal whose content this stylesheet is injected into (see
+ * console-styles.js), it throws "NotAllowedError: ... Sharing constructed
+ * stylesheets in multiple documents is not allowed" as soon as it connects,
+ * since that document differs from wherever else in the backend the same
+ * class instance may already be cached. A plain element with a CSS
+ * animation has no such cross-document dependency.
+ */
+.aim-spinner {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    vertical-align: middle;
+    border: 2px solid var(--aim-hairline, var(--typo3-border-color, #ccc));
+    border-top-color: var(--aim-gold, var(--typo3-component-marked-color, #666));
+    border-radius: 50%;
+    animation: aim-spin 0.6s linear infinite;
+}
+
+@keyframes aim-spin {
+    to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .aim-spinner { animation: none; }
+}
+
+.aim-channels {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 12px;
+}
+
+.aim-channel {
+    position: relative;
+    display: grid;
+    grid-template-columns: 150px 1fr;
+    background: var(--aim-panel-strip);
+    border: 1px solid var(--aim-hairline);
+    border-left: 3px solid var(--rail-color);
+    border-radius: 4px;
+    overflow: hidden;
+    transition: box-shadow 180ms ease;
+}
+
+.aim-channel:hover {
+    box-shadow: 0 0 24px -8px var(--rail-glow);
+}
+
+.aim-channel__label-col {
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    border-right: 1px solid var(--aim-hairline);
+}
+
+.aim-channel__name {
+    font-family: var(--typo3-font-family-monospace);
+    font-size: 10.5px;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    font-weight: 700;
+    color: var(--rail-color);
+    text-shadow: 0 0 calc(10px * var(--aim-glow-op)) var(--rail-glow);
+}
+
+.aim-channel__meter {
+    height: 4px;
+    background: var(--aim-hairline);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.aim-channel__meter span {
+    display: block;
+    height: 100%;
+    background: var(--rail-color);
+    border-radius: 2px;
+    box-shadow: 0 0 calc(8px * var(--aim-glow-op)) var(--rail-glow);
+}
+
+.aim-channel__count {
+    font-family: var(--typo3-font-family-monospace);
+    font-size: 10px;
+    color: var(--typo3-text-color-secondary);
+}
+
+.aim-channel__content-col {
+    padding: 10px 14px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 6px;
+}
+
+.aim-channel__content-col p {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.aim-channel--empty .aim-channel__content-col p {
+    color: var(--typo3-text-color-secondary);
+    font-style: italic;
+}
+
+.aim-caller-note {
+    margin-top: 4px;
+}
+
+.aim-master {
+    position: relative;
+    background: var(--aim-panel-strip);
+    border: 1px solid var(--aim-hairline);
+    border-radius: 4px;
+    padding: 14px 16px 16px;
+    margin-top: 8px;
+}
+
+.aim-master__corner {
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    pointer-events: none;
+}
+.aim-master__corner--tl { top: -1px; left: -1px; border-top: 2px solid var(--aim-gold); border-left: 2px solid var(--aim-gold); }
+.aim-master__corner--tr { top: -1px; right: -1px; border-top: 2px solid var(--aim-gold); border-right: 2px solid var(--aim-gold); }
+.aim-master__corner--bl { bottom: -1px; left: -1px; border-bottom: 2px solid var(--aim-gold); border-left: 2px solid var(--aim-gold); }
+.aim-master__corner--br { bottom: -1px; right: -1px; border-bottom: 2px solid var(--aim-gold); border-right: 2px solid var(--aim-gold); }
+
+.aim-master__head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 10px;
+}
+
+.aim-master__name {
+    font-family: var(--typo3-font-family-monospace);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    font-weight: 700;
+    color: var(--aim-gold);
+}
+
+.aim-master__stats {
+    font-family: var(--typo3-font-family-monospace);
+    font-size: 11px;
+    color: var(--typo3-text-color-secondary);
+    font-variant-numeric: tabular-nums;
+}
+
+.aim-master__readout {
+    margin: 0;
+    font-family: var(--typo3-font-family-monospace);
+    font-size: 12.5px;
+    line-height: 1.65;
+    color: var(--aim-gold);
+    white-space: pre-wrap;
+    overflow-x: auto;
+    text-shadow: 0 0 calc(16px * var(--aim-glow-op)) var(--aim-gold-glow);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .aim-channel { transition: none; }
+}
+
+/*
+ * Available Providers table: same token family as .aim-console above, but
+ * a status list isn't a composition: no channel strips here. Model
+ * availability instead reads as a small glowing LED per model (green =
+ * enabled, red = disabled) rather than a plain Bootstrap badge-success/
+ * badge-notice pill.
+ */
+.aim-provider-table thead th {
+    font-family: var(--typo3-font-family-monospace);
+    font-size: 10.5px;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--aim-gold);
+    font-weight: 700;
+    border-bottom-color: var(--aim-hairline);
+}
+
+.aim-provider-table tbody td {
+    border-color: var(--aim-hairline);
+}
+
+.aim-capability-chip {
+    display: inline-block;
+    font-family: var(--typo3-font-family-monospace);
+    font-size: 10px;
+    letter-spacing: 0.04em;
+    padding: 2px 7px;
+    border-radius: 3px;
+    border: 1px solid var(--aim-hairline);
+    color: var(--aim-gold);
+    background: color-mix(in srgb, var(--aim-gold) 8%, transparent);
+    margin: 1px;
+}
+
+.aim-model-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-family: var(--typo3-font-family-monospace);
+    font-size: 11px;
+    padding: 3px 9px 3px 7px;
+    border-radius: 999px;
+    border: 1px solid var(--aim-hairline);
+    background: var(--aim-panel-strip);
+    cursor: pointer;
+    margin: 1px;
+    transition: box-shadow 150ms ease, border-color 150ms ease;
+}
+
+.aim-model-toggle:hover {
+    border-color: color-mix(in srgb, var(--led-color) 55%, var(--aim-hairline));
+    box-shadow: 0 0 16px -6px var(--led-glow);
+}
+
+.aim-model-toggle .aim-led {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--led-color);
+    box-shadow: 0 0 calc(6px * var(--aim-glow-op)) var(--led-glow);
+    flex-shrink: 0;
+}
+
+.aim-model-toggle[data-disabled="1"] {
+    --led-color: var(--aim-critical);
+    --led-glow: var(--aim-critical-glow);
+    color: var(--typo3-text-color-secondary);
+}
+
+.aim-model-toggle[data-disabled="0"] {
+    --led-color: var(--aim-good);
+    --led-glow: var(--aim-good-glow);
+    color: var(--typo3-text-color-base);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .aim-model-toggle { transition: none; }
+}
+
+/*
+ * Request log detail modal: a vertical key/value table (one <th>/<td> pair
+ * per row), not a header-row table like .aim-provider-table, so instead of
+ * styling thead th, each row's own <th> label reads like a channel label.
+ */
+.aim-request-log-detail table th {
+    font-family: var(--typo3-font-family-monospace);
+    font-size: 10.5px;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--aim-gold);
+    font-weight: 700;
+    white-space: nowrap;
+    vertical-align: top;
+    padding-top: 12px;
+    border-color: var(--aim-hairline);
+}
+
+.aim-request-log-detail table td {
+    border-color: var(--aim-hairline);
+}
+
+.aim-request-log-detail table pre {
+    margin: 0;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+/*
+ * Request log statistics: a small meter bank instead of plain Bootstrap
+ * stat cards. Four of the five keep a fixed identity color from the same
+ * token family used elsewhere (gold/magenta/cyan/violet); the success-rate
+ * stat is deliberately different: its color is semantic (good/warn/
+ * critical), driven by the value itself via [data-level] rather than a
+ * fixed identity, so it reads as a real health signal at a glance.
+ */
+.aim-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.aim-stat {
+    background: var(--aim-panel-strip);
+    border: 1px solid var(--aim-hairline);
+    border-top: 3px solid var(--rail-color);
+    border-radius: 4px;
+    padding: 12px 14px 14px;
+    transition: box-shadow 180ms ease;
+}
+
+.aim-stat:hover {
+    box-shadow: 0 0 24px -10px var(--rail-glow);
+}
+
+.aim-stat__head {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--rail-color);
+    margin-bottom: 10px;
+}
+
+.aim-stat__label {
+    flex: 1 1 auto;
+    font-family: var(--typo3-font-family-monospace);
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.aim-stat__info {
+    color: var(--typo3-text-color-secondary);
+    cursor: help;
+    display: inline-flex;
+}
+
+.aim-stat__value {
+    margin: 0;
+    font-family: var(--typo3-font-family-monospace);
+    font-size: 26px;
+    font-weight: 700;
+    line-height: 1.1;
+    color: var(--rail-color);
+    font-variant-numeric: tabular-nums;
+    text-shadow: 0 0 calc(14px * var(--aim-glow-op)) var(--rail-glow);
+}
+
+.aim-stat[data-level="good"] { --rail-color: var(--aim-good); --rail-glow: var(--aim-good-glow); }
+.aim-stat[data-level="warn"] { --rail-color: var(--aim-gold); --rail-glow: var(--aim-gold-glow); }
+.aim-stat[data-level="critical"] { --rail-color: var(--aim-critical); --rail-glow: var(--aim-critical-glow); }
+
+@media (prefers-reduced-motion: reduce) {
+    .aim-stat { transition: none; }
+}
+
+/*
+ * Generic small "chip" badge for grade/status indicators, replacing plain
+ * Bootstrap badge-* classes so these read consistently with the rest of
+ * the console look. Color is semantic (data-tone), not a fixed identity
+ * like .aim-capability-chip's gold, since grade/status are outcome
+ * signals: good/info/warn/critical map onto the same tokens the stat
+ * cards and model-toggle LEDs already use, plus a neutral tone for
+ * not-yet-known states (e.g. "pending").
+ */
+.aim-chip {
+    display: inline-block;
+    font-family: var(--typo3-font-family-monospace);
+    font-size: 10px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 3px;
+    border: 1px solid var(--chip-color);
+    color: var(--chip-color);
+    background: color-mix(in srgb, var(--chip-color) 10%, transparent);
+    white-space: nowrap;
+}
+
+.aim-chip[data-tone="good"] { --chip-color: var(--aim-good); }
+.aim-chip[data-tone="info"] { --chip-color: var(--aim-cyan); }
+.aim-chip[data-tone="warn"] { --chip-color: var(--aim-gold); }
+.aim-chip[data-tone="critical"] { --chip-color: var(--aim-critical); }
+.aim-chip[data-tone="neutral"] { --chip-color: var(--typo3-text-color-secondary); }
+
+/*
+ * Voice calibration modal: a plain form (textarea + Analyze) feeding two
+ * .aim-master readout blocks (reused as-is from the Prompt Preview panel;
+ * a derived tone instruction and derived examples are conceptually the same
+ * "final output" shape as a composed prompt, so the same readout treatment
+ * applies without a new component). Spacing between the form's own direct
+ * children (intro, textarea, actions, error, results) comes from this one
+ * flex gap rather than per-element margins, so it stays consistent
+ * regardless of which of those are hidden at a given moment.
+ */
+.aim-calibrate-voice {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+/*
+ * .aim-caller-note's own margin-top: 4px (see its base rule) is meant for
+ * its original context, not this flex layout: here it made the gap above
+ * the intro text 4px smaller than the gap below it, since this container's
+ * own `gap` already provides consistent spacing on both sides.
+ */
+.aim-calibrate-voice .aim-caller-note {
+    margin: 0;
+}
+
+.aim-calibrate-voice textarea {
+    width: 100%;
+    font-family: var(--typo3-font-family-monospace);
+    font-size: 13px;
+}
+
+.aim-calibrate-voice__pages,
+.aim-calibrate-voice__actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.aim-calibrate-voice__pages [data-role="pages-status"] {
+    font-size: 12px;
+}
+
+.aim-calibrate-voice__results {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
 }

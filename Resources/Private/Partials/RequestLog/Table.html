@@ -20,7 +20,7 @@
                 </th>
             </tr>
         </thead>
-        <tbody data-poll="rows">
+        <tbody data-poll="rows" data-modal-title="{f:translate(key: 'LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.show.title')}">
             <f:for each="{paginator.paginatedItems}" as="entry">
                 <f:render partial="RequestLog/Row" arguments="{entry: entry, extensionIcons: extensionIcons, userMap: userMap, returnUrl: returnUrl}" />
             </f:for>

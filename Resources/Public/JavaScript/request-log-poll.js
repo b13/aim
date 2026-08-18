@@ -11,6 +11,7 @@ import AjaxRequest from '@typo3/core/ajax/ajax-request.js';
 class RequestLogPoll {
   #tbody;
   #pollUrl;
+  #modalTitle;
   #interval = 5000;
   #timer = null;
   #lastRowCount = 0;
@@ -21,6 +22,7 @@ class RequestLogPoll {
     if (!this.#tbody) return;
 
     this.#pollUrl = TYPO3.settings.ajaxUrls.aim_request_log_poll;
+    this.#modalTitle = this.#tbody.dataset.modalTitle || '';
     this.#lastRowCount = this.#tbody.rows.length;
 
     this.#start();
@@ -83,6 +85,17 @@ class RequestLogPoll {
         this.#flash(el);
       }
     }
+
+    const successRateStat = document.querySelector('[data-stat="success_rate"]')?.closest('.aim-stat');
+    if (successRateStat) {
+      successRateStat.dataset.level = this.#successRateLevel(Number(stats.success_rate));
+    }
+  }
+
+  #successRateLevel(rate) {
+    if (rate >= 95) return 'good';
+    if (rate >= 80) return 'warn';
+    return 'critical';
   }
 
   #updateRows(rows) {
@@ -119,15 +132,19 @@ class RequestLogPoll {
   }
 
   #renderTimestamp(e) {
-    return e.detailUrl
-      ? `<a href="${this.#esc(e.detailUrl)}">${this.#esc(e.crdate)}</a>`
-      : this.#esc(e.crdate);
+    if (!e.detailUrl) return this.#esc(e.crdate);
+    const link = `<a href="${this.#esc(e.detailUrl)}">${this.#esc(e.crdate)}</a>`;
+    return e.detailModalUrl
+      ? `<aim-request-log-trigger modal-url="${this.#esc(e.detailModalUrl)}" modal-title="${this.#esc(this.#modalTitle)}">${link}</aim-request-log-trigger>`
+      : link;
   }
 
   #renderDetailLink(e) {
-    return e.detailUrl
-      ? `<a href="${this.#esc(e.detailUrl)}" class="btn btn-default btn-sm">Details</a>`
-      : '';
+    if (!e.detailUrl) return '';
+    const link = `<a href="${this.#esc(e.detailUrl)}" class="btn btn-default btn-sm">Details</a>`;
+    return e.detailModalUrl
+      ? `<aim-request-log-trigger modal-url="${this.#esc(e.detailModalUrl)}" modal-title="${this.#esc(this.#modalTitle)}">${link}</aim-request-log-trigger>`
+      : link;
   }
 
   #td(text) {

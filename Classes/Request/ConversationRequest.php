@@ -14,10 +14,19 @@ namespace B13\Aim\Request;
 
 use B13\Aim\Domain\Model\ProviderConfiguration;
 use B13\Aim\Governance\PrivacyLevel;
+use B13\Aim\Prompt\PromptFragmentScope;
+use B13\Aim\Request\Concern\CarriesSystemPromptTrait;
 use B13\Aim\Request\Message\AbstractMessage;
 
-final class ConversationRequest implements AiRequestInterface
+final class ConversationRequest implements AiRequestInterface, SupportsSystemPromptInterface
 {
+    use CarriesSystemPromptTrait;
+
+    public function getPromptFragmentScope(): PromptFragmentScope
+    {
+        return PromptFragmentScope::Conversation;
+    }
+
     /**
      * @param list<AbstractMessage> $messages
      */
@@ -25,6 +34,9 @@ final class ConversationRequest implements AiRequestInterface
         public readonly ProviderConfiguration $configuration,
         public readonly array $messages,
         public readonly string $systemPrompt = '',
+        public readonly ?int $pageId = null,
+        public readonly bool $disableAutomaticSystemPrompt = false,
+        public readonly array $systemPromptOverride = [],
         public readonly ?ResponseFormat $responseFormat = null,
         public readonly int $maxTokens = 1000,
         public readonly float $temperature = 0.7,

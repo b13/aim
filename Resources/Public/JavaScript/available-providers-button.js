@@ -68,8 +68,7 @@ class AimAvailableProviders extends HTMLElement {
           const response = await new AjaxRequest(toggleUrl)
             .post({ provider: btn.dataset.provider, model: btn.dataset.model });
           const data = await response.resolve();
-          btn.classList.toggle('badge-notice', data.disabled);
-          btn.classList.toggle('badge-success', !data.disabled);
+          btn.dataset.disabled = data.disabled ? '1' : '0';
           onChanged();
         } catch (e) {
           console.error('Model toggle failed:', e);

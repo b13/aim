@@ -12,6 +12,7 @@ declare(strict_types=1);
 
 namespace B13\Aim\Controller;
 
+use B13\Aim\Backend\ConsoleStylesheetProvider;
 use B13\Aim\Backend\SortUrlBuilder;
 use B13\Aim\Domain\Repository\RequestLogDemand;
 use B13\Aim\Domain\Repository\RequestLogRepository;
@@ -45,6 +46,7 @@ class RequestLogController
         private readonly ModuleTemplateFactory $moduleTemplateFactory,
         private readonly PackageManager $packageManager,
         private readonly SortUrlBuilder $sortUrlBuilder,
+        private readonly ConsoleStylesheetProvider $consoleStylesheetProvider,
     ) {}
 
     public function logAction(ServerRequestInterface $request): ResponseInterface
@@ -127,8 +129,6 @@ class RequestLogController
     public function showAction(ServerRequestInterface $request): ResponseInterface
     {
         $uid = (int)($request->getQueryParams()['uid'] ?? 0);
-        $entry = $uid > 0 ? $this->logRepository->findByUid($uid) : null;
-
         $languageService = $this->getLanguageService();
         $view = $this->moduleTemplateFactory->create($request);
         if (method_exists($view, 'makeDocHeaderModuleMenu')) {
@@ -147,8 +147,30 @@ class RequestLogController
             ->setIcon($this->iconFactory->getIcon('actions-view-go-back', class_exists(IconSize::class) ? IconSize::SMALL : Icon::SIZE_SMALL));
         $view->getDocHeaderComponent()->getButtonBar()->addButton($backButton, ButtonBar::BUTTON_POSITION_LEFT);
 
+        return $view->assignMultiple($this->resolveShowViewData($uid))->renderResponse('Aim/RequestLogShow');
+    }
+
+    /**
+     * Same detail data as showAction(), but rendered via <aim-request-log-trigger>,
+     * mirroring ProviderController::availableProvidersAction()'s own ajax-modal fragment.
+     */
+    public function showContextualAction(ServerRequestInterface $request): ResponseInterface
+    {
+        $uid = (int)($request->getQueryParams()['uid'] ?? 0);
+        $view = $this->moduleTemplateFactory->create($request);
+        $viewData = $this->resolveShowViewData($uid);
+        $viewData['consoleCss'] = $this->consoleStylesheetProvider->getCss();
+        return $view->assignMultiple($viewData)->renderResponse('Aim/RequestLogShowContextual');
+    }
+
+    /**
+     * @return array{entry: array<string, mixed>|null, username?: string, extensionIcon?: string|null}
+     */
+    private function resolveShowViewData(int $uid): array
+    {
+        $entry = $uid > 0 ? $this->logRepository->findByUid($uid) : null;
         if ($entry === null) {
-            return $view->assignMultiple(['entry' => null])->renderResponse('Aim/RequestLogShow');
+            return ['entry' => null];
         }
 
         $configurationUid = (int)($entry['configuration_uid'] ?? 0);
@@ -162,11 +184,11 @@ class RequestLogController
         $userId = (int)($entry['user_id'] ?? 0);
         $userMap = $userId > 0 ? $this->logRepository->resolveUsernames([$userId]) : [];
 
-        return $view->assignMultiple([
+        return [
             'entry' => $entry,
             'username' => $userMap[$userId] ?? '',
             'extensionIcon' => ($entry['extension_key'] ?? '') !== '' ? ($this->resolveExtensionIcons([$entry['extension_key']])[$entry['extension_key']] ?? null) : null,
-        ])->renderResponse('Aim/RequestLogShow');
+        ];
     }
 
     public function pollAction(ServerRequestInterface $request): ResponseInterface
@@ -186,6 +208,9 @@ class RequestLogController
                 'detailUrl' => (string)$this->uriBuilder->buildUriFromRoute('aim_request_log.show', [
                     'uid' => (int)($entry['uid'] ?? 0),
                     'returnUrl' => $requestLogReturnUrl,
+                ]),
+                'detailModalUrl' => (string)$this->uriBuilder->buildUriFromRoute('aim_request_log.showContextual', [
+                    'uid' => (int)($entry['uid'] ?? 0),
                 ]),
                 'crdate' => date('Y-m-d H:i:s', (int)$entry['crdate']),
                 'extension_key' => $entry['extension_key'] ?? '',

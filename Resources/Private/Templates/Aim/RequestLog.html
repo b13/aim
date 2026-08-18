@@ -8,6 +8,10 @@
         includeCssFiles="{
             0: 'EXT:aim/Resources/Public/Css/base.css',
         }"
+        includeJavaScriptModules="{
+            0: '@b13/aim/request-log-poll.js',
+            1: '@b13/aim/request-log-trigger.js',
+        }"
     />
 
     <f:if condition="{statistics.total_requests}">
@@ -22,7 +26,9 @@
 
             <f:if condition="{paginator.paginatedItems}">
                 <f:then>
-                    <f:render partial="RequestLog/Table" arguments="{_all}" />
+                    <div class="aim-console">
+                        <f:render partial="RequestLog/Table" arguments="{_all}" />
+                    </div>
                     <f:render partial="Pagination" arguments="{paginator: paginator, pagination: pagination, baseUrl: paginationBaseUrl}" />
                 </f:then>
                 <f:else>
