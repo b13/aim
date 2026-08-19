@@ -214,6 +214,12 @@ class RequestLogDemand implements SortableDemandInterface
         return $this->page;
     }
 
+    public function setLimit(int $limit): self
+    {
+        $this->limit = $limit;
+        return $this;
+    }
+
     public function getLimit(): int
     {
         return $this->limit;

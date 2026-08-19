@@ -96,6 +96,7 @@ final class Ai
         string $extensionKey = '',
         string $user = '',
         string $provider = '',
+        array $metadata = [],
     ): TextResponse {
         $resolvedProvider = $this->resolve(VisionCapableInterface::class, $provider);
         $request = new VisionRequest(
@@ -110,7 +111,7 @@ final class Ai
             maxTokens: $maxTokens,
             temperature: $temperature,
             user: $user,
-            metadata: $this->buildMetadata($extensionKey),
+            metadata: $this->buildMetadata($extensionKey, $metadata),
         );
         return $this->dispatch($request, VisionCapableInterface::class);
     }
@@ -129,6 +130,7 @@ final class Ai
         string $extensionKey = '',
         string $user = '',
         string $provider = '',
+        array $metadata = [],
     ): TextResponse {
         $resolvedProvider = $this->resolve(TextGenerationCapableInterface::class, $provider);
         $request = new TextGenerationRequest(
@@ -141,7 +143,7 @@ final class Ai
             maxTokens: $maxTokens,
             temperature: $temperature,
             user: $user,
-            metadata: $this->buildMetadata($extensionKey),
+            metadata: $this->buildMetadata($extensionKey, $metadata),
         );
         return $this->dispatch($request, TextGenerationCapableInterface::class);
     }
@@ -162,6 +164,7 @@ final class Ai
         string $extensionKey = '',
         string $user = '',
         string $provider = '',
+        array $metadata = [],
     ): TextResponse {
         $resolvedProvider = $this->resolve(TranslationCapableInterface::class, $provider);
         $request = new TranslationRequest(
@@ -176,7 +179,7 @@ final class Ai
             maxTokens: $maxTokens,
             temperature: $temperature,
             user: $user,
-            metadata: $this->buildMetadata($extensionKey),
+            metadata: $this->buildMetadata($extensionKey, $metadata),
         );
         return $this->dispatch($request, TranslationCapableInterface::class);
     }
@@ -197,6 +200,7 @@ final class Ai
         string $extensionKey = '',
         string $user = '',
         string $provider = '',
+        array $metadata = [],
     ): TextResponse {
         $resolvedProvider = $this->resolve(ConversationCapableInterface::class, $provider);
         $request = new ConversationRequest(
@@ -209,7 +213,7 @@ final class Ai
             maxTokens: $maxTokens,
             temperature: $temperature,
             user: $user,
-            metadata: $this->buildMetadata($extensionKey),
+            metadata: $this->buildMetadata($extensionKey, $metadata),
         );
         return $this->dispatch($request, ConversationCapableInterface::class);
     }
@@ -243,6 +247,7 @@ final class Ai
         string $extensionKey = '',
         string $user = '',
         string $provider = '',
+        array $metadata = [],
     ): ConversationResponse {
         $resolvedProvider = $this->resolve(ConversationCapableInterface::class, $provider);
         $request = new ConversationRequest(
@@ -255,7 +260,7 @@ final class Ai
             maxTokens: $maxTokens,
             temperature: $temperature,
             user: $user,
-            metadata: $this->buildMetadata($extensionKey),
+            metadata: $this->buildMetadata($extensionKey, $metadata),
             stream: true,
         );
 
@@ -302,6 +307,7 @@ final class Ai
         string $extensionKey = '',
         string $user = '',
         string $provider = '',
+        array $metadata = [],
     ): TextResponse {
         $resolvedProvider = $this->resolve(ToolCallingCapableInterface::class, $provider);
         $request = new ToolCallingRequest(
@@ -316,7 +322,7 @@ final class Ai
             maxTokens: $maxTokens,
             temperature: $temperature,
             user: $user,
-            metadata: $this->buildMetadata($extensionKey),
+            metadata: $this->buildMetadata($extensionKey, $metadata),
         );
         return $this->dispatch($request, ToolCallingCapableInterface::class);
     }
@@ -354,7 +360,7 @@ final class Ai
      * Image generation has no separate system-role channel (providers take a
      * single prompt string), so unlike the other proxy methods, $pageId's
      * resolved tone-of-voice/fragments and $systemPromptOverride are not
-     * sent as a distinct instruction — they're appended as literal, visible
+     * sent as a distinct instruction, they're appended as literal, visible
      * text onto $prompt itself (e.g. "<your prompt>\n\n<watermark policy>").
      * Phrase $systemPromptOverride accordingly if you use it here.
      *
@@ -373,6 +379,7 @@ final class Ai
         string $extensionKey = '',
         string $user = '',
         string $provider = '',
+        array $metadata = [],
     ): TextResponse {
         $resolvedProvider = $this->resolve(ImageGenerationCapableInterface::class, $provider);
         $request = new ImageGenerationRequest(
@@ -386,7 +393,7 @@ final class Ai
             options: $options,
             count: $count,
             user: $user,
-            metadata: $this->buildMetadata($extensionKey),
+            metadata: $this->buildMetadata($extensionKey, $metadata),
         );
         return $this->dispatch($request, ImageGenerationCapableInterface::class);
     }
@@ -400,7 +407,7 @@ final class Ai
     }
 
     /**
-     * Resolve a provider — by notation if given, otherwise the default for the capability.
+     * Resolve a provider: by notation if given, otherwise the default for the capability.
      *
      * If a specific provider is requested but unavailable (not installed, no config),
      * falls back to the default provider for the capability instead of failing.
@@ -430,9 +437,13 @@ final class Ai
         );
     }
 
-    private function buildMetadata(string $extensionKey): array
+    /**
+     * @param array<string, mixed> $metadata Caller-supplied metadata (e.g. 'aiLabel' for
+     *        AiLabelMiddleware). Merged with, and never overridden by, the dedicated
+     *        $extensionKey param, since that one already has its own explicit meaning.
+     */
+    private function buildMetadata(string $extensionKey, array $metadata = []): array
     {
-        $metadata = [];
         if ($extensionKey !== '') {
             $metadata['extension'] = $extensionKey;
         }

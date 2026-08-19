@@ -925,8 +925,36 @@ The middleware pipeline is intentionally the only logging extension point: it gi
 | `GraderMiddleware` | -600 | Schedules LLM-as-a-judge grading after a successful response |
 | `RequestLoggingMiddleware` | -700 | Logs every request (respects privacy levels); defers via shutdown function for streaming responses; see [Streaming responses](#streaming-responses) |
 | `CostTrackingMiddleware` | -800 | Updates cumulative cost per configuration; defers via shutdown function for streaming responses |
+| `AiLabelMiddleware` | -850 | Optional: flags a record as AI-created/AI-modified via `EXT:ai_label`; see [AI Content Labelling](#ai-content-labelling) |
 | `EventDispatchMiddleware` | -900 | Fires `BeforeAiRequestEvent` / `AfterAiResponseEvent`; for a streaming response, `AfterAiResponseEvent` fires with the still-unconsumed response (listeners that need final content/usage should apply the same deferred pattern) |
 | `CoreDispatchMiddleware` | -1000 | Routes request to the correct provider capability method |
+
+## AI Content Labelling
+
+If the separate [`b13/ai-label`](https://github.com/b13/ai_label) extension is installed, AiM can flag a record as AI-created/AI-modified automatically once a response succeeds. This is entirely optional: `AiLabelMiddleware` is a no-op unless `ai_label` is present, so installing/removing it never requires any configuration change in AiM.
+
+AiM has no way to know on its own which record a response's content will end up in, since that's decided by whatever the calling extension does with `$response->content` afterward. Opt in per call via `metadata`:
+
+```php
+$ai->request()
+    ->text()
+    ->prompt('Write an alt text for this image.')
+    ->metadata([
+        'aiLabel' => ['table' => 'sys_file_metadata', 'uid' => $fileMetadataUid, 'origin' => 'created'],
+    ])
+    ->send();
+
+// Or via the direct method, which takes the same shape as its last argument:
+$ai->text(
+    prompt: 'Write an alt text for this image.',
+    metadata: ['aiLabel' => ['table' => 'sys_file_metadata', 'uid' => $fileMetadataUid, 'origin' => 'created']],
+);
+```
+
+- `table` / `uid`: the record the AI-generated content will be written into.
+- `origin`: `'created'` (brand-new AI content, the default if omitted) or `'modified'` (existing human content AI-edited), mirroring `ai_label`'s own `AiOrigin` enum.
+
+`ai_label`'s write goes through a real DataHandler run and requires a backend user to attribute the change to. Calls made outside a backend context (frontend requests, CLI/scheduler tasks) will fail that check; `AiLabelMiddleware` treats this as a non-fatal, logged no-op rather than surfacing it as an AiM error, so it never breaks the caller's actual AI response.
 
 ## Events
 

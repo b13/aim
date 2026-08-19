@@ -55,6 +55,7 @@ final class AiRequestBuilder
     private string $user = '';
     private string $providerNotation = '';
     private ?ResponseFormat $responseFormat = null;
+    private array $metadata = [];
 
     // Vision-specific
     private string $imageData = '';
@@ -103,7 +104,7 @@ final class AiRequestBuilder
     /**
      * Generate an image. Use prompt() to set the description.
      *
-     * No system-role channel exists for image generation — forPage()'s
+     * No system-role channel exists for image generation: forPage()'s
      * resolved tone/fragments and systemPromptOverride() both get appended
      * as literal, visible text onto prompt() instead of a separate
      * instruction, since providers take a single prompt string here.
@@ -168,7 +169,7 @@ final class AiRequestBuilder
 
     /**
      * Opt out of all automatic prompt composition (page/TSconfig/user/registry
-     * fragments, provider addendum) — whatever systemPrompt()/prompt() was set
+     * fragments, provider addendum): whatever systemPrompt()/prompt() was set
      * is sent as-is.
      */
     public function disableSystemPromptComposition(bool $disable = true): self
@@ -179,7 +180,7 @@ final class AiRequestBuilder
 
     /**
      * Supply fragment(s) that totally replace the automatic tone/user/registry/
-     * addendum resolution for this call — still composed with prompt()/
+     * addendum resolution for this call, still composed with prompt()/
      * systemPrompt(), but nothing else. Unlike disableSystemPromptComposition(),
      * this still runs composition, just against these fragments instead of
      * the resolved ones.
@@ -224,6 +225,17 @@ final class AiRequestBuilder
     }
 
     /**
+     * Attach caller-supplied metadata (e.g. 'aiLabel' for AiLabelMiddleware),
+     * merged into whatever's already set. Never overrides the 'extension' key
+     * from() sets, since that one already has its own dedicated meaning.
+     */
+    public function metadata(array $metadata): self
+    {
+        $this->metadata = [...$this->metadata, ...$metadata];
+        return $this;
+    }
+
+    /**
      * Target a specific provider (e.g. "openai:gpt-4o", "openai:*").
      * If not set, the default provider is used.
      */
@@ -238,7 +250,7 @@ final class AiRequestBuilder
      */
     public function send(): TextResponse
     {
-        $metadata = [];
+        $metadata = $this->metadata;
         if ($this->extensionKey !== '') {
             $metadata['extension'] = $this->extensionKey;
         }
