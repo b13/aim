@@ -18,8 +18,8 @@ use B13\Aim\Updates\EncryptApiKeysUpgrade;
 use PHPUnit\Framework\Attributes\Test;
 use TYPO3\CMS\Core\Database\Connection;
 use TYPO3\CMS\Core\Database\ConnectionPool;
-use TYPO3\CMS\Core\Upgrades\UpgradeWizardRegistry;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
+use TYPO3\CMS\Install\Attribute\UpgradeWizard;
 use TYPO3\TestingFramework\Core\Functional\FunctionalTestCase;
 
 /**
@@ -29,6 +29,16 @@ use TYPO3\TestingFramework\Core\Functional\FunctionalTestCase;
 final class ApiKeyEncryptionPersistenceTest extends FunctionalTestCase
 {
     private const TABLE = 'tx_aim_configuration';
+
+    // Without EXT:install loaded, nothing ever builds the ServiceLocator
+    // that #[UpgradeWizard]-tagged services (including EncryptApiKeysUpgrade)
+    // get collected into - and without that, the testing framework's
+    // "private service reachable via some other service's own dependency"
+    // heuristic never picks EncryptApiKeysUpgrade up either, so
+    // $this->get(EncryptApiKeysUpgrade::class) below would fail to resolve.
+    protected array $coreExtensionsToLoad = [
+        'install',
+    ];
 
     protected array $testExtensionsToLoad = [
         'b13/aim',
@@ -64,11 +74,24 @@ final class ApiKeyEncryptionPersistenceTest extends FunctionalTestCase
     }
 
     #[Test]
-    public function upgradeWizardIsRegisteredInTheInstallToolRegistry(): void
+    public function isTaggedWithTheIdentifierTheInstallToolRegistryDiscoversItBy(): void
     {
-        $registry = $this->get(UpgradeWizardRegistry::class);
-        self::assertTrue($registry->hasUpgradeWizard('aimEncryptApiKeys'));
-        self::assertInstanceOf(EncryptApiKeysUpgrade::class, $registry->getUpgradeWizard('aimEncryptApiKeys'));
+        // What actually makes TYPO3 discover this wizard - not going through
+        // UpgradeWizardRegistry itself: core marks it @internal and never
+        // exposes it as a public service, and its constructor takes a
+        // ServiceLocator built by a compiler pass specifically for its
+        // #[AutowireLocator] parameter - something no test can construct by
+        // hand without the assertion becoming tautological (a hand-built
+        // locator would "discover" the wizard regardless of whether the
+        // real attribute-based tagging works at all). Also namespaced
+        // differently between v12/v13 (TYPO3\CMS\Install\Updates\...) and
+        // v14 (moved into TYPO3\CMS\Core\Upgrades\...), unlike
+        // UpgradeWizardInterface/the UpgradeWizard attribute itself, which
+        // both stay at their original TYPO3\CMS\Install\* namespace via a
+        // class-alias-loader alias on v14 too.
+        $attributes = (new \ReflectionClass(EncryptApiKeysUpgrade::class))->getAttributes(UpgradeWizard::class);
+        self::assertCount(1, $attributes);
+        self::assertSame('aimEncryptApiKeys', $attributes[0]->newInstance()->identifier);
     }
 
     #[Test]
@@ -76,7 +99,7 @@ final class ApiKeyEncryptionPersistenceTest extends FunctionalTestCase
     {
         $uid = $this->insertRow('sk-legacy-from-old-version');
 
-        $wizard = $this->get(UpgradeWizardRegistry::class)->getUpgradeWizard('aimEncryptApiKeys');
+        $wizard = $this->get(EncryptApiKeysUpgrade::class);
         self::assertTrue($wizard->updateNecessary());
         self::assertTrue($wizard->executeUpdate());
         self::assertFalse($wizard->updateNecessary());
@@ -93,7 +116,7 @@ final class ApiKeyEncryptionPersistenceTest extends FunctionalTestCase
     {
         $uid = $this->insertRow('http://host.docker.internal:11434');
 
-        $wizard = $this->get(UpgradeWizardRegistry::class)->getUpgradeWizard('aimEncryptApiKeys');
+        $wizard = $this->get(EncryptApiKeysUpgrade::class);
         self::assertFalse($wizard->updateNecessary());
         self::assertTrue($wizard->executeUpdate());
 
@@ -111,7 +134,7 @@ final class ApiKeyEncryptionPersistenceTest extends FunctionalTestCase
         $uid = $this->insertRow($encryption->encrypt('sk-already-encrypted'));
         $before = $this->fetchRawApiKey($uid);
 
-        $wizard = $this->get(UpgradeWizardRegistry::class)->getUpgradeWizard('aimEncryptApiKeys');
+        $wizard = $this->get(EncryptApiKeysUpgrade::class);
         self::assertFalse($wizard->updateNecessary());
         self::assertTrue($wizard->executeUpdate());
 

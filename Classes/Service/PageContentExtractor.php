@@ -217,9 +217,14 @@ final class PageContentExtractor
             return self::FALLBACK_FIELDS;
         }
 
-        $fieldNames = $schema->getSubSchema($cType)
-            ->getFields(static fn(FieldTypeInterface $field): bool => $field->isType(TableColumnType::INPUT, TableColumnType::TEXT))
-            ->getNames();
+        // FieldCollection::getNames() doesn't exist on TYPO3 v13 (only
+        // ArrayAccess/IteratorAggregate/Countable there) - iterating and
+        // reading each field's own getName() works identically on v13/v14.
+        $fieldNames = array_map(
+            static fn(FieldTypeInterface $field): string => $field->getName(),
+            iterator_to_array($schema->getSubSchema($cType)
+                ->getFields(static fn(FieldTypeInterface $field): bool => $field->isType(TableColumnType::INPUT, TableColumnType::TEXT))),
+        );
 
         return $fieldNames !== [] ? $fieldNames : self::FALLBACK_FIELDS;
     }

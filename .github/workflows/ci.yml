@@ -1,0 +1,65 @@
+name: CI
+
+on: [push, pull_request]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # composer.json's own require allows ^12.4 too, but
+          # typo3/testing-framework ^9.0 (the only version supporting
+          # typo3/cms-core ^14.0 at all) dropped v12 support entirely - there
+          # is no single testing-framework version this suite could run
+          # against both v12 and v14 with, so v12 isn't covered here.
+          - TYPO3: '13'
+            php: '8.2'
+          - TYPO3: '13'
+            php: '8.3'
+          - TYPO3: '14'
+            php: '8.3'
+          - TYPO3: '14'
+            php: '8.4'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up PHP Version
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring, intl, json, zip, curl, sodium
+          coverage: none
+          tools: composer:v2
+
+      - name: Validate composer.json
+        run: composer validate --no-check-lock
+
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.composer/cache
+          key: dependencies-composer-${{ hashFiles('composer.json') }}-typo3-${{ matrix.TYPO3 }}
+
+      - name: Install composer dependencies TYPO3 14
+        if: matrix.TYPO3 == '14'
+        run: composer install --no-progress --no-interaction
+
+      - name: Install composer dependencies TYPO3 13
+        if: matrix.TYPO3 == '13'
+        run: composer require typo3/cms-core:^13.4 typo3/cms-backend:^13.4 --no-progress --no-interaction --dev -W
+
+      - name: Lint
+        run: find Classes Tests -name "*.php" -print0 | xargs -0 -n1 -P4 php -l
+
+      - name: Unit Tests
+        run: .Build/vendor/bin/phpunit -c Build/phpunit/UnitTests.xml
+
+      - name: Functional Tests
+        env:
+          typo3DatabaseDriver: pdo_sqlite
+        run: .Build/vendor/bin/phpunit -c Build/phpunit/FunctionalTests.xml
