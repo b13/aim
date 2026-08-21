@@ -225,9 +225,10 @@ final class AiRequestBuilder
     }
 
     /**
-     * Attach caller-supplied metadata (e.g. 'aiLabel' for AiLabelMiddleware),
-     * merged into whatever's already set. Never overrides the 'extension' key
-     * from() sets, since that one already has its own dedicated meaning.
+     * Attach caller-supplied metadata (e.g. 'aiLabel', read by EXT:ai_label's
+     * own optional middleware), merged into whatever's already set. Never
+     * overrides the 'extension' key from() sets, since that one already has
+     * its own dedicated meaning.
      */
     public function metadata(array $metadata): self
     {

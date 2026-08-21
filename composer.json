@@ -19,8 +19,7 @@
 	},
 	"suggest": {
 		"symfony/ai-platform": "^0.9, tested up to 0.11 — required to use Symfony AI bridges as providers (OpenAI, Anthropic, Gemini, Mistral, Ollama, etc.)",
-		"typo3/cms-dashboard": "Enables dashboard widgets for AI usage analytics",
-		"b13/ai-label": "Enables AiLabelMiddleware, which flags AI-created/AI-modified records automatically once a request's metadata opts in"
+		"typo3/cms-dashboard": "Enables dashboard widgets for AI usage analytics"
 	},
 	"autoload": {
 		"psr-4": {

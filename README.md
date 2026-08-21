@@ -858,7 +858,7 @@ One caveat: if the client disconnects mid-stream, or the process is killed befor
 
 ### Enriching the request log
 
-Every request DTO carries a `metadata` array that lands in the `metadata` JSON column of `tx_aim_request_log`. To attach extension-specific context, enrich it from your custom middleware via `$request->withMetadata([...])` and forward the new instance. The original request stays immutable; downstream middlewares see the merged metadata:
+Every request DTO carries a `metadata` array that lands in the `metadata` JSON column of `tx_aim_request_log`. The caller can set it upfront via `metadata`/`metadata()` on `Ai`/`AiRequestBuilder`, and any middleware can add to it later via `$request->withMetadata([...])` and forward the new instance. The original request stays immutable; downstream middlewares see the merged metadata:
 
 ```php
 #[AsAiMiddleware(priority: 80)]
@@ -877,6 +877,8 @@ final class MyExtensionContextMiddleware implements AiMiddlewareInterface
     }
 }
 ```
+
+This same hook is how a *different* extension can build its own optional AiM integration entirely on its own side, without AiM needing any built-in knowledge of it: a caller opts in by setting `metadata: ['some_extension.target' => [...]]` on the request, and that extension registers its own `#[AsAiMiddleware]` reading that key back out once the response succeeds. `b13/ai-label` does exactly this (its own `FlagAiContentMiddleware`, reading a `metadata['aiLabel']` convention it documents itself), and AiM stays unaware that `ai_label` exists at all.
 
 ### Detailed / parallel logging
 
@@ -925,36 +927,8 @@ The middleware pipeline is intentionally the only logging extension point: it gi
 | `GraderMiddleware` | -600 | Schedules LLM-as-a-judge grading after a successful response |
 | `RequestLoggingMiddleware` | -700 | Logs every request (respects privacy levels); defers via shutdown function for streaming responses; see [Streaming responses](#streaming-responses) |
 | `CostTrackingMiddleware` | -800 | Updates cumulative cost per configuration; defers via shutdown function for streaming responses |
-| `AiLabelMiddleware` | -850 | Optional: flags a record as AI-created/AI-modified via `EXT:ai_label`; see [AI Content Labelling](#ai-content-labelling) |
 | `EventDispatchMiddleware` | -900 | Fires `BeforeAiRequestEvent` / `AfterAiResponseEvent`; for a streaming response, `AfterAiResponseEvent` fires with the still-unconsumed response (listeners that need final content/usage should apply the same deferred pattern) |
 | `CoreDispatchMiddleware` | -1000 | Routes request to the correct provider capability method |
-
-## AI Content Labelling
-
-If the separate [`b13/ai-label`](https://github.com/b13/ai_label) extension is installed, AiM can flag a record as AI-created/AI-modified automatically once a response succeeds. This is entirely optional: `AiLabelMiddleware` is a no-op unless `ai_label` is present, so installing/removing it never requires any configuration change in AiM.
-
-AiM has no way to know on its own which record a response's content will end up in, since that's decided by whatever the calling extension does with `$response->content` afterward. Opt in per call via `metadata`:
-
-```php
-$ai->request()
-    ->text()
-    ->prompt('Write an alt text for this image.')
-    ->metadata([
-        'aiLabel' => ['table' => 'sys_file_metadata', 'uid' => $fileMetadataUid, 'origin' => 'created'],
-    ])
-    ->send();
-
-// Or via the direct method, which takes the same shape as its last argument:
-$ai->text(
-    prompt: 'Write an alt text for this image.',
-    metadata: ['aiLabel' => ['table' => 'sys_file_metadata', 'uid' => $fileMetadataUid, 'origin' => 'created']],
-);
-```
-
-- `table` / `uid`: the record the AI-generated content will be written into.
-- `origin`: `'created'` (brand-new AI content, the default if omitted) or `'modified'` (existing human content AI-edited), mirroring `ai_label`'s own `AiOrigin` enum.
-
-`ai_label`'s write goes through a real DataHandler run and requires a backend user to attribute the change to. Calls made outside a backend context (frontend requests, CLI/scheduler tasks) will fail that check; `AiLabelMiddleware` treats this as a non-fatal, logged no-op rather than surfacing it as an AiM error, so it never breaks the caller's actual AI response.
 
 ## Events
 

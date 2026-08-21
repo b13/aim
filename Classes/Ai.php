@@ -438,9 +438,10 @@ final class Ai
     }
 
     /**
-     * @param array<string, mixed> $metadata Caller-supplied metadata (e.g. 'aiLabel' for
-     *        AiLabelMiddleware). Merged with, and never overridden by, the dedicated
-     *        $extensionKey param, since that one already has its own explicit meaning.
+     * @param array<string, mixed> $metadata Caller-supplied metadata (e.g. 'aiLabel', read
+     *        by EXT:ai_label's own optional middleware). Merged with, and never overridden
+     *        by, the dedicated $extensionKey param, since that one already has its own
+     *        explicit meaning.
      */
     private function buildMetadata(string $extensionKey, array $metadata = []): array
     {
