@@ -38,10 +38,10 @@
 			"Package": {
 				"providesPackages": {}
 			},
-			"version": "0.3.0"
+			"version": "0.4.0"
 		},
 		"branch-alias": {
-			"dev-main": "0.3.x-dev"
+			"dev-main": "0.4.x-dev"
 		}
 	},
 	"authors": [

@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.4.0
 
 Site-wide tone of voice / system prompts, voice calibration, a new Prompt Management module, and a redesigned AiM-specific look across the backend.
 
