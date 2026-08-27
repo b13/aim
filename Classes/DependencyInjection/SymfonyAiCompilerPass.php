@@ -35,8 +35,11 @@ use Symfony\Component\DependencyInjection\Reference;
  * as AiM providers.
  *
  * Instead of maintaining a static list of known bridges, this compiler pass
- * scans all installed Composer packages matching the `symfony/ai-*-platform`
- * naming convention. For each bridge it:
+ * scans all installed Composer packages declaring the `symfony-ai-platform`
+ * Composer package type, the convention both Symfony's own bridges (e.g.
+ * `symfony/ai-open-ai-platform`) and third-party ones (e.g.
+ * `mittwald/symfony-ai-platform`) declare, rather than matching on package
+ * name/vendor. For each bridge it:
  *
  * 1. Derives the PHP namespace from the package's autoload configuration
  * 2. Checks for Factory and ModelCatalog classes
@@ -143,16 +146,10 @@ final class SymfonyAiCompilerPass implements CompilerPassInterface
     {
         $bridges = [];
 
-        foreach (InstalledVersions::getInstalledPackages() as $packageName) {
-            // Match: symfony/ai-*-platform (e.g. symfony/ai-open-ai-platform, symfony/ai-ollama-platform)
-            if (!str_starts_with($packageName, 'symfony/ai-') || !str_ends_with($packageName, '-platform')) {
-                continue;
-            }
-            // Exclude the core platform package itself
-            if ($packageName === 'symfony/ai-platform') {
-                continue;
-            }
+        // this limits down to almost only the bridge packages
+        foreach (InstalledVersions::getInstalledPackagesByType('symfony-ai-platform') as $packageName) {
 
+            // this will ensure only bridges with a Factory class will be used
             $namespace = $this->resolveNamespace($packageName);
             if ($namespace === null) {
                 continue;
