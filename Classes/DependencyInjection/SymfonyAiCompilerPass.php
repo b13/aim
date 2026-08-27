@@ -35,8 +35,11 @@ use Symfony\Component\DependencyInjection\Reference;
  * as AiM providers.
  *
  * Instead of maintaining a static list of known bridges, this compiler pass
- * scans all installed Composer packages matching the `symfony/ai-*-platform`
- * naming convention. For each bridge it:
+ * scans all installed Composer packages declaring the `symfony-ai-platform`
+ * Composer package type, the convention both Symfony's own bridges (e.g.
+ * `symfony/ai-open-ai-platform`) and third-party ones (e.g.
+ * `mittwald/symfony-ai-platform`) declare, rather than matching on package
+ * name/vendor. For each bridge it:
  *
  * 1. Derives the PHP namespace from the package's autoload configuration
  * 2. Checks for Factory and ModelCatalog classes
