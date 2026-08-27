@@ -36,7 +36,7 @@ A few lines to add AI to any TYPO3 extension. No API keys in your code, no provi
 - Structured output (JSON Schema), tool calling, streaming
 
 **For administrators:**
-- Backend modules for provider management, request monitoring, and prompt/tone preview
+- Backend modules for provider management, request monitoring, and prompt/tone management (page-level preview plus a reusable fragment library)
 - Disable specific models per provider via clickable badges
 - Budget limits and rate limiting per user (including admins as a safety net)
 - Privacy levels (standard / reduced / none) per provider
@@ -648,20 +648,20 @@ Calling code stays exactly what's shown above (`disableSystemPromptComposition: 
 
 ### Page-tree prompt fragments (DB)
 
-Every page has a repeatable **AI** tab (`tx_aim_prompt_fragment`, an inline/IRRE field): add as many named fragments as needed, each with:
+Fragments live in a reusable library (`tx_aim_prompt_fragment`), separate from where they're used. A fragment's instruction text exists once and can be assigned to any number of pages (e.g. the same tone-of-voice fragment reused across a multi-site install's country subsites), rather than being copy-pasted onto each one. It usually lives at `pid=0`; an editor without access to `pid=0` can instead place it in a sysfolder within their own site, since the assignment picker only offers fragments stored globally or within the page's own site tree.
 
-- **Prompt**: the actual instruction text.
-- **Examples**: optional few-shot text, appended after the prompt (`"\n\nExamples:\n" . examples`) whenever this fragment is included. Pairing an instruction with concrete example text steers output more reliably than adjective-laden prose alone. Travels with its own fragment, so fragments with different tones never have their examples mixed together.
-- **Scope**: one or more capabilities it applies to, via checkboxes (`Text Generation`, `Vision`, `Translation`, `Conversation`, `Tool Calling`, `Image Generation`, all six checked by default on a new fragment). A fragment matches a request if any of its checked capabilities matches the request's own. Stored comma-separated, the same convention TYPO3 core uses for this shape (`be_groups.file_permissions`).
-- **Inherit to subpages** (default on): when enabled, this fragment also applies to every page below this one, in addition to this page itself.
+Every page has a repeatable **AI** tab (`tx_aim_prompt_fragments`, an inline/IRRE field) listing that page's **assignments**, where you pick an existing library fragment or create a new one inline. Each assignment has:
 
-Inheritance is **additive per fragment**, not a single overridable value: a page's own fragments always apply to itself; an inheriting ancestor's fragments are added on top. A subpage adding its own fragment *supplements* what it inherited; it never silently drops an ancestor's fragment. Composition order is root-to-target, so general tone reads before page-specific instructions.
+- **Fragment**: the library entry to use, its Prompt (the actual instruction text), optional Examples (few-shot text, appended after the prompt as `"\n\nExamples:\n" . examples` whenever included, since pairing an instruction with concrete example text steers output more reliably than adjective-laden prose alone), and Scope (one or more capabilities it applies to, via checkboxes: `Text Generation`, `Vision`, `Translation`, `Conversation`, `Tool Calling`, `Image Generation`, all six checked by default on a new fragment; a fragment matches a request if any of its checked capabilities matches the request's own).
+- **Inherit to subpages** (default on): when enabled, this assignment also applies to every page below this one, in addition to this page itself.
 
-A page can also check **"Disable inherited prompt fragments"** to skip every ancestor fragment for that page specifically (its own fragments still apply), useful for a microsite/campaign section that must not pick up the corporate tone. This is page-local, not a subtree boundary: the page's own children are unaffected and keep inheriting from the original ancestors normally.
+Inheritance is **additive per assignment**, not a single overridable value: a page's own assignments always apply to itself; an inheriting ancestor's assignments are added on top. A subpage adding its own assignment *supplements* what it inherited; it never silently drops an ancestor's assignment. Composition order is root-to-target, so general tone reads before page-specific instructions.
 
-DB fragment inheritance stops at the nearest `is_siteroot` ancestor: in a nested-site install (one site's page tree living under another site's), a page's own fragments never leak into an unrelated site. Page TSconfig fragments deliberately don't get this treatment; `getPagesTSconfig()` has never respected site boundaries, and that's an established, technical-audience convention this extension doesn't override.
+A page can also check **"Disable inherited prompt fragments"** to skip every ancestor assignment for that page specifically (its own assignments still apply), useful for a microsite/campaign section that must not pick up the corporate tone. This is page-local, not a subtree boundary: the page's own children are unaffected and keep inheriting from the original ancestors normally.
 
-DB fragments respect workspace overlays for edits to *existing* fragments: a fragment modified in a workspace is visible when resolving within that workspace, via the standard `PageRepository::versionOL()` idiom. A fragment created entirely new within a workspace (no live counterpart yet) won't appear until published (a narrower, known gap rather than full versioning-aware listing).
+DB fragment inheritance stops at the nearest `is_siteroot` ancestor: in a nested-site install (one site's page tree living under another site's), a page's own assignments never leak into an unrelated site. Page TSconfig fragments deliberately don't get this treatment; `getPagesTSconfig()` has never respected site boundaries, and that's an established, technical-audience convention this extension doesn't override.
+
+DB fragments respect workspace overlays for edits to *either* the assignment or the library fragment's own content: an edit made in a workspace is visible when resolving within that workspace. A fragment or assignment created entirely new within a workspace (no live counterpart yet) won't appear until published.
 
 To have a request resolve against a page, pass `pageId`:
 
@@ -720,7 +720,7 @@ Requests without a `pageId` (the default) use the `defaultSystemPrompt` Extensio
 - **Unknown scope values normalize to `all` with a logged warning**, across every source (DB, Page/User TSconfig, code-registered): a typo (`imageGeneraton`) makes a fragment apply everywhere rather than silently never firing. Far more noticeable, and thus fixable.
 - **Exact duplicate text across layers is sent only once**: e.g. if the same instruction ends up in both a DB fragment and a code-registered one, it's not sent to the provider twice.
 - **Extending `SupportsSystemPromptInterface` with a new request type is safe by construction**: each implementor self-declares its own scope via `getPromptFragmentScope()` rather than being looked up from a central map; there's no separate registry that a new class could forget to update and crash on.
-- **`tx_aim_prompt_fragment.prompt` has a soft (browser-enforced, HTML `maxlength`) 4000-character limit**: a fragment gets sent with every matching AI call on that page's subtree, so an oversized paste has real, ongoing cost consequences. Not a hard server-side limit (TYPO3 core never enforces `max` server-side for `type=text` fields); a raw `process_datamap` bypass could still exceed it.
+- **`tx_aim_prompt_fragment.prompt` has a soft (browser-enforced, HTML `maxlength`) 4000-character limit**: a fragment gets sent with every matching AI call on every page it's assigned to, so an oversized paste has real, ongoing cost consequences. Not a hard server-side limit (TYPO3 core never enforces `max` server-side for `type=text` fields); a raw `process_datamap` bypass could still exceed it.
 - **Both new `pages` fields (`tx_aim_prompt_fragments`, `tx_aim_disable_inherited_fragments`) are `exclude => true`**: invisible to a backend user/group unless explicitly granted under "Allowed excludefields". AI tone-of-voice is a brand-consistency concern many orgs want gated rather than implied by generic "can edit this page" rights; admins always retain access regardless of group settings.
 
 ## Smart Routing
@@ -977,30 +977,40 @@ Every row opens a full detail view, including the grading rationale and reroute 
 
 ![Request Log detail view](Documentation/Images/request-log-detail-dark.png)
 
-### Prompt Preview
+### Prompt Management
 
-Manage and inspect [page-level tone-of-voice fragments](#tone-of-voice--system-prompts). Unlike the other two, this module is **grantable per backend user/group** (`access => 'user'`, not hardcoded admin); it only inspects a composition, never dispatches or changes anything, so the editors who actually author fragments day-to-day can preview their own work without an admin doing it on their behalf:
+Manage and inspect [page-level tone-of-voice fragments](#tone-of-voice--system-prompts) and the reusable fragment library they draw from. Unlike Providers and Request Log, this module is **grantable per backend user/group** (`access => 'user'`). It only inspects a composition, never dispatches or changes anything, so the editors who actually author fragments day-to-day can preview their own work without an admin doing it on their behalf.
 
-- **Permission-scoped list**: only pages with at least one prompt fragment, and only those the current user is actually allowed to see (own webmounts + page permissions; unrestricted for admins); a non-admin can never probe a page they don't have access to, by construction
-- **Page tree in the left panel**: select a page to narrow the list to it and its subtree; a **"Create prompt"** doc-header button appears whenever a page with `PAGE_EDIT` rights is selected, opening that page's edit form (AI tab only) even if it has zero fragments yet
-- **Filter by capability, free-text search** across each fragment's prompt, examples, and title
-- **Per-row "Preview"**: expands inline to show the exact composition breakdown for that page: page tone, user-assigned fragments, code-registered fragments, and (optionally) a chosen provider's addendum, with a running character/token count, without triggering a real, billable AI call
-- **"Edit fragments"** opens the page's normal edit form restricted to just the AI tab fields (`columnsOnly`), never the full page properties; hidden per-row when the user lacks `PAGE_EDIT` on that page
-- **"Calibrate Voice"** doc-header button: see [Voice Calibration](#voice-calibration) below
+Two sub-actions, switched via a pair of clickable boxes at the top of the module, both using the page tree:
 
-![Prompt Preview module, filtered to a site's pages](Documentation/Images/prompt-preview-dark.png)
+#### Pages
+
+Only pages with at least one prompt fragment, and only those the current user is actually allowed to see (own webmounts + page permissions; unrestricted for admins). A non-admin can never probe a page they don't have access to, by construction. Select a page in the page tree to narrow the list to it and its subtree. A **"Create prompt"** doc-header button appears whenever a page with `PAGE_EDIT` rights is selected, opening that page's edit form (AI tab only) even if it has zero fragments yet.
+
+#### Library
+The reusable fragment pool itself, independent of any one page, with one row per fragment and a **"used on N page(s)"** disclosure that expands inline into the actual pages, each with its own preview-composition and edit-fragments-on-that-page actions. **Also honors the shared page tree**: selecting a page scopes the list to fragments actually assigned somewhere in that subtree. Global (`pid = 0`) fragments are exempt and always listed, matching the same rule the fragment picker's own suggest wizard uses elsewhere, while flagged with a **"Global"** badge. With the **"New fragment"** doc-header button, a fresh fragment can be created, targeting whichever page is currently selected in the tree. If no page is selected, `pid = 0` (a global entry), is created.
+
+Both sub-actions share the filter, including the free-text search, a per-row **"Preview"** that expands inline to show the exact composition breakdown, an **"Edit fragments"**/**"Edit fragment"** action and the **"Calibrate Voice"** doc-header button (see [Voice Calibration](#voice-calibration) below).
+
+![Prompt Management module, Pages sub-action filtered to a site's pages](Documentation/Images/prompt-preview-dark.png)
+
+![Prompt Management module, Library sub-action showing the reusable fragment pool with its "used on N page(s)" disclosure](Documentation/Images/prompt-fragment-library-dark.png)
 
 Click **"Preview"** on any row to see the exact layered composition without spending an AI call:
 
 ![Compose and inspect preview showing the layered prompt composition](Documentation/Images/prompt-preview-modal-dark.png)
 
+> **Granting this module to a non-admin group:** module access alone isn't the whole story, since this custom listing bypasses the standard record list and builds its own queries for both sub-actions. The group also needs `tables_select` on `tx_aim_prompt_fragment` to see any fragment content at all (otherwise the module renders an empty "no access" state), and `tables_modify` on the same table for the inline edit links to appear (a user without it still sees everything, just without a way to jump straight to editing a fragment from either sub-action).
+
+A fragment assigned to multiple pages is still one Library row; editing it from either sub-action or a page's own AI tab changes the same underlying record everywhere it's used.
+
 ## Voice Calibration
 
 Writing a good tone-of-voice prompt fragment by hand, one that actually sounds like the site, is tedious. Voice calibration derives one from real page content instead, two ways:
 
-### Interactively, from the Prompt Preview module
+### Interactively, from the Prompt Management module
 
-The **"Calibrate Voice"** button (always available in the [Prompt Preview](#prompt-preview) module's doc header) opens a modal where you either paste a sample of on-brand copy directly, or click **"Select page"** to pick one or more pages via TYPO3's native element browser. Picking a page:
+The **"Calibrate Voice"** button (always available in the [Prompt Management](#prompt-management) module's doc header) opens a modal where you either paste a sample of on-brand copy directly, or click **"Select page"** to pick one or more pages via TYPO3's native element browser. Picking a page:
 
 1. Renders that page through TYPO3's real frontend rendering pipeline to extract genuine, representative copy, not just raw field values.
 2. Falls back automatically to the page's stored DB fields (title, headers, bodytext) if no site/frontend can be resolved for it (e.g. no site configuration, a broken TypoScript setup), so the feature degrades gracefully instead of failing outright. The status line always shows which path was used ("rendered page" vs. "stored fields only (page render unavailable)"), so it's never a silent guess.
@@ -1015,7 +1025,7 @@ Click **"Analyze"** and AiM derives a tone-of-voice instruction plus illustrativ
 vendor/bin/typo3 aim:calibrateVoice
 ```
 
-Crawls every configured site's root page and a bounded, breadth-first slice of its subpages (root always included first, deepest/least-prominent pages dropped first if the slice needs to shrink), accumulates their real extracted content up to a size budget (stopping at whole-page boundaries rather than truncating mid-sentence, so the AI always analyzes complete, coherent pages), and derives a tone instruction + examples the same way the interactive modal does. The result is saved as an auto-calibrated `tx_aim_prompt_fragment` on the site's root page, tagged `auto_generated = 1` so re-running the command refreshes that same fragment instead of piling up duplicates, and so it never touches an editor's own hand-authored fragments.
+Crawls every configured site's root page and a bounded, breadth-first slice of its subpages (root always included first, deepest/least-prominent pages dropped first if the slice needs to shrink), accumulates their real extracted content up to a size budget (stopping at whole-page boundaries rather than truncating mid-sentence, so the AI always analyzes complete, coherent pages), and derives a tone instruction + examples the same way the interactive modal does. The result is saved as an auto-calibrated `tx_aim_prompt_fragment` (stored at the site's root page) with a matching assignment on that same root page, tagged `auto_generated = 1` on the assignment so re-running the command refreshes that same fragment instead of piling up duplicates, and so it never touches an editor's own hand-authored fragments.
 
 | Option | Purpose | Default |
 |---|---|---|
@@ -1049,7 +1059,8 @@ All widgets are refreshable and grouped under "AiM" in the widget picker. The re
 | `tx_aim_configuration` | Provider configurations (TCA-managed). API keys, models, cost tracking, governance settings, per-provider system prompt addendum. |
 | `tx_aim_request_log` | Per-request log (no TCA). Tokens, cost, duration, prompt/response content, complexity classification, rerouting details, LLM grading results. |
 | `tx_aim_usage_budget` | Per-user budget tracking. Rolling period counters for tokens, cost, and request count. |
-| `tx_aim_prompt_fragment` | Page-tree tone-of-voice fragments (TCA-managed, IRRE child of `pages`). Prompt text, few-shot examples, multi-value scope, per-fragment `inherit_to_subpages` flag, and an `auto_generated` marker for fragments written by `aim:calibrateVoice`. |
+| `tx_aim_prompt_fragment` | Reusable tone-of-voice fragment library (TCA-managed, `rootLevel => -1`). Title, prompt text, few-shot examples, multi-value scope. |
+| `tx_aim_page_prompt_fragment` | Per-page fragment assignments (TCA-managed, IRRE child of `pages`). Which library fragment applies to which page, per-assignment `inherit_to_subpages` flag, and an `auto_generated` marker for assignments written by `aim:calibrateVoice`. |
 
 See `ext_tables.sql` for the full schema.
 

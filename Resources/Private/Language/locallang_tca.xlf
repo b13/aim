@@ -112,7 +112,7 @@
                 <source>Evaluate the response for factual accuracy and relevance to the user's prompt.</source>
             </trans-unit>
             <trans-unit id="pages.tab_ai" resname="pages.tab_ai">
-                <source>AI</source>
+                <source>AI Tone of Voice</source>
             </trans-unit>
             <trans-unit id="pages.tx_aim_disable_inherited_fragments.label" resname="pages.tx_aim_disable_inherited_fragments.label">
                 <source>Disable inherited prompt fragments</source>
@@ -124,7 +124,7 @@
                 <source>Tone of Voice / System Prompt Fragments</source>
             </trans-unit>
             <trans-unit id="pages.tx_aim_prompt_fragments.description" resname="pages.tx_aim_prompt_fragments.description">
-                <source>Instructions for AI-generated content (e.g. formality, brand voice, forbidden phrasing, image watermark policy). Each fragment applies only to the capability set in its Scope. Fragments with "Inherit to subpages" enabled also apply to every page below this one, until a descendant page adds its own fragments of the same scope (which supplement, not replace, inherited ones). Does not apply to image alt-text generation, which uses the global default instead.</source>
+                <source>Assigns reusable prompt fragments (e.g. formality, brand voice, forbidden phrasing, image watermark policy) to this page. Pick an existing fragment from the library or create a new one. Each fragment applies only to the capability set in its own Scope. An assignment with "Inherit to subpages" enabled also applies to every page below this one, until a descendant page adds its own assignments of the same scope (which supplement, not replace, inherited ones). Does not apply to image alt-text generation, which uses the global default instead.</source>
             </trans-unit>
             <trans-unit id="tx_aim_prompt_fragment.title" resname="tx_aim_prompt_fragment.title">
                 <source>AI Prompt Fragment</source>
@@ -139,7 +139,7 @@
                 <source>Prompt</source>
             </trans-unit>
             <trans-unit id="tx_aim_prompt_fragment.columns.prompt.description" resname="tx_aim_prompt_fragment.columns.prompt.description">
-                <source>Sent with every matching AI call on this subtree; keep it concise to limit the ongoing token cost.</source>
+                <source>Sent with every matching AI call on every page this fragment is assigned to; keep it concise to limit the ongoing token cost.</source>
             </trans-unit>
             <trans-unit id="tx_aim_prompt_fragment.columns.examples.label" resname="tx_aim_prompt_fragment.columns.examples.label">
                 <source>Examples</source>
@@ -174,11 +174,26 @@
             <trans-unit id="tx_aim_prompt_fragment.columns.scope.imageGeneration" resname="tx_aim_prompt_fragment.columns.scope.imageGeneration">
                 <source>Image Generation</source>
             </trans-unit>
-            <trans-unit id="tx_aim_prompt_fragment.columns.inherit_to_subpages.label" resname="tx_aim_prompt_fragment.columns.inherit_to_subpages.label">
+            <trans-unit id="tx_aim_page_prompt_fragment.title" resname="tx_aim_page_prompt_fragment.title">
+                <source>Prompt Fragment Assignment</source>
+            </trans-unit>
+            <trans-unit id="tx_aim_page_prompt_fragment.columns.fragment.label" resname="tx_aim_page_prompt_fragment.columns.fragment.label">
+                <source>Fragment</source>
+            </trans-unit>
+            <trans-unit id="tx_aim_page_prompt_fragment.columns.fragment.description" resname="tx_aim_page_prompt_fragment.columns.fragment.description">
+                <source>Start typing to search the fragment library (only fragments stored globally or within this page's own site are suggested), use the browse icon to see every fragment in the installation, or use the "+" button to create a new one. On a brand-new assignment, pick and save an existing fragment first - "+" only becomes available once this assignment itself has been saved.</source>
+            </trans-unit>
+            <trans-unit id="tx_aim_page_prompt_fragment.columns.fragment.addRecord" resname="tx_aim_page_prompt_fragment.columns.fragment.addRecord">
+                <source>Create a new prompt fragment</source>
+            </trans-unit>
+            <trans-unit id="tx_aim_page_prompt_fragment.columns.inherit_to_subpages.label" resname="tx_aim_page_prompt_fragment.columns.inherit_to_subpages.label">
                 <source>Inherit to subpages</source>
             </trans-unit>
-            <trans-unit id="tx_aim_prompt_fragment.columns.inherit_to_subpages.description" resname="tx_aim_prompt_fragment.columns.inherit_to_subpages.description">
-                <source>When enabled (default), also applies to every page below this one in the tree.</source>
+            <trans-unit id="tx_aim_page_prompt_fragment.columns.inherit_to_subpages.description" resname="tx_aim_page_prompt_fragment.columns.inherit_to_subpages.description">
+                <source>When enabled (default), this assignment also applies to every page below this one in the tree.</source>
+            </trans-unit>
+            <trans-unit id="tx_aim_page_prompt_fragment.noFragmentSelected" resname="tx_aim_page_prompt_fragment.noFragmentSelected">
+                <source>(no fragment selected)</source>
             </trans-unit>
             <trans-unit id="tx_aim_configuration.columns.system_prompt_addition.label" resname="tx_aim_configuration.columns.system_prompt_addition.label">
                 <source>Provider-specific Prompt Addendum</source>

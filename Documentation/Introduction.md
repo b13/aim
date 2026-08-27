@@ -72,7 +72,7 @@ Every editor prompting an image generator on their own produces a different look
 
 ## How it works for administrators
 
-Everything lives in one place: the **AiM** module under Admin Tools, with three sub-modules for providers, request monitoring, and page tone.
+Everything lives in one place: the **AiM** module under Admin Tools, with three sub-modules for providers, request monitoring, and prompt management (page-level tone plus the reusable fragment library behind it).
 
 ![AiM module overview](Images/module-overview-light.png)
 
@@ -256,15 +256,19 @@ Every extension calling AiM can inherit a shared brand voice automatically, with
 
 ### How the voice is defined
 
-Editors add named **prompt fragments** directly on any page (a repeatable "AI" tab, right next to the page's other properties): an instruction ("write in a warm, second-person voice"), optional example text to steer the model further, and which AI capability it applies to. A fragment on a page also applies to everything below it in the page tree by default, so setting the tone once on a site's root page covers the whole site; a subsection can add its own fragment on top, or opt out of what it would otherwise inherit entirely.
+Editors add named **prompt fragments** directly from any page (a repeatable "AI" tab, right next to the page's other properties): an instruction ("write in a warm, second-person voice"), optional example text to steer the model further, and which AI capability it applies to. A fragment on a page also applies to everything below it in the page tree by default, so setting the tone once on a site's root page covers the whole site; a subsection can add its own fragment on top, or opt out of what it would otherwise inherit entirely.
+
+A fragment is a reusable library entry, not something owned by one page: the same one can be assigned to several unrelated pages (or reused across sites), and editing it anywhere changes it everywhere it's assigned. The **AiM > Prompt Management** module's **Library** sub-action browses that pool directly, showing each fragment's own "used on N page(s)" list; selecting a page in the shared page tree scopes it to fragments actually used in that subtree. A site-wide fragment (not tied to any one page) stays listed regardless, marked with a "Global" badge so it doesn't read as specifically used near the selected page.
+
+![Prompt Management module, Library sub-action showing the reusable fragment pool with its "used on N page(s)" disclosure](Images/prompt-fragment-library-light.png)
 
 For AI requests with no page context at all (e.g. generating alt text for a file in the media library), a single site-wide fallback tone applies instead. Either way, a provider-specific addendum and any organization-wide policy an extension developer registers in code (a watermark instruction, a compliance disclaimer) are layered in automatically, last.
 
 ### Inspecting what will actually be sent
 
-The **AiM > Prompt Preview** module lists every page that has a configured fragment (only pages you're actually allowed to see), searchable and filterable by capability. Select a page in the built-in page tree to narrow the list to it and everything below it.
+The **AiM > Prompt Management** module's **Pages** sub-action lists every page that has a configured fragment (only pages you're actually allowed to see), searchable and filterable by capability. Select a page in the built-in page tree to narrow the list to it and everything below it.
 
-![Prompt Preview module, filtered to a site's pages](Images/prompt-preview-light.png)
+![Prompt Management module, Pages sub-action filtered to a site's pages](Images/prompt-preview-light.png)
 
 Click "Preview" on any row to see, without spending a single AI call, exactly what would be composed and sent for that page: the page's own tone, anything assigned to you personally, and any organization-wide policy, with a running character/token count.
 
@@ -272,7 +276,7 @@ Click "Preview" on any row to see, without spending a single AI call, exactly wh
 
 ### Calibrating the voice from real content
 
-Writing a good tone-of-voice instruction by hand is tedious, and it's easy for it to drift from how the site actually reads. The **"Calibrate Voice"** button (in the Prompt Preview module) does it for you: paste a sample of on-brand copy, or pick one or more existing pages directly from the page tree, and AiM derives a tone instruction plus illustrative example text from that real content, ready to copy into a fragment.
+Writing a good tone-of-voice instruction by hand is tedious, and it's easy for it to drift from how the site actually reads. The **"Calibrate Voice"** button (in the Prompt Management module) does it for you: paste a sample of on-brand copy, or pick one or more existing pages directly from the page tree, and AiM derives a tone instruction plus illustrative example text from that real content, ready to copy into a fragment.
 
 ![Calibrate Voice modal with a rendered page inserted](Images/calibrate-voice-light.png)
 

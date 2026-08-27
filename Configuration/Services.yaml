@@ -22,6 +22,9 @@ services:
   B13\Aim\Backend\FormDataProvider\HideApiKey:
     public: true
 
+  B13\Aim\Backend\FormDataProvider\DisableAddRecordOnUnsavedAssignment:
+    public: true
+
   B13\Aim\Prompt\PagePromptResolver:
     public: true
 
@@ -29,4 +32,21 @@ services:
     public: true
 
   B13\Aim\Backend\PageTreeResolver:
+    public: true
+
+  B13\Aim\Backend\Form\PagePromptFragmentLabelUserFunc:
+    public: true
+
+  B13\Aim\EventListener\RecordBudgetUsageListener:
+    tags:
+      - name: event.listener
+        identifier: 'aim/record-budget-usage'
+
+  B13\Aim\Controller\ProviderController:
+    public: true
+
+  B13\Aim\Controller\RequestLogController:
+    public: true
+
+  B13\Aim\Controller\PromptManagementController:
     public: true

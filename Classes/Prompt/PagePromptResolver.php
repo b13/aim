@@ -24,8 +24,15 @@ use TYPO3\CMS\Core\Utility\RootlineUtility;
 
 /**
  * Resolves the page-tree "tone of voice" prompt from two merged sources:
- * tx_aim_prompt_fragment IRRE records attached to pages, and Page TSconfig
+ * tx_aim_prompt_fragment library entries assigned to pages via
+ * tx_aim_page_prompt_fragment records, and Page TSconfig
  * (aim.promptFragments.<key>.prompt/.scope, see TsConfigFragmentParser).
+ *
+ * A fragment's actual instruction text lives once in tx_aim_prompt_fragment
+ * and can be assigned to any number of pages (e.g. the same tone-of-voice
+ * fragment reused across a multi-site install's country subsites), while
+ * "which pages use it" and "does it cascade to subpages" are per-assignment
+ * facts that live on tx_aim_page_prompt_fragment instead.
  *
  * DB fragments: additive-per-fragment inheritance: RootlineUtility::get()
  * returns the target page first and the site root last; reversed to
@@ -48,10 +55,10 @@ use TYPO3\CMS\Core\Utility\RootlineUtility;
  * boundaries; that's an established, technical-audience convention
  * (integrators can already use the `>` clear operator).
  *
- * DB fragments respect workspace overlays for edits to existing fragments
- * (PageRepository::versionOL(), the standard core idiom). Not translatable:
- * the TCA has no language/transOrig configuration for this table, since
- * nothing in the resolution pipeline is language-aware yet.
+ * DB fragments respect workspace overlays for edits to either the
+ * assignment or the library fragment itself. Not translatable: neither
+ * TCA has language/transOrig configuration, since nothing in the
+ * resolution pipeline is language-aware yet.
  *
  * Deliberately not applied to sys_file_metadata / FAL (see
  * TonePromptCompositionMiddleware): files have no meaningful page-tree
@@ -72,7 +79,8 @@ use TYPO3\CMS\Core\Utility\RootlineUtility;
  */
 class PagePromptResolver
 {
-    private const TABLE = 'tx_aim_prompt_fragment';
+    private const ASSIGNMENT_TABLE = 'tx_aim_page_prompt_fragment';
+    private const FRAGMENT_TABLE = 'tx_aim_prompt_fragment';
 
     /** @var array<string, string|null> */
     private array $cache = [];
@@ -195,6 +203,13 @@ class PagePromptResolver
     }
 
     /**
+     * Fetches every assignment for the given pages, then the content of
+     * every distinct library fragment they point to. Two queries total
+     * regardless of how many pages/assignments are involved, and each
+     * table is overlaid with versionOL() independently, so a workspace can
+     * edit either "which fragment is assigned here" or "what does the
+     * fragment itself say" without the two concerns interfering.
+     *
      * Deliberately doesn't filter by scope at the SQL level: a row with a
      * corrupted/invalid scope value (only possible via direct DB manipulation
      * or a raw import bypassing the TCA dropdown) would otherwise silently
@@ -213,36 +228,85 @@ class PagePromptResolver
      */
     private function fetchFragmentsByPage(array $pageIds, PromptFragmentScope $scope): array
     {
-        $queryBuilder = $this->connectionPool->getQueryBuilderForTable(self::TABLE);
-        $queryBuilder->getRestrictions()->add(GeneralUtility::makeInstance(WorkspaceRestriction::class, 0));
-        $rows = $queryBuilder->select('uid', 'pid', 't3ver_oid', 't3ver_state', 'parent_page', 'prompt', 'examples', 'scope', 'inherit_to_subpages')
-            ->from(self::TABLE)
+        $assignmentQueryBuilder = $this->connectionPool->getQueryBuilderForTable(self::ASSIGNMENT_TABLE);
+        $assignmentQueryBuilder->getRestrictions()->add(GeneralUtility::makeInstance(WorkspaceRestriction::class, 0));
+        $assignmentRows = $assignmentQueryBuilder->select('uid', 'pid', 't3ver_oid', 't3ver_state', 'parent_page', 'fragment', 'inherit_to_subpages')
+            ->from(self::ASSIGNMENT_TABLE)
             ->where(
-                $queryBuilder->expr()->in('parent_page', $queryBuilder->createNamedParameter($pageIds, Connection::PARAM_INT_ARRAY)),
+                $assignmentQueryBuilder->expr()->in('parent_page', $assignmentQueryBuilder->createNamedParameter($pageIds, Connection::PARAM_INT_ARRAY)),
             )
             ->orderBy('sorting')
+            ->addOrderBy('uid')
             ->executeQuery()
             ->fetchAllAssociative();
 
         $pageRepository = GeneralUtility::makeInstance(PageRepository::class, $this->context);
 
-        $byPage = [];
-        foreach ($rows as $row) {
-            $pageRepository->versionOL(self::TABLE, $row);
+        $liveAssignments = [];
+        foreach ($assignmentRows as $row) {
+            $pageRepository->versionOL(self::ASSIGNMENT_TABLE, $row);
             if ($row === false) {
                 continue; // deleted within the current workspace
             }
+            $liveAssignments[] = $row;
+        }
 
-            $rowScopes = PromptFragmentScope::parseList((string)$row['scope'], $this->logger);
-            if (!$scope->matches($rowScopes)) {
+        $fragmentUids = array_values(array_unique(array_map(
+            static fn(array $row): int => (int)$row['fragment'],
+            $liveAssignments,
+        )));
+        $fragmentsByUid = $this->fetchFragmentsByUid($fragmentUids, $pageRepository);
+
+        $byPage = [];
+        foreach ($liveAssignments as $row) {
+            $fragment = $fragmentsByUid[(int)$row['fragment']] ?? null;
+            if ($fragment === null) {
+                continue; // referenced fragment no longer exists/is deleted
+            }
+            if (!$scope->matches($fragment['scope'])) {
                 continue;
             }
             $byPage[(int)$row['parent_page']][] = [
-                'prompt' => trim((string)$row['prompt']),
-                'examples' => trim((string)($row['examples'] ?? '')),
+                'prompt' => $fragment['prompt'],
+                'examples' => $fragment['examples'],
                 'inheritToSubpages' => (bool)$row['inherit_to_subpages'],
             ];
         }
         return $byPage;
+    }
+
+    /**
+     * @param list<int> $fragmentUids
+     * @return array<int, array{prompt: string, examples: string, scope: list<string>}> keyed by fragment uid
+     */
+    private function fetchFragmentsByUid(array $fragmentUids, PageRepository $pageRepository): array
+    {
+        if ($fragmentUids === []) {
+            return [];
+        }
+
+        $queryBuilder = $this->connectionPool->getQueryBuilderForTable(self::FRAGMENT_TABLE);
+        $queryBuilder->getRestrictions()->add(GeneralUtility::makeInstance(WorkspaceRestriction::class, 0));
+        $rows = $queryBuilder->select('uid', 'pid', 't3ver_oid', 't3ver_state', 'prompt', 'examples', 'scope')
+            ->from(self::FRAGMENT_TABLE)
+            ->where(
+                $queryBuilder->expr()->in('uid', $queryBuilder->createNamedParameter($fragmentUids, Connection::PARAM_INT_ARRAY)),
+            )
+            ->executeQuery()
+            ->fetchAllAssociative();
+
+        $byUid = [];
+        foreach ($rows as $row) {
+            $pageRepository->versionOL(self::FRAGMENT_TABLE, $row);
+            if ($row === false) {
+                continue; // deleted within the current workspace
+            }
+            $byUid[(int)$row['uid']] = [
+                'prompt' => trim((string)$row['prompt']),
+                'examples' => trim((string)($row['examples'] ?? '')),
+                'scope' => PromptFragmentScope::parseList((string)$row['scope'], $this->logger),
+            ];
+        }
+        return $byUid;
     }
 }

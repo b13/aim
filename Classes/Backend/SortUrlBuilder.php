@@ -29,17 +29,14 @@ final class SortUrlBuilder
 
     /**
      * @param array<string, mixed> $additionalParameters merged in verbatim (not
-     *        namespaced under `demand[...]`) — e.g. a page-tree module's
+     *        namespaced under `demand[...]`), e.g. a page-tree module's
      *        currently selected `id`, so sorting doesn't drop it. Defaults to
      *        empty so existing callers are unaffected.
      * @return array<string, array{ascUrl: string, descUrl: string, active: bool, direction: string}>
      */
     public function build(SortableDemandInterface $demand, string $route, array $additionalParameters = []): array
     {
-        $filterParams = $additionalParameters;
-        foreach ($demand->getParameters() as $key => $value) {
-            $filterParams['demand[' . $key . ']'] = $value;
-        }
+        $filterParams = $this->buildFilterParameters($demand, $additionalParameters);
 
         $sortUrls = [];
         foreach ($demand::getOrderFields() as $field) {
@@ -58,5 +55,27 @@ final class SortUrlBuilder
             ];
         }
         return $sortUrls;
+    }
+
+    /**
+     * The same filter-preserving parameter shape build() itself uses for
+     * its own asc/desc links, exposed so a *different* URL for the same
+     * listing (a pagination page-N link, in particular) can preserve the
+     * active filter/sort too.
+     *
+     * @param array<string, mixed> $additionalParameters merged in verbatim,
+     *        not namespaced under `demand[...]` - same convention as build().
+     * @return array<string, mixed>
+     */
+    public function buildFilterParameters(SortableDemandInterface $demand, array $additionalParameters = []): array
+    {
+        $filterParams = $additionalParameters;
+        foreach ($demand->getParameters() as $key => $value) {
+            $filterParams['demand[' . $key . ']'] = $value;
+        }
+        $filterParams['orderField'] = $demand->getOrderField();
+        $filterParams['orderDirection'] = $demand->getOrderDirection();
+
+        return $filterParams;
     }
 }

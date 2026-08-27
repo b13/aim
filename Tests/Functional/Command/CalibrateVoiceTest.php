@@ -17,6 +17,7 @@ use PHPUnit\Framework\Attributes\Test;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Tester\CommandTester;
 use TYPO3\CMS\Core\Console\CommandRegistry;
+use TYPO3\CMS\Core\Localization\LanguageServiceFactory;
 use TYPO3\TestingFramework\Core\Functional\FunctionalTestCase;
 
 /**
@@ -61,6 +62,28 @@ final class CalibrateVoiceTest extends FunctionalTestCase
 
         self::assertSame(Command::FAILURE, $tester->getStatusCode());
         self::assertStringContainsString('No text content found', $tester->getDisplay());
+    }
+
+    /**
+     * Regression test: the saved fragment's title used to be a hardcoded
+     * English literal (self::FRAGMENT_TITLE); it's now resolved through
+     * LanguageServiceFactory from an xlf key
+     * (commands.calibrateVoice.fragmentTitle) so translators can localize
+     * it, matching the site's own default language rather than the CLI
+     * process's own locale. This only proves the key resolves to real
+     * content, not a raw "LLL:..." passthrough or an empty string, since
+     * the actual save path (resolveFragmentTitle()'s own call site) needs a
+     * working AI provider fixture this test suite doesn't have, per this
+     * class's own docblock.
+     */
+    #[Test]
+    public function theFragmentTitleLabelResolvesToRealContentNotARawKey(): void
+    {
+        $title = $this->get(LanguageServiceFactory::class)->create('en')->sL(
+            'LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:commands.calibrateVoice.fragmentTitle'
+        );
+
+        self::assertSame('Voice (auto-calibrated)', $title);
     }
 
     private function runCommandAndReturnTester(array $options): CommandTester

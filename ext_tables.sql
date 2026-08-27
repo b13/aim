@@ -3,15 +3,21 @@ CREATE TABLE pages (
 );
 
 CREATE TABLE tx_aim_prompt_fragment (
-    parent_page int(11) unsigned DEFAULT '0' NOT NULL,
     title varchar(255) DEFAULT '' NOT NULL,
     prompt text,
     examples text,
-    scope varchar(255) DEFAULT 'text,vision,translation,conversation,toolCalling,imageGeneration' NOT NULL,
+    scope varchar(255) DEFAULT 'text,vision,translation,conversation,toolCalling,imageGeneration' NOT NULL
+);
+
+CREATE TABLE tx_aim_page_prompt_fragment (
+    parent_page int(11) unsigned DEFAULT '0' NOT NULL,
+    fragment int(11) unsigned DEFAULT '0' NOT NULL,
     inherit_to_subpages tinyint(1) unsigned DEFAULT '1' NOT NULL,
     auto_generated tinyint(1) unsigned DEFAULT '0' NOT NULL,
+    auto_generated_source varchar(32) DEFAULT '' NOT NULL,
 
-    KEY parent_page (parent_page)
+    KEY parent_page (parent_page),
+    KEY fragment (fragment)
 );
 
 CREATE TABLE tx_aim_configuration (

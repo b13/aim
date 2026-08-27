@@ -47,7 +47,9 @@ final class PageTreeResolver
             return null;
         }
 
-        $mounts = $backendUser->getWebmounts();
+        $mounts = method_exists($backendUser, 'getWebmounts')
+            ? $backendUser->getWebmounts()
+            : array_map('intval', $backendUser->returnWebmounts());
         if ($mounts === []) {
             return [];
         }

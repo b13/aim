@@ -4,8 +4,14 @@ return [
     'ctrl' => [
         'title' => 'LLL:EXT:aim/Resources/Private/Language/locallang_tca.xlf:tx_aim_prompt_fragment.title',
         'label' => 'title',
-        'sortby' => 'sorting',
-        'hideTable' => true,
+        // A reusable library entry, not a page-owned child record anymore
+        // (see tx_aim_page_prompt_fragment for the per-page assignment) - it
+        // should usually live at pid=0, but an editor without access to
+        // pid=0 needs to be able to place one in a sysfolder instead, hence
+        // rootLevel=-1 rather than the fixed root-only 1. Left visible in
+        // the List module (not hideTable) so the library is browsable/
+        // manageable on its own, ahead of a dedicated module UI.
+        'rootLevel' => -1,
         'crdate' => 'crdate',
         'tstamp' => 'tstamp',
         'delete' => 'deleted',
@@ -25,25 +31,11 @@ return [
         '1' => [
             'showitem' => '
                 title, prompt, examples, --linebreak--,
-                scope, inherit_to_subpages, --linebreak--,
+                scope, --linebreak--,
                 hidden',
         ],
     ],
     'columns' => [
-        'parent_page' => [
-            'config' => [
-                'type' => 'passthrough',
-            ],
-        ],
-        // Internal marker for aim:calibrateVoice (see
-        // PagePromptFragmentRepository::upsertAutoDetectedFragment()), not
-        // a form field; an editor's own hand-authored fragments are
-        // unaffected either way and never carry this flag.
-        'auto_generated' => [
-            'config' => [
-                'type' => 'passthrough',
-            ],
-        ],
         'title' => [
             'label' => 'LLL:EXT:aim/Resources/Private/Language/locallang_tca.xlf:tx_aim_prompt_fragment.columns.title.label',
             'description' => 'LLL:EXT:aim/Resources/Private/Language/locallang_tca.xlf:tx_aim_prompt_fragment.columns.title.description',
@@ -89,15 +81,6 @@ return [
                     ['label' => 'LLL:EXT:aim/Resources/Private/Language/locallang_tca.xlf:tx_aim_prompt_fragment.columns.scope.imageGeneration', 'value' => 'imageGeneration'],
                 ],
                 'default' => 'text,vision,translation,conversation,toolCalling,imageGeneration',
-            ],
-        ],
-        'inherit_to_subpages' => [
-            'label' => 'LLL:EXT:aim/Resources/Private/Language/locallang_tca.xlf:tx_aim_prompt_fragment.columns.inherit_to_subpages.label',
-            'description' => 'LLL:EXT:aim/Resources/Private/Language/locallang_tca.xlf:tx_aim_prompt_fragment.columns.inherit_to_subpages.description',
-            'config' => [
-                'type' => 'check',
-                'renderType' => 'checkboxToggle',
-                'default' => 1,
             ],
         ],
         'hidden' => [

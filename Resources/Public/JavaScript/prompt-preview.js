@@ -11,12 +11,27 @@ import AjaxRequest from '@typo3/core/ajax/ajax-request.js';
 import { ModuleStateStorage } from '@typo3/backend/storage/module-state-storage.js';
 import { injectConsoleStyles } from '@b13/aim/console-styles.js';
 
+// The page-tree's own click handler rebuilds the module URL from its
+// static base route + the new page id alone, dropping every other
+// query param including 'view'. That view-restoration problem is
+// handled server-side by BackendModuleValidator's own moduleData
+// persistence, so this file does not need its own localStorage-based
+// fallback for it. Only the page id ('id') still needs the client-side
+// restore below, since it isn't a declared moduleData property.
 const moduleState = document.getElementById('pp-module-state');
-if (moduleState?.dataset.hasExplicitPageId === '0') {
-  const { identifier } = ModuleStateStorage.current('web');
-  if (identifier) {
-    const url = new URL(window.location.href);
-    url.searchParams.set('id', identifier);
+if (moduleState) {
+  const url = new URL(window.location.href);
+  let redirectNeeded = false;
+
+  if (moduleState.dataset.hasExplicitPageId === '0') {
+    const { identifier } = ModuleStateStorage.current('web');
+    if (identifier) {
+      url.searchParams.set('id', identifier);
+      redirectNeeded = true;
+    }
+  }
+
+  if (redirectNeeded) {
     window.location.replace(url.toString());
   }
 }
@@ -46,8 +61,8 @@ const LAYER_RAIL_VARS = {
  * Enter/Space activation are added here to keep it keyboard-accessible.
  *
  * Opens the composed-prompt breakdown in a modal. `target` (an element id)
- * always points at a `<template>` — never a live, already-rendered panel —
- * so a fresh, disposable copy of the panel markup is cloned into the modal
+ * always points at a `<template>`, never a live, already-rendered panel, so
+ * a fresh, disposable copy of the panel markup is cloned into the modal
  * on every open. Used both for a page row's template and the "preview the
  * currently tree-selected page" template in the notice bar; the exact same
  * mechanism works in either context since the template is always referenced

@@ -30,23 +30,38 @@
             <trans-unit id="aim.requestLog.shortDescription" resname="aim.requestLog.shortDescription">
                 <source>AI request history and statistics</source>
             </trans-unit>
-            <trans-unit id="aim.promptPreview.title" resname="aim.promptPreview.title">
-                <source>Prompt Preview</source>
+            <trans-unit id="aim.promptManagement.title" resname="aim.promptManagement.title">
+                <source>Prompt Management</source>
             </trans-unit>
-            <trans-unit id="aim.promptPreview.description" resname="aim.promptPreview.description">
-                <source>Manage pages with configured system prompt and tone-of-voice fragments.</source>
+            <trans-unit id="aim.promptManagement.description" resname="aim.promptManagement.description">
+                <source>Manage pages with configured system prompt and tone-of-voice fragments, and the reusable fragment library they draw from.</source>
             </trans-unit>
-            <trans-unit id="aim.promptPreview.shortDescription" resname="aim.promptPreview.shortDescription">
-                <source>Manage and preview page prompt fragments</source>
+            <trans-unit id="aim.promptManagement.shortDescription" resname="aim.promptManagement.shortDescription">
+                <source>Manage page prompts and the reusable fragment library</source>
+            </trans-unit>
+            <trans-unit id="promptPreview.tabs.pages.headline" resname="promptPreview.tabs.pages.headline">
+                <source>Pages</source>
+            </trans-unit>
+            <trans-unit id="promptPreview.tabs.pages.description" resname="promptPreview.tabs.pages.description">
+                <source>Browse pages by tree location and see which prompt fragments apply to each.</source>
+            </trans-unit>
+            <trans-unit id="promptPreview.tabs.library.headline" resname="promptPreview.tabs.library.headline">
+                <source>Library</source>
+            </trans-unit>
+            <trans-unit id="promptPreview.tabs.library.description" resname="promptPreview.tabs.library.description">
+                <source>Browse the reusable fragment pool itself and see where each one is used.</source>
             </trans-unit>
             <trans-unit id="promptPreview.createPrompt" resname="promptPreview.createPrompt">
                 <source>New prompt</source>
             </trans-unit>
-            <trans-unit id="promptPreview.filteringToSubtree" resname="promptPreview.filteringToSubtree">
-                <source>Showing prompts from "%s" and its subpages only.</source>
+            <trans-unit id="promptPreview.filteringToSubtree.pages" resname="promptPreview.filteringToSubtree.pages">
+                <source>Showing pages from "%s" and its subpages only.</source>
+            </trans-unit>
+            <trans-unit id="promptPreview.filteringToSubtree.library" resname="promptPreview.filteringToSubtree.library">
+                <source>Showing fragments used in "%s" and its subpages only. Global fragments are always shown regardless of page selection.</source>
             </trans-unit>
             <trans-unit id="promptPreview.filteringToSubtree.clear" resname="promptPreview.filteringToSubtree.clear">
-                <source>Show all pages</source>
+                <source>Clear page selection</source>
             </trans-unit>
             <trans-unit id="promptPreview.filter.scope.label" resname="promptPreview.filter.scope.label">
                 <source>Capability</source>
@@ -65,6 +80,12 @@
             </trans-unit>
             <trans-unit id="promptPreview.list.column.fragments" resname="promptPreview.list.column.fragments">
                 <source>Fragments</source>
+            </trans-unit>
+            <trans-unit id="promptPreview.list.fragments.count" resname="promptPreview.list.fragments.count">
+                <source>%d fragment(s)</source>
+            </trans-unit>
+            <trans-unit id="promptPreview.list.fragments.none" resname="promptPreview.list.fragments.none">
+                <source>No fragments assigned</source>
             </trans-unit>
             <trans-unit id="promptPreview.list.inheritanceDisabled" resname="promptPreview.list.inheritanceDisabled">
                 <source>Inheritance disabled</source>
@@ -101,6 +122,12 @@
             </trans-unit>
             <trans-unit id="promptPreview.list.noAccessiblePages.message" resname="promptPreview.list.noAccessiblePages.message">
                 <source>You don't have access to any pages, so there's nothing this list can show you.</source>
+            </trans-unit>
+            <trans-unit id="promptPreview.noReadAccess.title" resname="promptPreview.noReadAccess.title">
+                <source>No access</source>
+            </trans-unit>
+            <trans-unit id="promptPreview.noReadAccess.message" resname="promptPreview.noReadAccess.message">
+                <source>Your user group doesn't grant read access to prompt fragments, so this list can't be shown.</source>
             </trans-unit>
             <trans-unit id="promptPreview.scope.label" resname="promptPreview.scope.label">
                 <source>Capability</source>
@@ -212,6 +239,57 @@
             </trans-unit>
             <trans-unit id="promptPreview.layer.providerAddendum" resname="promptPreview.layer.providerAddendum">
                 <source>Provider addendum</source>
+            </trans-unit>
+            <trans-unit id="promptPreview.library.column.title" resname="promptPreview.library.column.title">
+                <source>Fragment</source>
+            </trans-unit>
+            <trans-unit id="promptPreview.library.column.scopes" resname="promptPreview.library.column.scopes">
+                <source>Capabilities</source>
+            </trans-unit>
+            <trans-unit id="promptPreview.library.column.usage" resname="promptPreview.library.column.usage">
+                <source>Used on</source>
+            </trans-unit>
+            <trans-unit id="promptPreview.library.usage.count" resname="promptPreview.library.usage.count">
+                <source>%d page(s)</source>
+            </trans-unit>
+            <trans-unit id="promptPreview.library.usage.none" resname="promptPreview.library.usage.none">
+                <source>Not assigned anywhere yet</source>
+            </trans-unit>
+            <trans-unit id="promptPreview.library.usage.hidden" resname="promptPreview.library.usage.hidden">
+                <source>Hidden</source>
+            </trans-unit>
+            <trans-unit id="promptPreview.library.usage.andMore" resname="promptPreview.library.usage.andMore">
+                <source>… and %d more</source>
+            </trans-unit>
+            <trans-unit id="promptPreview.library.global" resname="promptPreview.library.global">
+                <source>Global</source>
+            </trans-unit>
+            <trans-unit id="promptPreview.library.global.title" resname="promptPreview.library.global.title">
+                <source>Global fragment: always listed regardless of the selected page, not necessarily used in this subtree.</source>
+            </trans-unit>
+            <trans-unit id="promptPreview.library.newFragment" resname="promptPreview.library.newFragment">
+                <source>New fragment</source>
+            </trans-unit>
+            <trans-unit id="promptPreview.library.editFragment" resname="promptPreview.library.editFragment">
+                <source>Edit fragment</source>
+            </trans-unit>
+            <trans-unit id="promptPreview.library.noFragmentsAtAll.title" resname="promptPreview.library.noFragmentsAtAll.title">
+                <source>No prompt fragments yet</source>
+            </trans-unit>
+            <trans-unit id="promptPreview.library.noFragmentsAtAll.message" resname="promptPreview.library.noFragmentsAtAll.message">
+                <source>No reusable prompt fragments exist yet. Assign one to a page from the Pages sub-action here (it lets you create one inline), or use "New fragment" above.</source>
+            </trans-unit>
+            <trans-unit id="promptPreview.library.noFragmentsInSubtree.title" resname="promptPreview.library.noFragmentsInSubtree.title">
+                <source>No prompt fragments used here yet</source>
+            </trans-unit>
+            <trans-unit id="promptPreview.library.noFragmentsInSubtree.message" resname="promptPreview.library.noFragmentsInSubtree.message">
+                <source>No fragment is assigned anywhere in "%s" or its subpages. Reusable fragments not tied to any one page still show up regardless of tree selection.</source>
+            </trans-unit>
+            <trans-unit id="promptPreview.library.noMatches.title" resname="promptPreview.library.noMatches.title">
+                <source>No matches</source>
+            </trans-unit>
+            <trans-unit id="promptPreview.library.noMatches.message" resname="promptPreview.library.noMatches.message">
+                <source>No fragments match the current filter.</source>
             </trans-unit>
             <trans-unit id="overview.title" resname="overview.title">
                 <source>Providers</source>
@@ -531,6 +609,9 @@
             </trans-unit>
             <trans-unit id="widgets.preset.description" resname="widgets.preset.description">
                 <source>Pre-configured dashboard with AI request monitoring: recent requests, provider and model usage, success rate, and extension statistics.</source>
+            </trans-unit>
+            <trans-unit id="commands.calibrateVoice.fragmentTitle" resname="commands.calibrateVoice.fragmentTitle">
+                <source>Voice (auto-calibrated)</source>
             </trans-unit>
         </body>
     </file>

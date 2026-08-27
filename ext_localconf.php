@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use B13\Aim\Backend\FormDataProvider\DisableAddRecordOnUnsavedAssignment;
 use B13\Aim\Backend\FormDataProvider\HideApiKey;
 use B13\Aim\Hooks\DefaultProviderHook;
 use B13\Aim\Hooks\EncryptApiKey;
@@ -11,6 +12,14 @@ $GLOBALS['TYPO3_CONF_VARS']['SC_OPTIONS']['t3lib/class.t3lib_tcemain.php']['proc
 
 $GLOBALS['TYPO3_CONF_VARS']['SYS']['formEngine']['formDataGroup']['tcaDatabaseRecord'][HideApiKey::class] = [
     'depends' => [\TYPO3\CMS\Backend\Form\FormDataProvider\DatabaseEditRow::class],
+];
+
+// @todo Removed once fixed in core, see https://forge.typo3.org/issues/110526.
+$GLOBALS['TYPO3_CONF_VARS']['SYS']['formEngine']['formDataGroup']['tcaDatabaseRecord'][DisableAddRecordOnUnsavedAssignment::class] = [
+    'depends' => [
+        \TYPO3\CMS\Backend\Form\FormDataProvider\DatabaseUniqueUidNewRow::class,
+        \TYPO3\CMS\Backend\Form\FormDataProvider\TcaColumnsProcessShowitem::class,
+    ],
 ];
 
 // Persists PromptFragmentRegistry's package filesystem scan across requests

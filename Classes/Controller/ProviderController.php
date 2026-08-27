@@ -35,6 +35,8 @@ use B13\Aim\Request\TextGenerationRequest;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use TYPO3\CMS\Backend\Attribute\AsController;
+use TYPO3\CMS\Backend\Module\ModuleProvider;
+use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
 use TYPO3\CMS\Core\Http\JsonResponse;
 use TYPO3\CMS\Core\Pagination\SimplePagination;
 use TYPO3\CMS\Backend\Routing\UriBuilder;
@@ -66,6 +68,7 @@ class ProviderController
         private readonly LiveModelDiscovery $liveModelDiscovery,
         private readonly SortUrlBuilder $sortUrlBuilder,
         private readonly ConsoleStylesheetProvider $consoleStylesheetProvider,
+        private readonly ModuleProvider $moduleProvider,
     ) {}
 
     public function overviewAction(ServerRequestInterface $request): ResponseInterface
@@ -173,6 +176,10 @@ class ProviderController
 
     public function availableProvidersAction(ServerRequestInterface $request): ResponseInterface
     {
+        if (!$this->moduleProvider->accessGranted('aim_providers', $this->getBackendUser())) {
+            return new JsonResponse(['ok' => false, 'message' => 'Access denied'], 403);
+        }
+
         $languageService = $this->getLanguageService();
         $providers = array_map(
             fn(AiProviderManifest $manifest): array => [
@@ -203,6 +210,10 @@ class ProviderController
 
     public function toggleModelAction(ServerRequestInterface $request): ResponseInterface
     {
+        if (!$this->moduleProvider->accessGranted('aim_providers', $this->getBackendUser())) {
+            return new JsonResponse(['error' => 'Access denied'], 403);
+        }
+
         $body = $request->getParsedBody() ?? [];
         $provider = trim((string)($body['provider'] ?? ''));
         $model = trim((string)($body['model'] ?? ''));
@@ -293,6 +304,10 @@ class ProviderController
      */
     public function verifyProviderAction(ServerRequestInterface $request): ResponseInterface
     {
+        if (!$this->moduleProvider->accessGranted('aim_providers', $this->getBackendUser())) {
+            return new JsonResponse(['ok' => false, 'message' => 'Access denied'], 403);
+        }
+
         $body = $request->getParsedBody() ?? [];
         $uid = (int)($body['uid'] ?? 0);
 
@@ -417,5 +432,10 @@ class ProviderController
     private function getLanguageService(): LanguageService
     {
         return $GLOBALS['LANG'];
+    }
+
+    private function getBackendUser(): BackendUserAuthentication
+    {
+        return $GLOBALS['BE_USER'];
     }
 }

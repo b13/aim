@@ -3,7 +3,7 @@
       xmlns:core="http://typo3.org/ns/TYPO3/CMS/Core/ViewHelpers"
       data-namespace-typo3-fluid="true">
 
-<tr>
+<tr data-uid="{entry.uid}" data-grade-status="{entry.grade_status}">
     <td>
         <aim-request-log-trigger modal-url="{f:be.uri(route: 'aim_request_log.showContextual', parameters: '{uid: entry.uid}')}" modal-title="{f:translate(key: 'LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.show.title')}">
             <a href="{f:be.uri(route: 'aim_request_log.show', parameters: '{uid: entry.uid, returnUrl: returnUrl}')}" title="{f:translate(key: 'LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.show.viewDetails')}">

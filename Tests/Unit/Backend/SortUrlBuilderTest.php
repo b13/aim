@@ -106,4 +106,49 @@ final class SortUrlBuilderTest extends TestCase
         self::assertStringContainsString('id=42', $sortUrls['title']['ascUrl']);
         self::assertStringContainsString('id=42', $sortUrls['title']['descUrl']);
     }
+
+    /**
+     * Direct coverage of buildFilterParameters()'s own output shape - until
+     * now only exercised indirectly through build() (which immediately
+     * overwrites orderField/orderDirection per sort link, so never proves
+     * this method's own defaults survive unmodified) and through
+     * PromptManagementControllerTest's/PromptManagementControllerLibraryTest's
+     * functional pagination-link tests.
+     */
+    #[Test]
+    public function buildFilterParametersNamespacesFiltersAndIncludesCurrentSortAndAdditionalParameters(): void
+    {
+        $demand = new class implements SortableDemandInterface {
+            public function getOrderField(): string
+            {
+                return 'cost';
+            }
+
+            public function getOrderDirection(): string
+            {
+                return 'desc';
+            }
+
+            public function getParameters(): array
+            {
+                return ['search' => 'foo', 'scope' => 'text'];
+            }
+
+            public static function getOrderFields(): array
+            {
+                return ['title', 'cost'];
+            }
+        };
+
+        $filterParams = (new SortUrlBuilder($this->createStub(UriBuilder::class)))
+            ->buildFilterParameters($demand, ['id' => 42]);
+
+        self::assertSame([
+            'id' => 42,
+            'demand[search]' => 'foo',
+            'demand[scope]' => 'text',
+            'orderField' => 'cost',
+            'orderDirection' => 'desc',
+        ], $filterParams);
+    }
 }

@@ -16,6 +16,7 @@ use B13\Aim\Controller\ProviderController;
 use B13\Aim\Crypto\ApiKeyEncryption;
 use B13\Aim\Domain\Model\AiProviderManifest;
 use B13\Aim\Registry\AiProviderRegistry;
+use B13\Aim\Registry\DisabledModelRegistry;
 use PHPUnit\Framework\Attributes\Test;
 use Psr\Container\ContainerInterface;
 use Psr\Http\Message\ResponseInterface;
@@ -50,6 +51,7 @@ final class ProviderControllerTest extends FunctionalTestCase
 
         $beUsers = $this->getConnectionPool()->getConnectionForTable('be_users');
         $beUsers->insert('be_users', ['uid' => 1, 'username' => 'admin', 'admin' => 1]);
+        $beUsers->insert('be_users', ['uid' => 2, 'username' => 'non-admin', 'admin' => 0]);
 
         $configurations = $this->getConnectionPool()->getConnectionForTable('tx_aim_configuration');
         $configurations->insert('tx_aim_configuration', [
@@ -87,6 +89,89 @@ final class ProviderControllerTest extends FunctionalTestCase
 
         self::assertStringContainsString('Test Configuration', $body);
         self::assertStringNotContainsString(self::PLAINTEXT_KEY, $body);
+    }
+
+    /**
+     * Regression test: availableProvidersAction/toggleModelAction/verifyProviderAction
+     * are raw AJAX routes (Configuration/Backend/AjaxRoutes.php), never
+     * validated by BackendModuleValidator - unlike this action's own
+     * module (aim_providers, 'access' => 'admin' in
+     * Configuration/Backend/Modules.php), which gates overviewAction(),
+     * nothing previously stopped any authenticated non-admin backend user
+     * from calling any of these three directly: reading the full
+     * provider/model catalog, globally toggling a model's enabled state
+     * for every user of the instance, or triggering a real, potentially
+     * billable outbound API call.
+     */
+    #[Test]
+    public function availableProvidersActionDeniesANonAdminBackendUser(): void
+    {
+        $this->setUpBackendUser(2);
+
+        $request = $this->buildRequestWithNormalizedParams();
+        $response = $this->get(ProviderController::class)->availableProvidersAction($request);
+
+        self::assertSame(403, $response->getStatusCode());
+    }
+
+    /**
+     * Regression test: the deny-path test above only proves a non-admin is
+     * rejected, not that the admin isAdmin() gate itself still lets an
+     * actual admin through - a check inverted by accident (e.g. `if
+     * ($this->getBackendUser()->isAdmin())`) would pass the deny test too.
+     */
+    #[Test]
+    public function availableProvidersActionAllowsAnAdminBackendUser(): void
+    {
+        $this->setUpBackendUser(1);
+        $GLOBALS['LANG'] = $this->get(LanguageServiceFactory::class)->createFromUserPreferences($GLOBALS['BE_USER']);
+
+        $request = $this->buildRequestWithNormalizedParams();
+        $response = $this->get(ProviderController::class)->availableProvidersAction($request);
+
+        self::assertSame(200, $response->getStatusCode());
+        self::assertStringContainsString('data-provider="openai"', (string)$response->getBody());
+    }
+
+    #[Test]
+    public function toggleModelActionDeniesANonAdminBackendUser(): void
+    {
+        $this->setUpBackendUser(2);
+
+        $request = $this->buildRequestWithNormalizedParams()->withParsedBody(['provider' => 'openai', 'model' => 'gpt-4o']);
+        $response = $this->get(ProviderController::class)->toggleModelAction($request);
+
+        self::assertSame(403, $response->getStatusCode());
+    }
+
+    /**
+     * Regression test: see availableProvidersActionAllowsAnAdminBackendUser()'s
+     * identical rationale - also proves the toggle actually persists (not
+     * just a 200), via DisabledModelRegistry directly.
+     */
+    #[Test]
+    public function toggleModelActionAllowsAnAdminBackendUserAndPersistsTheToggle(): void
+    {
+        $this->setUpBackendUser(1);
+
+        $request = $this->buildRequestWithNormalizedParams()->withParsedBody(['provider' => 'openai', 'model' => 'gpt-4o']);
+        $response = $this->get(ProviderController::class)->toggleModelAction($request);
+
+        self::assertSame(200, $response->getStatusCode());
+        $body = json_decode((string)$response->getBody(), true);
+        self::assertTrue($body['disabled']);
+        self::assertTrue($this->get(DisabledModelRegistry::class)->isDisabled('openai', 'gpt-4o'));
+    }
+
+    #[Test]
+    public function verifyProviderActionDeniesANonAdminBackendUser(): void
+    {
+        $this->setUpBackendUser(2);
+
+        $request = $this->buildRequestWithNormalizedParams()->withParsedBody(['uid' => 1]);
+        $response = $this->get(ProviderController::class)->verifyProviderAction($request);
+
+        self::assertSame(403, $response->getStatusCode());
     }
 
     private function overview(): ResponseInterface

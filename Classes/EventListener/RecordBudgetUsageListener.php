@@ -14,13 +14,11 @@ namespace B13\Aim\EventListener;
 
 use B13\Aim\Event\AfterAiResponseEvent;
 use B13\Aim\Governance\BudgetService;
-use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
 use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
 
 /**
  * Records token/cost usage against the current user's budget after each AI response.
  */
-#[AsEventListener('aim/record-budget-usage')]
 final class RecordBudgetUsageListener
 {
     public function __construct(

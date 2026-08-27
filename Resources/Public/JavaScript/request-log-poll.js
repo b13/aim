@@ -7,14 +7,23 @@
  */
 
 import AjaxRequest from '@typo3/core/ajax/ajax-request.js';
+import Icons from '@typo3/backend/icons.js';
 
 class RequestLogPoll {
   #tbody;
   #pollUrl;
   #modalTitle;
+  #viewDetailsLabel;
+  #gradePendingLabel;
+  #gradeFailedLabel;
+  #fallbackLabel;
+  #reroutedLabel;
+  #successLabel;
+  #failedLabel;
+  #detailIconHtml = '';
   #interval = 5000;
   #timer = null;
-  #lastRowCount = 0;
+  #lastRowsSignature = '';
   #abortController = new AbortController();
 
   constructor() {
@@ -23,13 +32,46 @@ class RequestLogPoll {
 
     this.#pollUrl = TYPO3.settings.ajaxUrls.aim_request_log_poll;
     this.#modalTitle = this.#tbody.dataset.modalTitle || '';
-    this.#lastRowCount = this.#tbody.rows.length;
+    this.#viewDetailsLabel = this.#tbody.dataset.viewDetailsLabel || '';
+    this.#gradePendingLabel = this.#tbody.dataset.gradePendingLabel || 'Pending';
+    this.#gradeFailedLabel = this.#tbody.dataset.gradeFailedLabel || 'Grade failed';
+    this.#fallbackLabel = this.#tbody.dataset.fallbackLabel || 'Fallback';
+    this.#reroutedLabel = this.#tbody.dataset.reroutedLabel || 'Rerouted';
+    this.#successLabel = this.#tbody.dataset.successLabel || 'Success';
+    this.#failedLabel = this.#tbody.dataset.failedLabel || 'Failed';
+    this.#lastRowsSignature = Array.from(this.#tbody.rows)
+      .map((tr) => `${tr.dataset.uid}:${tr.dataset.gradeStatus}`)
+      .join('|');
 
-    this.#start();
+    this.#loadDetailIcon().finally(() => this.#start());
 
     document.addEventListener('visibilitychange', this.#handleVisibilityChange, {
       signal: this.#abortController.signal,
     });
+  }
+
+  /**
+   * Regression fix: this class rebuilds table rows from scratch as plain
+   * HTML strings, so it can't reuse Row.html's own
+   * `<core:icon identifier="actions-search" alternativeMarkupIdentifier="inline" />`,
+   * so it used to fall back to a literal "Details" text label instead,
+   * which then never matched the server-rendered row it replaced. Fetches
+   * the exact same icon through TYPO3's own client-side Icon API instead,
+   * so a poll-refreshed row renders identically to the initial page load.
+   */
+  async #loadDetailIcon() {
+    try {
+      this.#detailIconHtml = await Icons.getIcon(
+        'actions-search',
+        Icons.sizes.default,
+        null,
+        Icons.states.default,
+        Icons.markupIdentifiers.inline,
+      );
+    } catch {
+      // Keep the empty default; #renderDetailLink() falls back to a text
+      // label rather than rendering an empty button.
+    }
   }
 
   #handleVisibilityChange = () => {
@@ -64,7 +106,9 @@ class RequestLogPoll {
     } catch {
       // Silently ignore - next poll will retry
     }
-    this.#start();
+    if (!document.hidden) {
+      this.#start();
+    }
   }
 
   #updateStatistics(stats) {
@@ -98,14 +142,16 @@ class RequestLogPoll {
     return 'critical';
   }
 
+  #rowsSignature(rows) {
+    return rows.map((r) => `${r.uid}:${r.grade_status}`).join('|');
+  }
+
   #updateRows(rows) {
     if (!rows || !this.#tbody) return;
-    if (rows.length === this.#lastRowCount) {
-      const firstCell = this.#tbody.rows[0]?.cells[0]?.textContent?.trim();
-      if (rows[0] && firstCell === rows[0].crdate) return;
-    }
+    const signature = this.#rowsSignature(rows);
+    if (signature === this.#lastRowsSignature) return;
 
-    this.#lastRowCount = rows.length;
+    this.#lastRowsSignature = signature;
     const fragment = document.createDocumentFragment();
     for (const entry of rows) {
       fragment.appendChild(this.#createRow(entry));
@@ -116,17 +162,23 @@ class RequestLogPoll {
 
   #createRow(e) {
     const tr = document.createElement('tr');
+    tr.dataset.uid = e.uid;
+    tr.dataset.gradeStatus = e.grade_status;
     tr.append(
       this.#tdHtml(this.#renderTimestamp(e)),
-      this.#tdHtml(this.#renderExtBadge(e.extension_key)),
+      this.#tdHtml(this.#renderExtension(e)),
+      this.#tdHtml(this.#renderUser(e)),
       this.#td(e.request_type),
       this.#tdHtml(this.#renderProvider(e)),
       this.#tdHtml(this.#renderModel(e)),
       this.#tdHtml(this.#renderTokens(e)),
       this.#td(e.cost),
       this.#td(e.duration_ms + ' ms'),
+      this.#tdHtml(this.#renderGrade(e)),
       this.#tdHtml(this.#renderStatus(e)),
-      this.#tdHtml(this.#renderDetailLink(e)),
+      // col-control matches Row.html's own last <td> - without it, this
+      // column's width shifts once a poll redraws the row.
+      this.#tdHtml(this.#renderDetailLink(e), 'col-control'),
     );
     return tr;
   }
@@ -141,7 +193,8 @@ class RequestLogPoll {
 
   #renderDetailLink(e) {
     if (!e.detailUrl) return '';
-    const link = `<a href="${this.#esc(e.detailUrl)}" class="btn btn-default btn-sm">Details</a>`;
+    const icon = this.#detailIconHtml || 'Details';
+    const link = `<a href="${this.#esc(e.detailUrl)}" class="btn btn-default btn-sm" title="${this.#esc(this.#viewDetailsLabel)}">${icon}</a>`;
     return e.detailModalUrl
       ? `<aim-request-log-trigger modal-url="${this.#esc(e.detailModalUrl)}" modal-title="${this.#esc(this.#modalTitle)}">${link}</aim-request-log-trigger>`
       : link;
@@ -153,16 +206,45 @@ class RequestLogPoll {
     return td;
   }
 
-  #tdHtml(html) {
+  #tdHtml(html, className = '') {
     const td = document.createElement('td');
+    if (className) td.className = className;
     td.innerHTML = html;
     return td;
   }
 
-  #renderExtBadge(key) {
-    return key
-      ? `<span class="badge badge-info">${this.#esc(key)}</span>`
-      : '<span class="text-body-secondary">-</span>';
+  #renderExtension(e) {
+    if (!e.extension_key) return '<span class="text-body-secondary">-</span>';
+    const icon = e.extension_icon
+      ? `<img src="${this.#esc(e.extension_icon)}" width="16" height="16" alt=""> `
+      : '';
+    return icon + this.#esc(e.extension_key);
+  }
+
+  #renderUser(e) {
+    if (e.username) return `<span class="text-body-secondary">${this.#esc(e.username)}</span>`;
+    if (e.user_id) return `<span class="text-body-tertiary">#${this.#esc(String(e.user_id))}</span>`;
+    return '';
+  }
+
+  #renderGrade(e) {
+    if (e.grade_status === 'done') {
+      // Map, not a plain object literal: grade_label is server data, and a
+      // value like "toString" would otherwise resolve through
+      // Object.prototype to a function instead of falling through to the
+      // 'critical' default, stringifying into a garbage data-tone value.
+      const toneByLabel = new Map([['excellent', 'good'], ['good', 'info'], ['fair', 'warn']]);
+      const tone = toneByLabel.get(e.grade_label) ?? 'critical';
+      const score = Number(e.grade_score).toFixed(2);
+      return `<span class="aim-chip" data-tone="${tone}" title="${this.#esc(e.grade_reason)}">${this.#esc(e.grade_label)} (${score})</span>`;
+    }
+    if (e.grade_status === 'pending') {
+      return `<span class="aim-chip" data-tone="neutral">${this.#esc(this.#gradePendingLabel)}</span>`;
+    }
+    if (e.grade_status === 'failed') {
+      return `<span class="aim-chip" data-tone="warn" title="${this.#esc(e.grade_error)}">${this.#esc(this.#gradeFailedLabel)}</span>`;
+    }
+    return '<span class="text-body-tertiary">-</span>';
   }
 
   #renderProvider(e) {
@@ -180,13 +262,16 @@ class RequestLogPoll {
   }
 
   #renderTokens(e) {
+    // Number(...) coerces each value, same defense-in-depth as
+    // #esc() elsewhere: safe today only because the PHP side already casts
+    // these to int, but not dependent on that holding forever.
     let html = `<strong>${Number(e.total_tokens).toLocaleString()}</strong>`
-      + `<br><small class="text-body-secondary">${e.prompt_tokens} / ${e.completion_tokens}</small>`;
+      + `<br><small class="text-body-secondary">${Number(e.prompt_tokens)} / ${Number(e.completion_tokens)}</small>`;
     if (e.cached_tokens > 0) {
-      html += `<br><small class="text-success">cached: ${e.cached_tokens}</small>`;
+      html += `<br><small class="text-success">cached: ${Number(e.cached_tokens)}</small>`;
     }
     if (e.reasoning_tokens > 0) {
-      html += `<br><small class="text-warning">reasoning: ${e.reasoning_tokens}</small>`;
+      html += `<br><small class="text-warning">reasoning: ${Number(e.reasoning_tokens)}</small>`;
     }
     return html;
   }
@@ -194,13 +279,13 @@ class RequestLogPoll {
   #renderStatus(e) {
     let html = '';
     if (e.rerouted) {
-      const type = e.reroute_type === 'fallback' ? 'info' : 'warning';
-      const label = e.reroute_type === 'fallback' ? 'Fallback' : 'Rerouted';
-      html += `<span class="badge badge-${type}" title="${this.#esc(e.reroute_reason)}">${label}</span> `;
+      const tone = e.reroute_type === 'fallback' ? 'info' : 'warn';
+      const label = e.reroute_type === 'fallback' ? this.#fallbackLabel : this.#reroutedLabel;
+      html += `<span class="aim-chip" data-tone="${tone}" title="${this.#esc(e.reroute_reason)}">${this.#esc(label)}</span> `;
     }
     html += e.success
-      ? '<span class="badge badge-success">Success</span>'
-      : `<span class="badge badge-danger" title="${this.#esc(e.error_message)}">Failed</span>`;
+      ? `<span class="aim-chip" data-tone="good">${this.#esc(this.#successLabel)}</span>`
+      : `<span class="aim-chip" data-tone="critical" title="${this.#esc(e.error_message)}">${this.#esc(this.#failedLabel)}</span>`;
     return html;
   }
 
@@ -216,7 +301,7 @@ class RequestLogPoll {
   #esc(str) {
     const d = document.createElement('div');
     d.textContent = str ?? '';
-    return d.innerHTML;
+    return d.innerHTML.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
 
   #getFilterParams() {

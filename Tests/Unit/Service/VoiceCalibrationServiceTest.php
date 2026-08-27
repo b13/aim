@@ -21,7 +21,7 @@ use PHPUnit\Framework\TestCase;
  * `Ai` dependency, so these cases build the service via
  * newInstanceWithoutConstructor() (mirroring the "final class placeholder
  * for code the path under test never reaches" convention already used in
- * ProviderControllerTest/PromptPreviewControllerTest) rather than mocking
+ * ProviderControllerTest/PromptManagementControllerTest) rather than mocking
  * `Ai`. A real dispatch-and-parse round trip isn't unit-testable without a
  * live/fake provider, same situation GradingService is in (see its own
  * functional test, which likewise only covers parseJudgeOutput() directly).

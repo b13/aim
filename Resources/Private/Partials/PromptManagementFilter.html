@@ -1,0 +1,30 @@
+<html xmlns:f="http://typo3.org/ns/TYPO3/CMS/Fluid/ViewHelpers"
+      data-namespace-typo3-fluid="true">
+
+<form action="{f:be.uri(route:'aim_prompt_management')}" method="post" enctype="multipart/form-data" name="demand">
+    <input type="hidden" name="orderField" value="{demand.orderField}">
+    <input type="hidden" name="orderDirection" value="{demand.orderDirection}">
+    <input type="hidden" name="view" value="{activeView}">
+    <input type="hidden" name="id" value="{selectedPageId}">
+    <div class="form-row">
+        <div class="form-group">
+            <label for="demand-search" class="form-label"><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:promptPreview.filter.search.label" /></label>
+            <input type="text" id="demand-search" class="form-control" name="demand[search]" value="{demand.search}" size="40" />
+        </div>
+        <div class="form-group">
+            <label for="demand-scope" class="form-label"><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:promptPreview.filter.scope.label" /></label>
+            <select id="demand-scope" class="form-select" name="demand[scope]" data-on-change="submit">
+                <option value=""><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:promptPreview.filter.scope.showAll" /></option>
+                <f:for each="{scopeOptions}" as="option">
+                    <option value="{option.value}" {f:if(condition: '{option.value} == {demand.scopeValue}', then: 'selected')}>{option.label}</option>
+                </f:for>
+            </select>
+        </div>
+        <div class="form-group align-self-end">
+            <input type="submit" value="{f:translate(key: 'LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:filter.submit')}" class="btn btn-default" />
+            <a href="{f:be.uri(route: 'aim_prompt_management', parameters: '{view: activeView, id: selectedPageId}')}" class="btn btn-link"><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:filter.reset" /></a>
+        </div>
+    </div>
+</form>
+
+</html>

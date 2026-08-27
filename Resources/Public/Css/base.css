@@ -15,6 +15,19 @@
     background-color: rgb(170,58,80);
 }
 
+.aim-usage-toggle .icon {
+    transition: transform 0.15s ease-in-out;
+}
+
+.aim-usage-toggle:not(.collapsed) .icon {
+    transform: rotate(90deg);
+}
+
+.aim-usage-row td {
+    padding-block-start: 0.25rem;
+    padding-block-end: 0.25rem;
+}
+
 /*
  * Core's .alert a { text-decoration: underline; } is meant for a plain text
  * link inside an alert (the underline is its only affordance once color is
@@ -66,17 +79,25 @@ aim-calibrate-voice-trigger .btn,
 }
 
 /*
- * Prompt Preview "mixing console": each composition layer as a channel
- * strip (colored rail + a meter sized by its share of the final composed
- * prompt), feeding a "master out" readout. Anchored on the same brand gold
- * as .btn above; the other three channel hues are new. Uses the native CSS
- * light-dark() function rather than a manual [data-color-scheme]/prefers-
- * color-scheme override block: TYPO3 core's own backend.css already sets
- * `color-scheme` on the document root from the backend user's actual
- * light/dark/auto preference (see PageRenderer's data-color-scheme
- * attribute), so light-dark() here automatically follows it for free.
+ * The full "console" brand palette, promoted to :root rather than declared
+ * on .aim-console itself: custom properties declared on a class only reach
+ * elements NESTED inside it, but several generic, reusable components
+ * (.aim-chip, .aim-view-switch, and anything else styled below) render in
+ * places that are NOT inside an .aim-console wrapper, e.g. the Prompt
+ * Management Library listing's own "Global" .aim-chip, which sits in a
+ * plain table, nowhere near a .aim-console. Scoping these to .aim-console
+ * left var(--aim-cyan) (etc.) silently undefined there: not a hard error,
+ * just every rule referencing it quietly resolving to its unstyled
+ * fallback (border/background/color all effectively unset) - exactly the
+ * "chip renders as plain bold text, no pill shape at all" bug this fixes.
+ * Uses the native CSS light-dark() function rather than a manual
+ * [data-color-scheme]/prefers-color-scheme override block: TYPO3 core's
+ * own backend.css already sets `color-scheme` on the document root from
+ * the backend user's actual light/dark/auto preference (see PageRenderer's
+ * data-color-scheme attribute), so light-dark() here automatically follows
+ * it for free.
  */
-.aim-console {
+:root {
     --aim-gold: light-dark(#a9740a, #ffc857);
     --aim-gold-glow: light-dark(rgba(169, 116, 10, 0.18), rgba(255, 200, 87, 0.5));
     --aim-magenta: light-dark(#c22d78, #ff4fa3);
@@ -531,4 +552,57 @@ aim-calibrate-voice-trigger .btn,
     display: flex;
     flex-direction: column;
     gap: 12px;
+}
+
+.aim-view-switch {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 16px;
+}
+
+.aim-view-box {
+    flex: 1 1 220px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 10px 14px 12px;
+    background: var(--aim-panel-strip);
+    border: 1px solid var(--aim-hairline);
+    border-top: 3px solid var(--aim-hairline);
+    border-radius: 4px;
+    text-decoration: none;
+    color: var(--typo3-text-color-base);
+    transition: box-shadow 180ms ease, border-color 180ms ease;
+}
+
+.aim-view-box:hover,
+.aim-view-box:focus-visible {
+    text-decoration: none;
+    color: var(--typo3-text-color-base);
+    border-color: color-mix(in srgb, var(--aim-gold) 55%, var(--aim-hairline));
+    box-shadow: 0 0 24px -10px var(--aim-gold-glow);
+}
+
+.aim-view-box--active {
+    border-top-color: var(--aim-gold);
+}
+
+.aim-view-box__headline {
+    font-family: var(--typo3-font-family-monospace);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-weight: 700;
+    color: var(--aim-gold);
+}
+
+.aim-view-box__description {
+    font-size: 12.5px;
+    line-height: 1.4;
+    color: var(--typo3-text-color-secondary);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .aim-view-box { transition: none; }
 }

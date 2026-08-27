@@ -14,7 +14,7 @@ namespace B13\Aim\Tests\Unit\Controller;
 
 use B13\Aim\Backend\PageTreeResolver;
 use B13\Aim\Backend\SortUrlBuilder;
-use B13\Aim\Controller\PromptPreviewController;
+use B13\Aim\Controller\PromptManagementController;
 use B13\Aim\Domain\Repository\PagePromptFragmentRepository;
 use B13\Aim\Domain\Repository\ProviderConfigurationRepository;
 use B13\Aim\Prompt\PromptFragmentScope;
@@ -27,6 +27,7 @@ use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use TYPO3\CMS\Backend\Routing\UriBuilder;
 use TYPO3\CMS\Backend\Template\ModuleTemplateFactory;
+use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
 use TYPO3\CMS\Core\Imaging\IconFactory;
 
 /**
@@ -45,8 +46,35 @@ use TYPO3\CMS\Core\Imaging\IconFactory;
  * never touches either for it (see the controller's own comment on why 0
  * is exempt).
  */
-final class PromptPreviewControllerTest extends TestCase
+final class PromptManagementControllerTest extends TestCase
 {
+    /**
+     * Regression test: this endpoint composes and returns the full,
+     * untruncated text of every matching fragment - it must check
+     * tables_select for tx_aim_prompt_fragment specifically (not, say,
+     * isAdmin() or the wrong table) BEFORE composition ever runs. Unlike
+     * the functional-test suite's own coverage of the denied case (which
+     * proves the end-to-end response shape), this is the one place able to
+     * assert the exact permission/table pair checked and that
+     * PromptPreviewService::preview() is never even invoked when denied.
+     */
+    #[Test]
+    public function respondsOkFalseWhenTablesSelectIsDeniedAndNeverInvokesTheService(): void
+    {
+        $previewService = $this->createMock(PromptPreviewService::class);
+        $previewService->expects(self::never())->method('preview');
+
+        $backendUser = $this->createMock(BackendUserAuthentication::class);
+        $backendUser->expects(self::once())->method('check')->with('tables_select', 'tx_aim_prompt_fragment')->willReturn(false);
+
+        $response = $this->preview($previewService, $this->createStub(ProviderConfigurationRepository::class), ['pageId' => '', 'scope' => 'text'], $backendUser);
+
+        self::assertSame(200, $response->getStatusCode());
+        $body = json_decode((string)$response->getBody(), true);
+        self::assertFalse($body['ok']);
+        self::assertNotEmpty($body['message']);
+    }
+
     #[Test]
     public function returnsTheServiceResultWrappedInOkTrueWhenNoPageIsSelected(): void
     {
@@ -162,6 +190,7 @@ final class PromptPreviewControllerTest extends TestCase
         PromptPreviewService $previewService,
         ProviderConfigurationRepository $configurationRepository,
         array $body,
+        ?BackendUserAuthentication $backendUser = null,
     ): ResponseInterface {
         // ModuleTemplateFactory/SortUrlBuilder/UriBuilder are `final`(-ish)
         // classes PHPUnit either can't double or that previewAction never
@@ -184,7 +213,7 @@ final class PromptPreviewControllerTest extends TestCase
         $voiceCalibrationService = (new \ReflectionClass(VoiceCalibrationService::class))->newInstanceWithoutConstructor();
         $pageContentExtractor = (new \ReflectionClass(PageContentExtractor::class))->newInstanceWithoutConstructor();
 
-        $controller = new PromptPreviewController(
+        $controller = new PromptManagementController(
             $moduleTemplateFactory,
             $previewService,
             $configurationRepository,
@@ -199,6 +228,19 @@ final class PromptPreviewControllerTest extends TestCase
 
         $request = $this->createStub(ServerRequestInterface::class);
         $request->method('getParsedBody')->willReturn($body);
+
+        // previewAction()'s first line checks tables_select for
+        // tx_aim_prompt_fragment (see the functional-test suite's own
+        // aUserWithoutTablesSelect... coverage for the denied case, and
+        // respondsOkFalseWhenTablesSelectIsDenied below for the
+        // permission-check itself) - a permissive default here keeps every
+        // OTHER case in this class exercising the scope/pageId/provider
+        // logic it actually targets.
+        if ($backendUser === null) {
+            $backendUser = $this->createStub(BackendUserAuthentication::class);
+            $backendUser->method('check')->willReturn(true);
+        }
+        $GLOBALS['BE_USER'] = $backendUser;
 
         return $controller->previewAction($request);
     }

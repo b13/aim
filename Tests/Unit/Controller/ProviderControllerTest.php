@@ -40,8 +40,10 @@ use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Psr\Container\ContainerInterface;
 use Psr\Http\Message\ServerRequestInterface;
+use TYPO3\CMS\Backend\Module\ModuleProvider;
 use TYPO3\CMS\Backend\Routing\UriBuilder;
 use TYPO3\CMS\Backend\Template\ModuleTemplateFactory;
+use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
 use TYPO3\CMS\Core\Imaging\IconFactory;
 use TYPO3\CMS\Core\Registry;
 
@@ -177,6 +179,14 @@ final class ProviderControllerTest extends TestCase
         $liveModelDiscovery = (new \ReflectionClass(LiveModelDiscovery::class))->newInstanceWithoutConstructor();
         $sortUrlBuilder = (new \ReflectionClass(SortUrlBuilder::class))->newInstanceWithoutConstructor();
 
+        // verifyProviderAction()'s first line checks module access via
+        // ModuleProvider - not itself under test here (see the
+        // functional-test suite's own admin-gate coverage), so a permissive
+        // stub keeps this exercising the probe capability-selection logic
+        // it actually targets.
+        $moduleProvider = $this->createStub(ModuleProvider::class);
+        $moduleProvider->method('accessGranted')->willReturn(true);
+
         $controller = new ProviderController(
             $this->createStub(IconFactory::class),
             $this->createStub(UriBuilder::class),
@@ -189,10 +199,14 @@ final class ProviderControllerTest extends TestCase
             $liveModelDiscovery,
             $sortUrlBuilder,
             new ConsoleStylesheetProvider(),
+            $moduleProvider,
         );
 
         $request = $this->createStub(ServerRequestInterface::class);
         $request->method('getParsedBody')->willReturn(['uid' => $configuration->uid]);
+
+        $backendUser = $this->createStub(BackendUserAuthentication::class);
+        $GLOBALS['BE_USER'] = $backendUser;
 
         $response = $controller->verifyProviderAction($request);
 

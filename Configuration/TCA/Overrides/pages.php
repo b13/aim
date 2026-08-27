@@ -32,7 +32,7 @@ defined('TYPO3') or die();
             'exclude' => true,
             'config' => [
                 'type' => 'inline',
-                'foreign_table' => 'tx_aim_prompt_fragment',
+                'foreign_table' => 'tx_aim_page_prompt_fragment',
                 'foreign_field' => 'parent_page',
                 'foreign_sortby' => 'sorting',
                 'appearance' => [

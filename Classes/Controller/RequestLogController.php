@@ -20,12 +20,14 @@ use B13\Aim\Pagination\DemandedArrayPaginator;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use TYPO3\CMS\Backend\Attribute\AsController;
+use TYPO3\CMS\Backend\Module\ModuleProvider;
 use TYPO3\CMS\Backend\Routing\UriBuilder;
 use TYPO3\CMS\Backend\Template\Components\ButtonBar;
 use TYPO3\CMS\Backend\Template\Components\Buttons\Action\ShortcutButton;
 use TYPO3\CMS\Backend\Template\Components\Buttons\LinkButton;
 use TYPO3\CMS\Backend\Template\Components\ComponentFactory;
 use TYPO3\CMS\Backend\Template\ModuleTemplateFactory;
+use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
 use TYPO3\CMS\Core\Imaging\Icon;
 use TYPO3\CMS\Core\Imaging\IconFactory;
 use TYPO3\CMS\Core\Imaging\IconSize;
@@ -47,6 +49,7 @@ class RequestLogController
         private readonly PackageManager $packageManager,
         private readonly SortUrlBuilder $sortUrlBuilder,
         private readonly ConsoleStylesheetProvider $consoleStylesheetProvider,
+        private readonly ModuleProvider $moduleProvider,
     ) {}
 
     public function logAction(ServerRequestInterface $request): ResponseInterface
@@ -103,8 +106,9 @@ class RequestLogController
         return $view->assignMultiple([
             'demand' => $demand,
             // Filters are submitted via POST (Filters.html), so they never show up
-            // in the request's own URI/query string — it must be rebuilt from the
-            // parsed demand instead, the same way $paginationBaseUrl is.
+            // in the request's own URI/query string, which is why it must be
+            // rebuilt from the parsed demand instead, the same way
+            // $paginationBaseUrl is.
             'returnUrl' => $this->buildRequestLogUrl($demand),
             'paginationBaseUrl' => $paginationBaseUrl,
             'sortUrls' => $this->sortUrlBuilder->build($demand, 'aim_request_log'),
@@ -193,6 +197,10 @@ class RequestLogController
 
     public function pollAction(ServerRequestInterface $request): ResponseInterface
     {
+        if (!$this->moduleProvider->accessGranted('aim_request_log', $this->getBackendUser())) {
+            return new JsonResponse(['ok' => false, 'message' => 'Access denied'], 403);
+        }
+
         $demand = RequestLogDemand::fromRequest($request);
         $logEntries = $this->logRepository->findByDemand($demand);
         $totalCount = $this->logRepository->countByDemand($demand);
@@ -200,9 +208,22 @@ class RequestLogController
 
         $requestLogReturnUrl = $this->buildRequestLogUrl($demand);
 
+        $userIds = array_unique(array_filter(array_map(
+            static fn(array $entry): int => (int)($entry['user_id'] ?? 0),
+            $logEntries,
+        )));
+        $userMap = $this->logRepository->resolveUsernames($userIds);
+
+        $extensionKeys = array_values(array_unique(array_filter(array_map(
+            static fn(array $entry): string => (string)($entry['extension_key'] ?? ''),
+            $logEntries,
+        ))));
+        $extensionIcons = $this->resolveExtensionIcons($extensionKeys);
+
         $rows = [];
         foreach ($logEntries as $entry) {
             $configurationUid = (int)($entry['configuration_uid'] ?? 0);
+            $userId = (int)($entry['user_id'] ?? 0);
             $rows[] = [
                 'uid' => (int)($entry['uid'] ?? 0),
                 'detailUrl' => (string)$this->uriBuilder->buildUriFromRoute('aim_request_log.show', [
@@ -214,6 +235,9 @@ class RequestLogController
                 ]),
                 'crdate' => date('Y-m-d H:i:s', (int)$entry['crdate']),
                 'extension_key' => $entry['extension_key'] ?? '',
+                'extension_icon' => $extensionIcons[$entry['extension_key'] ?? ''] ?? '',
+                'user_id' => $userId,
+                'username' => $userMap[$userId] ?? '',
                 'request_type' => $entry['request_type'] ?? '',
                 'provider_identifier' => $entry['provider_identifier'] ?? '',
                 'configuration_edit_url' => $configurationUid > 0
@@ -244,6 +268,7 @@ class RequestLogController
                 'grade_score' => (float)($entry['grade_score'] ?? 0),
                 'grade_label' => $entry['grade_label'] ?? '',
                 'grade_reason' => $entry['grade_reason'] ?? '',
+                'grade_error' => $entry['grade_error'] ?? '',
                 'judge_model' => $entry['judge_model'] ?? '',
                 'judge_cost' => number_format((float)($entry['judge_cost'] ?? 0), 6),
             ];
@@ -259,7 +284,7 @@ class RequestLogController
     /**
      * Maps a demand's filters/sorting to route parameters, so a rebuilt
      * "aim_request_log" URL reflects the same filter/sort state (deliberately
-     * excludes "page" — callers append that separately where relevant).
+     * excludes "page"; callers append that separately where relevant).
      *
      * @return array<string, string>
      */
@@ -279,7 +304,7 @@ class RequestLogController
      * Rebuilds the "aim_request_log" listing URL for the given demand, including
      * the current page. Used as a returnUrl wherever the actual current request
      * doesn't reflect the demand (filters are submitted via POST, so they never
-     * appear in a request's own URI/query string — see Filters.html) or is a
+     * appear in a request's own URI/query string, see Filters.html) or is a
      * different request entirely (e.g. pollAction's AJAX endpoint).
      */
     private function buildRequestLogUrl(RequestLogDemand $demand): string
@@ -318,5 +343,10 @@ class RequestLogController
     private function getLanguageService(): LanguageService
     {
         return $GLOBALS['LANG'];
+    }
+
+    private function getBackendUser(): BackendUserAuthentication
+    {
+        return $GLOBALS['BE_USER'];
     }
 }

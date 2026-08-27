@@ -1,0 +1,11 @@
+{
+    "name": "b13/aim-test-sibling-module",
+    "type": "typo3-cms-extension",
+    "description": "Fixture: registers one harmless, user-grantable sibling module under Admin Tools, used by ModuleMenuAccessTest to prove 'aim' is pruned on its own merits rather than the whole Admin Tools branch vanishing wholesale.",
+    "license": "GPL-2.0-or-later",
+    "extra": {
+        "typo3/cms": {
+            "extension-key": "test_sibling_module"
+        }
+    }
+}

@@ -1,0 +1,17 @@
+<html xmlns:f="http://typo3.org/ns/TYPO3/CMS/Fluid/ViewHelpers"
+      data-namespace-typo3-fluid="true">
+
+<div class="aim-view-switch">
+    <f:for each="{viewBoxes}" as="box">
+        <a
+            href="{box.url}"
+            class="aim-view-box {f:if(condition: box.active, then: 'aim-view-box--active')}"
+            {f:if(condition: box.active, then: 'aria-current="page"')}
+        >
+            <span class="aim-view-box__headline">{box.headline}</span>
+            <span class="aim-view-box__description">{box.description}</span>
+        </a>
+    </f:for>
+</div>
+
+</html>

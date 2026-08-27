@@ -1,7 +1,7 @@
 <?php
 
 use B13\Aim\Controller\ProviderController;
-use B13\Aim\Controller\PromptPreviewController;
+use B13\Aim\Controller\PromptManagementController;
 use B13\Aim\Controller\RequestLogController;
 
 return [
@@ -27,17 +27,17 @@ return [
     ],
     'aim_prompt_preview' => [
         'path' => '/aim/prompt-preview',
-        'target' => PromptPreviewController::class . '::previewAction',
+        'target' => PromptManagementController::class . '::previewAction',
         'methods' => ['POST'],
     ],
     'aim_calibrate_voice' => [
         'path' => '/aim/calibrate-voice',
-        'target' => PromptPreviewController::class . '::calibrateVoiceAction',
+        'target' => PromptManagementController::class . '::calibrateVoiceAction',
         'methods' => ['POST'],
     ],
     'aim_extract_page_content' => [
         'path' => '/aim/extract-page-content',
-        'target' => PromptPreviewController::class . '::extractPageContentAction',
+        'target' => PromptManagementController::class . '::extractPageContentAction',
         'methods' => ['POST'],
     ],
 ];
