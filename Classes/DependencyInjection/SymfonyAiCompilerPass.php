@@ -143,16 +143,10 @@ final class SymfonyAiCompilerPass implements CompilerPassInterface
     {
         $bridges = [];
 
-        foreach (InstalledVersions::getInstalledPackages() as $packageName) {
-            // Match: symfony/ai-*-platform (e.g. symfony/ai-open-ai-platform, symfony/ai-ollama-platform)
-            if (!str_starts_with($packageName, 'symfony/ai-') || !str_ends_with($packageName, '-platform')) {
-                continue;
-            }
-            // Exclude the core platform package itself
-            if ($packageName === 'symfony/ai-platform') {
-                continue;
-            }
+        // this limits down to almost only the bridge packages
+        foreach (InstalledVersions::getInstalledPackagesByType('symfony-ai-platform') as $packageName) {
 
+            // this will ensure only bridges with a Factory class will be used
             $namespace = $this->resolveNamespace($packageName);
             if ($namespace === null) {
                 continue;
