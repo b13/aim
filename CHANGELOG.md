@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.1
+
+Bugfix release: third-party Symfony AI bridge auto-discovery, and a small footer addition.
+
+- Bugfix: Symfony AI bridge auto-discovery now matches on the `symfony-ai-platform` Composer package type instead of the `symfony/ai-*-platform` naming convention, so third-party bridges (e.g. `mittwald/symfony-ai-platform`) are detected too, not just official `symfony/*` packages (#21, #25)
+- Backend module screens now carry a small "made with ❤ by b13" signature in the footer
+
 ## 0.4.0
 
 Site-wide tone of voice / system prompts, voice calibration, a new Prompt Management module, and a redesigned AiM-specific look across the backend.
