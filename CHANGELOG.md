@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Bugfix: the Providers overview and Request Log statistics queries no longer select every column alongside their aggregates, which MySQL rejects outright under `sql_mode=ONLY_FULL_GROUP_BY` (#27)
+
 ## 0.4.1
 
 Bugfix release: third-party Symfony AI bridge auto-discovery, and a small footer addition.
