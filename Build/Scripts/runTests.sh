@@ -28,9 +28,25 @@ EXTRA_ARGS=""
 XDEBUG=""
 CI=${CI:-false}
 
-# Image base — matches TYPO3 Core CI images
+# Image base, matches TYPO3 Core CI images.
 IMAGE_PREFIX="ghcr.io/typo3/core-testing-php"
-IMAGE_TAG="1.15"
+
+# The tag streams of these images are per PHP version and NOT in lockstep: as of
+# 2026-08-28 php82 is on 1.15.x, php83 on 1.16.x and php84 still on 1.8.x. A
+# single shared tag therefore resolves to a non-existent image for some versions,
+# and that only fails where the image is not already cached locally. TYPO3 Core
+# has the same lookup in its own runTests.sh (getPhpImageVersion).
+getPhpImageVersion() {
+    case ${1} in
+        8.2) echo -n "1.15" ;;
+        8.3) echo -n "1.16" ;;
+        8.4) echo -n "1.8" ;;
+        *)
+            echo "Unsupported PHP version: ${1} (expected 8.2, 8.3 or 8.4)" >&2
+            exit 1
+            ;;
+    esac
+}
 
 usage() {
     cat <<EOF
@@ -63,7 +79,7 @@ done
 shift $((OPTIND - 1))
 EXTRA_ARGS="$*"
 
-PHP_IMAGE="${IMAGE_PREFIX}$(echo "${PHP_VERSION}" | tr -d '.'):${IMAGE_TAG}"
+PHP_IMAGE="${IMAGE_PREFIX}$(echo "${PHP_VERSION}" | tr -d '.'):$(getPhpImageVersion "${PHP_VERSION}")"
 
 # Ensure .Build/vendor exists (composer install)
 if [ ! -d "${ROOT_DIR}/.Build/vendor" ]; then
