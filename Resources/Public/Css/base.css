@@ -1,20 +1,3 @@
-#b13_loves_typo3 {
-    display: flex;
-    justify-content: flex-end;
-}
-
-#b13_loves_typo3 a {
-    background-color: rgb(84,84,84);
-    color: #fff;
-    padding: 5px;
-    display: inline-block;
-    text-decoration: none;
-}
-
-#b13_loves_typo3 a:hover {
-    background-color: rgb(170,58,80);
-}
-
 .aim-usage-toggle .icon {
     transition: transform 0.15s ease-in-out;
 }
