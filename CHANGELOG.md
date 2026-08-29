@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+- Bugfix: provider API keys are encrypted in `processDatamap_preProcessFieldArray` instead of only in the post-process hook. On an update, DataHandler captures the `sys_history` diff before the post-process hook runs, so the record history kept the unencrypted value even though the `api_key` column itself was encrypted. Inserts were not affected (#30)
+
+  Existing history entries are not rewritten. To drop them for a configuration whose key was changed before this fix:
+
+  ```sql
+  DELETE FROM sys_history WHERE tablename = 'tx_aim_configuration';
+  ```
+
 ## 0.4.1
 
 Bugfix release: third-party Symfony AI bridge auto-discovery, and a small footer addition.
