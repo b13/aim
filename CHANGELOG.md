@@ -3,6 +3,7 @@
 ## Unreleased
 
 - Bugfix: the Providers overview and Request Log statistics queries no longer select every column alongside their aggregates, which MySQL rejects outright under `sql_mode=ONLY_FULL_GROUP_BY` (#27)
+- Bugfix: cost and score columns are declared as `decimal` instead of `double(M,D)`. Doctrine drops precision and scale for float types, so the schema comparison reported the same `ALTER TABLE` on every run without the applied statement ever changing the column, leaving "Analyze Database Structure" stuck with a change list that never went away (#27)
 
 ## 0.4.1
 
