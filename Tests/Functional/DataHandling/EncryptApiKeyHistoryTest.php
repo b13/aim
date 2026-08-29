@@ -28,6 +28,7 @@ use TYPO3\TestingFramework\Core\Functional\FunctionalTestCase;
  */
 final class EncryptApiKeyHistoryTest extends FunctionalTestCase
 {
+    private const INITIAL_KEY = 'sk-history-insert-probe';
     private const NEW_KEY = 'sk-history-leak-probe';
 
     protected array $testExtensionsToLoad = [
@@ -50,12 +51,14 @@ final class EncryptApiKeyHistoryTest extends FunctionalTestCase
             'pid' => 0,
             'ai_provider' => 'openai',
             'title' => 'probe',
-            'api_key' => 'sk-initial',
+            'api_key' => self::INITIAL_KEY,
         ]]);
+
+        self::assertStringNotContainsString(self::INITIAL_KEY, $this->historyData($uid), 'sys_history contains the inserted api_key in plaintext.');
 
         $this->process([$uid => ['api_key' => self::NEW_KEY]]);
 
-        $encryption = new ApiKeyEncryption();
+        $encryption = $this->get(ApiKeyEncryption::class);
         $stored = $this->storedApiKey($uid);
         self::assertTrue($encryption->isEncrypted($stored), 'The api_key column is not encrypted.');
         self::assertSame(self::NEW_KEY, $encryption->decrypt($stored), 'The api_key was encrypted twice or not replaced.');
