@@ -44,8 +44,8 @@
             <label for="demand-status" class="form-label"><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.filter.status" /></label>
             <select id="demand-status" class="form-select" name="demand[success]" data-on-change="submit">
                 <option value=""><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.filter.status.all" /></option>
-                <option value="1" {f:if(condition: '{demand.hasSuccess} && {demand.success}', then: 'selected')}><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.filter.status.success" /></option>
-                <option value="0" {f:if(condition: '{demand.hasSuccess} && !{demand.success}', then: 'selected')}><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.filter.status.failed" /></option>
+                <option value="1"<f:if condition="{demand.successFilter} == '1'"> selected</f:if>><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.filter.status.success" /></option>
+                <option value="0"<f:if condition="{demand.successFilter} == '0'"> selected</f:if>><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.filter.status.failed" /></option>
             </select>
         </div>
         <div class="form-group align-self-end">

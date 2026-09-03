@@ -176,6 +176,19 @@ class RequestLogDemand implements SortableDemandInterface
         return $this->success !== null;
     }
 
+    /**
+     * The status filter as the value of the <option> that should be selected:
+     * '' for "all", '1' for successful, '0' for failed.
+     */
+    public function getSuccessFilter(): string
+    {
+        if ($this->success === null) {
+            return '';
+        }
+
+        return $this->success ? '1' : '0';
+    }
+
     public function getDateFrom(): int
     {
         return $this->dateFrom;
