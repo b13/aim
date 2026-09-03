@@ -157,19 +157,7 @@ class RequestLogRepository
 
     public function getStatistics(): array
     {
-        $qb = $this->getQueryBuilder();
-        $result = $qb
-            ->addSelectLiteral(
-                $qb->expr()->count('*', 'total_requests'),
-                'SUM(cost) AS total_cost',
-                'SUM(prompt_tokens) AS total_prompt_tokens',
-                'SUM(completion_tokens) AS total_completion_tokens',
-                'SUM(cached_tokens) AS total_cached_tokens',
-                'SUM(reasoning_tokens) AS total_reasoning_tokens',
-                'SUM(total_tokens) AS total_tokens',
-                'AVG(duration_ms) AS avg_duration_ms',
-                'SUM(success) AS successful_requests',
-            )
+        $result = $this->buildStatisticsQueryBuilder()
             ->executeQuery()
             ->fetchAssociative();
 
@@ -189,11 +177,27 @@ class RequestLogRepository
         ];
     }
 
+    private function buildStatisticsQueryBuilder(): QueryBuilder
+    {
+        $qb = $this->getQueryBuilder();
+        return $qb->selectLiteral(
+            $qb->expr()->count('*', 'total_requests'),
+            'SUM(cost) AS total_cost',
+            'SUM(prompt_tokens) AS total_prompt_tokens',
+            'SUM(completion_tokens) AS total_completion_tokens',
+            'SUM(cached_tokens) AS total_cached_tokens',
+            'SUM(reasoning_tokens) AS total_reasoning_tokens',
+            'SUM(total_tokens) AS total_tokens',
+            'AVG(duration_ms) AS avg_duration_ms',
+            'SUM(success) AS successful_requests',
+        );
+    }
+
     public function getStatisticsByProvider(): array
     {
         $qb = $this->getQueryBuilder();
         return $qb
-            ->addSelectLiteral(
+            ->selectLiteral(
                 'provider_identifier',
                 $qb->expr()->count('*', 'request_count'),
                 'SUM(cost) AS total_cost',
@@ -211,7 +215,7 @@ class RequestLogRepository
     {
         $qb = $this->getQueryBuilder();
         return $qb
-            ->addSelectLiteral(
+            ->selectLiteral(
                 'extension_key',
                 $qb->expr()->count('*', 'request_count'),
                 'SUM(cost) AS total_cost',
@@ -233,27 +237,7 @@ class RequestLogRepository
      */
     public function getModelPerformanceProfile(string $requestType = ''): array
     {
-        $done = GradeStatus::Done->value;
-        $qb = $this->getQueryBuilder();
-        $qb->addSelectLiteral(
-                'model_used',
-                $qb->expr()->count('*', 'request_count'),
-                'AVG(cost) AS avg_cost',
-                'AVG(duration_ms) AS avg_duration_ms',
-                'SUM(success) AS successful_requests',
-                'AVG(total_tokens) AS avg_tokens',
-                sprintf("SUM(CASE WHEN grade_status = '%s' THEN grade_score ELSE 0 END) AS grade_score_sum", $done),
-                sprintf("SUM(CASE WHEN grade_status = '%s' THEN 1 ELSE 0 END) AS graded_count", $done),
-            );
-        if ($requestType !== '') {
-            $qb->where($qb->expr()->eq('request_type', $qb->createNamedParameter($requestType)));
-            $qb->andWhere($qb->expr()->neq('model_used', $qb->createNamedParameter('')));
-        } else {
-            $qb->where($qb->expr()->neq('model_used', $qb->createNamedParameter('')));
-        }
-        $rows = $qb
-            ->groupBy('model_used')
-            ->orderBy('request_count', 'DESC')
+        $rows = $this->buildModelPerformanceQueryBuilder($requestType)
             ->executeQuery()
             ->fetchAllAssociative();
 
@@ -272,6 +256,31 @@ class RequestLogRepository
                 'avg_grade_score' => $gradedCount > 0 ? round((float)$row['grade_score_sum'] / $gradedCount, 4) : 0.0,
             ];
         }, $rows);
+    }
+
+    private function buildModelPerformanceQueryBuilder(string $requestType): QueryBuilder
+    {
+        $done = GradeStatus::Done->value;
+        $qb = $this->getQueryBuilder();
+        $qb->selectLiteral(
+                'model_used',
+                $qb->expr()->count('*', 'request_count'),
+                'AVG(cost) AS avg_cost',
+                'AVG(duration_ms) AS avg_duration_ms',
+                'SUM(success) AS successful_requests',
+                'AVG(total_tokens) AS avg_tokens',
+                sprintf("SUM(CASE WHEN grade_status = '%s' THEN grade_score ELSE 0 END) AS grade_score_sum", $done),
+                sprintf("SUM(CASE WHEN grade_status = '%s' THEN 1 ELSE 0 END) AS graded_count", $done),
+            );
+        if ($requestType !== '') {
+            $qb->where($qb->expr()->eq('request_type', $qb->createNamedParameter($requestType)));
+            $qb->andWhere($qb->expr()->neq('model_used', $qb->createNamedParameter('')));
+        } else {
+            $qb->where($qb->expr()->neq('model_used', $qb->createNamedParameter('')));
+        }
+        return $qb
+            ->groupBy('model_used')
+            ->orderBy('request_count', 'DESC');
     }
 
     public function getDistinctProviders(): array
@@ -416,14 +425,7 @@ class RequestLogRepository
      */
     public function getLastUsedPerConfiguration(): array
     {
-        $qb = $this->getQueryBuilder();
-        $rows = $qb
-            ->addSelectLiteral(
-                'configuration_uid',
-                'MAX(crdate) AS last_used',
-            )
-            ->where($qb->expr()->gt('configuration_uid', $qb->createNamedParameter(0, Connection::PARAM_INT)))
-            ->groupBy('configuration_uid')
+        $rows = $this->buildLastUsedPerConfigurationQueryBuilder()
             ->executeQuery()
             ->fetchAllAssociative();
 
@@ -432,6 +434,18 @@ class RequestLogRepository
             $result[(int)$row['configuration_uid']] = (int)$row['last_used'];
         }
         return $result;
+    }
+
+    private function buildLastUsedPerConfigurationQueryBuilder(): QueryBuilder
+    {
+        $qb = $this->getQueryBuilder();
+        return $qb
+            ->selectLiteral(
+                'configuration_uid',
+                'MAX(crdate) AS last_used',
+            )
+            ->where($qb->expr()->gt('configuration_uid', $qb->createNamedParameter(0, Connection::PARAM_INT)))
+            ->groupBy('configuration_uid');
     }
 
     /**

@@ -2,8 +2,11 @@
 
 ## Unreleased
 
-- Bugfix: provider API keys are encrypted in `processDatamap_preProcessFieldArray` instead of only in the post-process hook. On an update, DataHandler captures the `sys_history` diff before the post-process hook runs, so the record history kept the unencrypted value even though the `api_key` column itself was encrypted. Inserts were not affected (#30)
+- Bugfix: the Providers overview and Request Log statistics queries no longer select every column alongside their aggregates, which MySQL rejects outright under `sql_mode=ONLY_FULL_GROUP_BY` (#27)
+- Bugfix: cost and score columns are declared as `decimal` instead of `double(M,D)`. Doctrine drops precision and scale for float types, so the schema comparison reported the same `ALTER TABLE` on every run without the applied statement ever changing the column, leaving "Analyze Database Structure" stuck with a change list that never went away (#27)
 
+- Bugfix: provider API keys are encrypted in `processDatamap_preProcessFieldArray` instead of only in the post-process hook. On an update, DataHandler captures the `sys_history` diff before the post-process hook runs, so the record history kept the unencrypted value even though the `api_key` column itself was encrypted. Inserts were not affected (#30)
+  
   Existing history entries are not rewritten. To drop them for a configuration whose key was changed before this fix:
 
   ```sql

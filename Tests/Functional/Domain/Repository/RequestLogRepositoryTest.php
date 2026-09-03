@@ -74,6 +74,81 @@ final class RequestLogRepositoryTest extends FunctionalTestCase
         self::assertCount(2, $logRepo->findByDemand($demand));
     }
 
+    /**
+     * getQueryBuilder() always starts from an explicit select('*'). Every
+     * aggregate/GROUP BY query built on top of it must REPLACE that select
+     * list (selectLiteral()), not append to it (addSelectLiteral()), or the
+     * `*` leaks every column of the table into the result alongside the
+     * aggregates, which MySQL's ONLY_FULL_GROUP_BY rejects outright
+     * (see https://github.com/b13/aim/issues/27). SQLite tolerates the
+     * broken query and just returns the extra columns, which is exactly
+     * what these tests catch.
+     */
+    #[Test]
+    public function getStatisticsByProviderOnlySelectsTheIntendedColumns(): void
+    {
+        $logRepo = $this->get(RequestLogRepository::class);
+        $logRepo->log(['request_type' => 'TextGenerationRequest', 'provider_identifier' => 'test', 'cost' => 1.0]);
+
+        $rows = $logRepo->getStatisticsByProvider();
+
+        self::assertCount(1, $rows);
+        self::assertSame(
+            ['provider_identifier', 'request_count', 'total_cost', 'total_tokens', 'avg_duration_ms', 'successful_requests'],
+            array_keys($rows[0]),
+        );
+    }
+
+    #[Test]
+    public function getStatisticsByExtensionOnlySelectsTheIntendedColumns(): void
+    {
+        $logRepo = $this->get(RequestLogRepository::class);
+        $logRepo->log(['request_type' => 'TextGenerationRequest', 'provider_identifier' => 'test', 'extension_key' => 'some_ext', 'cost' => 1.0]);
+
+        $rows = $logRepo->getStatisticsByExtension();
+
+        self::assertCount(1, $rows);
+        self::assertSame(
+            ['extension_key', 'request_count', 'total_cost', 'total_tokens', 'avg_duration_ms'],
+            array_keys($rows[0]),
+        );
+    }
+
+    /**
+     * getStatistics(), getModelPerformanceProfile() and
+     * getLastUsedPerConfiguration() all re-key their rows into a fixed
+     * shape before returning, which would silently hide the same `SELECT
+     * *, ...` regression the two tests above catch directly. Asserted here
+     * instead on the built query's own SQL, via the private QueryBuilder
+     * factories those methods were split from for exactly this reason.
+     */
+    #[Test]
+    public function statisticsQueryHasNoStraySelectStar(): void
+    {
+        $logRepo = $this->get(RequestLogRepository::class);
+        $qb = (new \ReflectionMethod($logRepo, 'buildStatisticsQueryBuilder'))->invoke($logRepo);
+
+        self::assertStringNotContainsString('SELECT *,', $qb->getSQL());
+    }
+
+    #[Test]
+    public function modelPerformanceQueryHasNoStraySelectStar(): void
+    {
+        $logRepo = $this->get(RequestLogRepository::class);
+        $qb = (new \ReflectionMethod($logRepo, 'buildModelPerformanceQueryBuilder'))->invoke($logRepo, '');
+
+        self::assertStringNotContainsString('SELECT *,', $qb->getSQL());
+    }
+
+    #[Test]
+    public function lastUsedPerConfigurationQueryHasNoStraySelectStar(): void
+    {
+        $logRepo = $this->get(RequestLogRepository::class);
+        $qb = (new \ReflectionMethod($logRepo, 'buildLastUsedPerConfigurationQueryBuilder'))->invoke($logRepo);
+
+        self::assertStringNotContainsString('SELECT *,', $qb->getSQL());
+    }
+
     #[Test]
     public function modelPerformanceProfileAggregatesGradesOverDoneRowsOnly(): void
     {

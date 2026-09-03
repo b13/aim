@@ -93,8 +93,14 @@ class PagePromptFragmentRepository
         $qb = $this->getQueryBuilderForDemand($demand, $accessiblePageIds);
         // count() quotes its entire argument as a single identifier, so it
         // can't express "DISTINCT column", addSelectLiteral() with a raw
-        // COUNT(DISTINCT ...) expression is this codebase's own established
-        // way around that (see RequestLogRepository's aggregate queries).
+        // COUNT(DISTINCT ...) expression is the way around that. Safe here
+        // specifically because getQueryBuilderForDemand() never calls
+        // select() itself, so this is the only call that ever populates the
+        // select list; RequestLogRepository's own aggregate queries instead
+        // start from a QueryBuilder that already has an explicit
+        // select('*'), where addSelectLiteral() would append onto that `*`
+        // rather than define the select list from scratch, that's why those
+        // use selectLiteral() (replaces) instead.
         $qb->addSelectLiteral('COUNT(DISTINCT ' . $qb->quoteIdentifier('pages.uid') . ')');
         return (int)$qb->executeQuery()->fetchOne();
     }
