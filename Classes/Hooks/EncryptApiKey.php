@@ -18,16 +18,41 @@ use TYPO3\CMS\Core\DataHandling\DataHandler;
 /**
  * Encrypts AiM provider API keys before they are written to the database.
  *
- * Runs in processDatamap_postProcessFieldArray so the encrypted value is
- * what DataHandler persists. Idempotent: already-encrypted values pass
- * through unchanged, which means re-saving an unchanged row does not
- * double-encrypt the value.
+ * Encryption happens in processDatamap_preProcessFieldArray, because on an
+ * update DataHandler captures the sys_history diff in
+ * compareFieldArrayWithCurrentAndUnset() before it calls the post-process
+ * hook - encrypting only there would leave the plaintext key in the record
+ * history even though the column itself is encrypted. Inserts were never
+ * affected, since insertDB() writes the history entry after the hook.
+ *
+ * processDatamap_postProcessFieldArray stays for the "empty means keep the
+ * stored key" handling, and re-encrypts as a safety net for callers that
+ * bypass the pre-process stage. Both are idempotent: encrypt() passes
+ * already-encrypted values through unchanged, so nothing is encrypted twice.
  */
 final class EncryptApiKey
 {
     private const TABLE = 'tx_aim_configuration';
 
     public function __construct(private readonly ApiKeyEncryption $encryption) {}
+
+    public function processDatamap_preProcessFieldArray(
+        array &$incomingFieldArray,
+        string $table,
+        $id,
+        DataHandler $dataHandler,
+    ): void {
+        if ($table !== self::TABLE) {
+            return;
+        }
+
+        $value = (string)($incomingFieldArray['api_key'] ?? '');
+        if ($value === '') {
+            return;
+        }
+
+        $incomingFieldArray['api_key'] = $this->encryption->encrypt($value);
+    }
 
     public function processDatamap_postProcessFieldArray(
         string $status,
