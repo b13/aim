@@ -113,6 +113,9 @@ Then create a provider configuration in the backend, under Admin Tools > AiM > P
 
 ## Documentation
 
+📖 **[Read the guides at b13.github.io/aim](https://b13.github.io/aim/docs/introduction.html)**. The same pages as
+below, beautifully rendered rather than raw.
+
 | Guide | What it covers |
 |---|---|
 | [Introduction](Documentation/Introduction.md) | What AiM is and why it exists, without the code. Start here if you are deciding whether to use it. |

@@ -3,6 +3,12 @@
 	"type": "typo3-cms-extension",
 	"description": "AiM - Intelligent AI proxy for TYPO3",
 	"license": "GPL-2.0-or-later",
+	"homepage": "https://b13.github.io/aim/",
+	"support": {
+		"docs": "https://b13.github.io/aim/docs/introduction.html",
+		"issues": "https://github.com/b13/aim/issues",
+		"source": "https://github.com/b13/aim"
+	},
 	"require": {
 		"php": "^8.1",
 		"ext-sodium": "*",
