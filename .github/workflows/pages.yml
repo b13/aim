@@ -3,9 +3,12 @@ name: Pages
 on:
   push:
     branches: [main]
+    # The site is generated from the guides and the changelog, so a change to
+    # any of them has to redeploy it, not just a change to docs/ itself.
     paths:
       - 'docs/**'
-      - 'Documentation/Images/**'
+      - 'Documentation/**'
+      - 'CHANGELOG.md'
       - '.github/workflows/pages.yml'
   workflow_dispatch:
 
