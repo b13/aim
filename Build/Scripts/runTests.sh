@@ -143,15 +143,27 @@ case ${TEST_SUITE} in
                     -e MARIADB_ROOT_PASSWORD="${DB_PASSWORD}" \
                     "${MARIADB_IMAGE}" \
                     --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci >/dev/null
+                # Probed over TCP: the entrypoint's temporary init server runs
+                # with --skip-networking and would answer a socket ping before
+                # the real server is up, which drops the connections the first
+                # tests make.
                 echo -n "Waiting for MariaDB"
+                DB_READY=""
                 for _ in $(seq 1 60); do
-                    if docker exec "${DB_CONTAINER}" mariadb-admin ping -uroot -p"${DB_PASSWORD}" >/dev/null 2>&1; then
+                    if docker exec "${DB_CONTAINER}" mariadb-admin ping \
+                        --protocol=TCP -h 127.0.0.1 -uroot -p"${DB_PASSWORD}" >/dev/null 2>&1; then
+                        DB_READY="1"
                         break
                     fi
                     echo -n "."
                     sleep 1
                 done
                 echo ""
+                if [ -z "${DB_READY}" ]; then
+                    echo "MariaDB was not reachable over TCP within 60 seconds"
+                    docker logs "${DB_CONTAINER}"
+                    exit 1
+                fi
                 docker run --rm \
                     -v "${ROOT_DIR}:/app" \
                     -w /app \

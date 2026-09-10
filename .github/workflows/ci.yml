@@ -139,12 +139,26 @@ jobs:
             -e MARIADB_ROOT_PASSWORD=funcp -p 127.0.0.1:3306:3306 \
             mariadb:10.11 \
             --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+          # Probed over TCP, not over the socket. The entrypoint initialises
+          # the data directory with a temporary server started with
+          # --skip-networking, which answers a socket ping while the real
+          # server is not up yet. It is then shut down and restarted, and a
+          # connection opened in that window dies with "MySQL server has gone
+          # away", which hit the first test class of the run.
+          ready=
           for _ in $(seq 1 60); do
-            if docker exec aim-mariadb mariadb-admin ping -uroot -pfuncp >/dev/null 2>&1; then
+            if docker exec aim-mariadb mariadb-admin ping \
+                --protocol=TCP -h 127.0.0.1 -P 3306 -uroot -pfuncp >/dev/null 2>&1; then
+              ready=1
               break
             fi
             sleep 1
           done
+          if [ -z "$ready" ]; then
+            echo "MariaDB was not reachable over TCP within 60 seconds" >&2
+            docker logs aim-mariadb >&2
+            exit 1
+          fi
 
       - name: Functional Tests (MariaDB)
         if: matrix.dbms == 'mariadb'
