@@ -1,0 +1,317 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AiM: the AI layer for TYPO3</title>
+<meta name="description" content="AiM is the central AI layer for TYPO3. Extensions describe what they need, AiM picks the provider and model, enforces the rules, and logs what it cost.">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/site.css">
+<script>
+(function(){
+  try {
+    var stored = localStorage.getItem('aim-theme');
+    if (stored === 'light' || stored === 'dark') {
+      document.documentElement.dataset.theme = stored;
+    }
+  } catch (e) {}
+})();
+</script>
+
+<nav class="nav">
+  <div class="wrap">
+    <a class="brand" href="#top"><img src="icon.svg" alt="">AiM</a>
+    <div class="nav-links">
+      <a href="#why">Why</a>
+      <a href="#features">Features</a>
+      <a href="#backend">Backend</a>
+      <a href="docs/introduction.html">Docs</a>
+    </div>
+    <div class="nav-right">
+      <button class="theme-toggle" type="button" id="theme" aria-label="Switch to light mode">
+        <svg class="sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.6v2.2M12 19.2v2.2M2.6 12h2.2M19.2 12h2.2M5.4 5.4l1.6 1.6M17 17l1.6 1.6M18.6 5.4L17 7M7 17l-1.6 1.6"/></svg>
+        <svg class="moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 14.3A8.6 8.6 0 1 1 9.7 3.5a6.9 6.9 0 0 0 10.8 10.8z"/></svg>
+      </button>
+      <a class="nav-cta" href="https://github.com/b13/aim">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<header class="hero" id="top">
+  <div class="wrap">
+    <img class="hero-icon" src="icon.svg" alt="">
+    <p class="eyebrow">TYPO3 extension &middot; 0.5.0</p>
+    <h1>The AI layer for <span class="pop">TYPO3</span>.</h1>
+    <p class="claim">Your extensions ask for AI. AiM decides where the request goes, and keeps the receipt.</p>
+    <p class="lede">An extension says what it needs. AiM picks the provider and model, enforces your rules, retries
+      elsewhere when a provider fails, and writes down what it cost. Nothing about a provider, a key or a model lives
+      in the calling extension.</p>
+    <div class="chips">
+      <span class="chip">TYPO3 12.4 &middot; 13.4 &middot; 14</span>
+      <span class="chip" style="--chip:var(--cyan)">PHP 8.1+</span>
+      <span class="chip" style="--chip:var(--good)">Provider deps: none</span>
+      <span class="chip" style="--chip:var(--violet)">Keys encrypted at rest</span>
+      <span class="chip" style="--chip:var(--magenta)">GPL-2.0-or-later</span>
+    </div>
+    <div class="hero-ctas">
+      <a class="btn btn-primary" href="https://github.com/b13/aim">View on GitHub</a>
+      <a class="btn btn-ghost" href="docs/introduction.html">Read the introduction</a>
+    </div>
+    <div class="cmd"><span class="sigil">$</span> composer require b13/aim
+      <button type="button" id="copy" data-cmd="composer require b13/aim">Copy</button></div>
+
+    <div class="win hero-win reveal">
+      <div class="win-bar">
+        <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+        <span class="win-title">AiM &mdash; Request Log</span>
+      </div>
+        <img src="img/request-log-dark.webp" alt="The AiM Request Log, listing every request with its provider, model, tokens, cost and grade">
+    </div>
+  </div>
+</header>
+
+<section class="band" id="why">
+  <div class="wrap">
+    <p class="eyebrow">Why</p>
+    <h2>One switchboard, not one integration per extension</h2>
+    <p class="sub">Three extensions in one installation, each with an API key of its own, each talking to whichever
+      provider its author happened to prefer, and no single place that knows what any of it cost. Add a fourth and you
+      do all of it again.</p>
+    <div class="cols">
+      <div class="panel off reveal">
+        <h3>Without AiM</h3>
+        <ul>
+          <li>API keys scattered across extension configurations</li>
+          <li>No overview of what AI is being used for</li>
+          <li>No cost control: any extension can burn the budget</li>
+          <li>No way to switch providers without touching code</li>
+          <li>No boundaries: confidential data can reach a cloud provider</li>
+        </ul>
+      </div>
+      <div class="panel on reticle reveal"><span class="r"></span>
+        <h3>With AiM</h3>
+        <ul>
+          <li>One place that holds every credential, encrypted</li>
+          <li>Every request logged: who, what, when, how much</li>
+          <li>Budgets and a rate limit per user, admins included</li>
+          <li>Providers swapped in the backend, not in code</li>
+          <li>A configuration can be pinned to its own model</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="band">
+  <div class="wrap">
+    <p class="eyebrow">For developers</p>
+    <h2>Three lines in a consuming extension</h2>
+    <p class="sub">Your extension does not know or care which provider answers. The administrator decides that, in the
+      backend, after your code has shipped.</p>
+<pre class="reveal"><span class="c">use B13\Aim\Ai;</span>
+
+<span class="k">public function</span> __construct(<span class="k">private readonly</span> Ai $ai) {}
+
+$response = $this-&gt;ai-&gt;<span class="f">vision</span>(
+    imageData: base64_encode($fileContent),
+    mimeType: <span class="s">'image/jpeg'</span>,
+    prompt: <span class="s">'Generate alt text for this image'</span>,
+    extensionKey: <span class="s">'my_extension'</span>,
+);
+
+<span class="k">echo</span> $response-&gt;content; <span class="c">// "A golden retriever playing fetch in a sunny park"</span></pre>
+  </div>
+</section>
+
+<section class="band" id="features">
+  <div class="wrap">
+    <p class="eyebrow">What you get</p>
+    <h2>Six areas, all configured in the backend</h2>
+    <p class="sub">All of it through TYPO3's own mechanisms: user groups, TSconfig, DataHandler, the Install Tool.
+      Nothing invents its own permission model.</p>
+    <div class="grid">
+      <div class="card reveal"><span class="chip">Providers</span>
+        <h3>Any provider, no lock-in</h3>
+        <p>Install a Symfony AI bridge and AiM finds it, whoever published it. Models and capabilities are read from
+          the bridge itself. Endpoint URL and credential are separate fields, so a self-hosted gateway behind a token
+          works too.</p></div>
+      <div class="card reveal" style="--chip:var(--violet)"><span class="chip" style="--chip:var(--violet)">Governance</span>
+        <h3>Who may spend what</h3>
+        <p>Capability permissions and provider access per backend group, privacy levels per configuration, budgets,
+          and a rate limit that is on by default. Credentials are encrypted and never shown again.</p></div>
+      <div class="card reveal" style="--chip:var(--cyan)"><span class="chip" style="--chip:var(--cyan)">Tone</span>
+        <h3>A site-wide tone of voice</h3>
+        <p>Named prompt fragments on any page, inherited down the tree, reusable across sites, with a preview that
+          shows exactly what would be sent without spending a single request.</p></div>
+      <div class="card reveal" style="--chip:var(--good)"><span class="chip" style="--chip:var(--good)">Routing</span>
+        <h3>Cheaper when it can be</h3>
+        <p>Simple prompts go to cheaper models, chosen from your own cost, reliability and quality history. A failed
+          provider is retried against the next one, and a configuration you pinned stays pinned.</p></div>
+      <div class="card reveal" style="--chip:var(--magenta)"><span class="chip" style="--chip:var(--magenta)">Visibility</span>
+        <h3>Every request, on the record</h3>
+        <p>One log with tokens, cost, duration and the routing decision, optionally with a quality grade from a
+          second model acting as judge. Plus dashboard widgets for the totals.</p></div>
+      <div class="card reveal" style="--chip:var(--critical)"><span class="chip" style="--chip:var(--critical)">Built for prod</span>
+        <h3>Three TYPO3 versions, two engines</h3>
+        <p>TYPO3 12.4, 13.4 and 14, Composer and Classic mode, tested on SQLite and MariaDB, with static analysis and
+          coding standards running in CI.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="band" id="backend">
+  <div class="wrap">
+    <p class="eyebrow">In the backend</p>
+    <h2>Three modules under Admin Tools</h2>
+    <p class="sub">Everything an administrator needs is in the backend: no configuration file to edit, no second tool
+      to log into, and no AI knowledge required to run the thing. Provider records are ordinary TYPO3 records, so
+      permissions, history and undo work the way your editors already expect.</p>
+    <figure class="reveal">
+      <div class="win">
+        <div class="win-bar">
+          <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+          <span class="win-title">AiM &mdash; Providers</span>
+        </div>
+          <img src="img/providers-dark.webp" loading="lazy" alt="The Providers overview listing each configuration with its endpoint, model and status">
+      </div>
+      <figcaption>One row per configuration, with its endpoint, model, cost so far and connection status.</figcaption>
+    </figure>
+    <figure class="reveal">
+      <div class="win">
+        <div class="win-bar">
+          <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+          <span class="win-title">AiM &mdash; Request Log</span>
+        </div>
+          <img src="img/request-log-detail-dark.webp" loading="lazy" alt="The Request Log detail view of a single request, with its prompt, response, tokens, cost and grade">
+      </div>
+      <figcaption>Any row opens up: the prompt that was composed, the answer that came back, and what the two cost.</figcaption>
+    </figure>
+    <figure class="reveal">
+      <div class="win">
+        <div class="win-bar">
+          <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+          <span class="win-title">AiM &mdash; Prompt Management</span>
+        </div>
+          <img src="img/prompt-preview-dark.webp" loading="lazy" alt="Prompt Management listing the pages that carry a tone-of-voice fragment">
+      </div>
+      <figcaption>Which pages carry a tone of voice, and a preview of the prompt that would be composed for them.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<section class="band" id="docs">
+  <div class="wrap">
+    <p class="eyebrow">Documentation</p>
+    <h2>Read the guides here</h2>
+    <p class="sub">If you are deciding whether AiM fits, the introduction is the shortest way in. If you are wiring it
+      into an extension, start with using AiM. If you are the one who has to answer for the API bill, governance is
+      the page to read.</p>
+    <table>
+      <tr><th>Guide</th><th>What it covers</th></tr>
+      <tr><td><a href="docs/introduction.html">Introduction</a></td>
+          <td>What AiM is and why it exists, without the code. Start here.</td></tr>
+      <tr><td><a href="docs/provider-configuration.html">Configuring a provider</a></td>
+          <td>Every field, a worked example per provider shape, site settings, and registering a provider AiM does not know.</td></tr>
+      <tr><td><a href="docs/usage.html">Using AiM</a></td>
+          <td>The proxy API, the fluent builder, pipeline access, structured output, tool calling, streaming.</td></tr>
+      <tr><td><a href="docs/governance.html">Governance</a></td>
+          <td>Credential storage, restrictions, budgets, rate limits, privacy levels, rerouting protection.</td></tr>
+      <tr><td><a href="docs/tone-of-voice.html">Tone of voice</a></td>
+          <td>Prompt composition, page-tree fragments, the fragment library, voice calibration.</td></tr>
+      <tr><td><a href="docs/pipeline.html">The request pipeline</a></td>
+          <td>Smart routing, grading, the eleven stages, and middleware of your own.</td></tr>
+      <tr><td><a href="docs/backend-modules.html">Backend modules</a></td>
+          <td>The three modules, the dashboard widgets, and the database tables.</td></tr>
+      <tr><td><a href="docs/changelog.html">Release notes</a></td>
+          <td>What changed, including important upgrade notes</td></tr>
+    </table>
+  </div>
+</section>
+
+<section class="band">
+  <div class="wrap">
+    <div class="closing reticle reveal"><span class="r"></span>
+      <h2>Add AI to your extension, not another API key</h2>
+      <p>AiM is alpha: the API works and is in production use, but it may still change before 1.0. Feedback is very
+        welcome.</p>
+      <div class="hero-ctas" style="justify-content:center">
+        <a class="btn btn-primary" href="https://github.com/b13/aim">View on GitHub</a>
+        <a class="btn btn-ghost" href="https://github.com/b13/aim/issues">Open an issue</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    AiM is free software under GPL-2.0-or-later.
+    Created with &#129505; by <a href="https://github.com/o-ba">Oli Bartsch</a> for
+    <a href="https://b13.com">b13 GmbH, Stuttgart</a>.
+  </div>
+</footer>
+
+<script>
+(function(){
+  var btn = document.getElementById('copy');
+  if (btn && navigator.clipboard) {
+    btn.addEventListener('click', function(){
+      navigator.clipboard.writeText(btn.dataset.cmd).then(function(){
+        var was = btn.textContent;
+        btn.textContent = 'Copied';
+        setTimeout(function(){ btn.textContent = was; }, 1400);
+      }, function(){});
+    });
+  } else if (btn) {
+    btn.hidden = true;
+  }
+
+
+  // Dark is the default and the system setting is not consulted; light is a
+  // choice, kept in localStorage. The screenshots exist per scheme and are
+  // swapped by name, so only one of the two is ever fetched.
+  var root = document.documentElement;
+  var toggle = document.getElementById('theme');
+
+  function applyShots(){
+    var from = root.dataset.theme === 'light' ? '-dark.webp' : '-light.webp';
+    var to = root.dataset.theme === 'light' ? '-light.webp' : '-dark.webp';
+    document.querySelectorAll('img[src*="' + from + '"]').forEach(function(img){
+      img.src = img.src.replace(from, to);
+    });
+  }
+
+  if (toggle) {
+    toggle.addEventListener('click', function(){
+      var next = root.dataset.theme === 'light' ? 'dark' : 'light';
+      root.dataset.theme = next;
+      try { localStorage.setItem('aim-theme', next); } catch (e) {}
+      applyShots();
+      label();
+    });
+  }
+  function label(){
+    if (!toggle) { return; }
+    var next = root.dataset.theme === 'light' ? 'dark' : 'light';
+    toggle.setAttribute('aria-label', 'Switch to ' + next + ' mode');
+    toggle.title = 'Switch to ' + next + ' mode';
+  }
+
+  if (root.dataset.theme === 'light') { applyShots(); }
+  label();
+
+  var els = document.querySelectorAll('.reveal');
+  var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (reduced || !('IntersectionObserver' in window)) {
+    els.forEach(function(el){ el.classList.add('in'); });
+    return;
+  }
+  var io = new IntersectionObserver(function(entries){
+    entries.forEach(function(e){
+      if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); }
+    });
+  }, {threshold:0.1});
+  els.forEach(function(el){ io.observe(el); });
+})();
+</script>

@@ -8,3 +8,11 @@ Thumbs.db
 /.phpunit.cache/
 /public/
 /.notes/
+
+# Local preview copies of the landing page screenshots; the Pages
+# workflow copies them out of Documentation/Images on deploy.
+/docs/img/
+/docs/__pycache__/
+
+# Locally built copy of the GitHub Pages site (docs/build.py)
+/_site/

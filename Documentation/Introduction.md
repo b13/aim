@@ -92,21 +92,22 @@ AiM itself has no AI provider built in. You choose what you need:
 | **Mistral** | `symfony/ai-mistral-platform` | European hosting, fast |
 | **Ollama** (local) | `symfony/ai-ollama-platform` | On-premise, no data leaves your server |
 
-Install any bridge and AiM detects it automatically. No configuration needed beyond the Composer install.
+Install any bridge and AiM detects it automatically, whoever publishes it: any Composer package of type `symfony-ai-platform` is found, not just Symfony's own. No configuration needed beyond the Composer install.
 Of course, you can also create your own providers.
 
 ### 2. Create a provider configuration
 
-In the TYPO3 backend, go to **Admin Tools > AiM > Providers** and create a new configuration:
+In the TYPO3 backend, go to **Admin Tools > AiM > Providers** and create a new configuration. A hosted service needs its API key and a model. A provider of your own needs its **Endpoint URL** as well, which is a separate field from the credential: a self-hosted gateway usually wants both, and a local Ollama wants only the URL.
 
-- Pick your provider from the dropdown (auto-populated from installed bridges)
-- Enter your API key (or endpoint URL for Ollama)
-- Select a model
-- Optionally mark as default
+The credential is encrypted before it is stored and is never shown again, not in the form and not in any listing. Leaving the field empty on a later save keeps the stored one; a button next to it removes it.
+
+The **Model** field may stay empty while you set the provider up. A host that only reveals its model list to an authenticated request cannot be asked before its credential is stored, so enter provider, endpoint and key, save, and the dropdown fills in on the next load. Until a model is picked, the configuration behaves as disabled.
 
 Click the verify button to confirm the connection works. You'll see "connected" with the timestamp.
 
-**Alternative: site settings YAML.** Extensions can also resolve provider configurations from your site's `settings.yaml` without any database records. This is useful for simple setups or automated deployments where you want to keep AI configuration in version control alongside your site config.
+**Alternative: site settings YAML.** Extensions can also resolve provider configurations from your site's `settings.yaml` without any database records. This is useful for simple setups or automated deployments where you want to keep AI configuration in version control alongside your site config. Note that these values are not encrypted, since a settings file is usually version-controlled.
+
+Every field, and a worked example for each provider shape, is in [Configuring a provider](ProviderConfiguration.md).
 
 ### 3. You're done
 
@@ -141,47 +142,18 @@ If your primary provider is down or returns an error, AiM automatically retries 
 
 ## Security and governance
 
-### Who can use what
+AiM is the only place that holds a provider credential, and it is the only place that decides who may spend it. Six controls, all through TYPO3's own mechanisms:
 
-Restrict AI capabilities per backend user group using TYPO3's standard permission system:
+- **Capability permissions** per backend user group: text generation, vision, translation, embeddings, tool calling. Nothing is restricted until you restrict something.
+- **Provider restrictions** per group, so the HR team's local Ollama configuration is theirs alone.
+- **Rerouting protection** in both directions. One setting keeps a configuration's own requests from going elsewhere, so confidential work stays on the model it was designated for; a second controls whether other configurations may hand their traffic here. That combination is what lets a pinned local model still absorb an outage of the cloud default.
+- **Privacy levels** per configuration: full logging, tokens and cost only, or no log entry at all.
+- **Budgets** per user, in daily, weekly or monthly periods, by cost, tokens or request count.
+- **A rate limit** that is on by default, at 60 requests per minute per backend user, so a fresh install is not uncapped.
 
-- **Text generation**: allow or deny per group
-- **Vision** (image analysis): restrict to editors who need it
-- **Translation**: enable for translators only
-- **Embeddings, tool calling**: keep for developers
+Budgets and the rate limit apply to admins too. They are a safety net against an accidental bulk operation, not a permission system.
 
-If no restrictions are configured, everything is allowed (permissive by default). Restrictions only kick in when you explicitly set them in any group.
-
-### Provider access control
-
-Different teams, different providers. Your HR department uses a local Ollama instance for confidential employee data. Marketing uses OpenAI for content generation. AiM ensures:
-
-- **Group-based provider restrictions**: only HR group members can access the HR Ollama configuration
-- **Rerouting protection**: the smart router will never send HR data to a cloud provider
-- **Privacy levels**: mark the HR configuration as "no logging" so prompts and responses aren't stored
-
-### Budget limits
-
-Set spending limits per user or group via TYPO3's UserTSconfig:
-
-```
-aim.budget.period = monthly
-aim.budget.maxCost = 50.00
-aim.budget.maxTokens = 500000
-aim.budget.maxRequests = 1000
-```
-
-When the limit is reached, requests are blocked with a clear message. Budgets are tracked per user in rolling periods (daily/weekly/monthly).
-
-**This applies to everyone, including admins.** AI requests can get expensive, especially with vision or reasoning models. Budget limits act as a safety net: even an admin who accidentally triggers a bulk operation will be stopped before costs escalate. Admins can set their own limits via UserTSconfig.
-
-### Rate limiting
-
-Prevent individual users from making too many requests:
-
-```
-aim.rateLimit.requestsPerMinute = 10
-```
+The settings, their TSconfig keys and how a credential is stored are in [Governance and access control](Governance.md).
 
 ---
 
@@ -286,7 +258,11 @@ For a whole site at once, run:
 vendor/bin/typo3 aim:calibrateVoice
 ```
 
-This crawls a site's root page and a representative slice of its subpages, derives the same tone instruction and examples from the combined real content, and saves the result directly as a fragment on the site's root page, schedulable as a recurring task, so a site's tone of voice can refresh itself as its content evolves.
+This crawls a site's root page and a representative slice of its subpages, only pages a visitor could actually see, derives the same tone instruction and examples from the combined real content, and saves it as a fragment on the site's root page. It is saved **inactive**: the text comes from page copy nobody has vetted, so it applies to nothing until someone reads it and switches it on. Pass `--activate` to skip that gate, and `--scope` or `--no-inherit` to narrow where it applies. A later run never switches an activated fragment back off, so a scheduled refresh cannot undo a review.
+
+---
+
+How the layers are composed and what a consumer can read back is in [Tone of voice and system prompts](ToneOfVoice.md).
 
 ---
 
@@ -313,142 +289,22 @@ echo $response->content;
 
 Your extension doesn't know or care which AI provider is used. The admin decides. You just describe what you need.
 
-### All proxy methods
+There are three levels of access: these proxy methods, a fluent builder for parameters like temperature and structured output, and the request pipeline itself when you need full control. You can register a provider of your own, and add middleware that runs on every request. The complete method list and an example of each is in [Using AiM from your extension](Usage.md).
 
-```php
-// Vision
-$response = $this->ai->vision($imageData, 'image/jpeg', 'Describe this', extensionKey: 'my_ext');
+---
 
-// Text generation
-$response = $this->ai->text('Write a summary of...', maxTokens: 200, extensionKey: 'my_ext');
+## Where to read more
 
-// Translation
-$response = $this->ai->translate('Hello', 'English', 'German', extensionKey: 'my_ext');
+| Guide | What it covers |
+|---|---|
+| [Configuring a provider](ProviderConfiguration.md) | Every field of a provider configuration, an example per provider shape, site settings. |
+| [Using AiM from your extension](Usage.md) | The proxy API, the fluent builder, pipeline access, structured output, tool calling, streaming. |
+| [Governance and access control](Governance.md) | Credential storage, restrictions, budgets, rate limits, privacy levels, rerouting. |
+| [Tone of voice](ToneOfVoice.md) | Prompt composition, page-tree fragments, the library, voice calibration. |
+| [The request pipeline](Pipeline.md) | Smart routing, grading, the eleven stages, your own middleware. |
+| [Backend modules](BackendModules.md) | The three modules, the dashboard widgets, the database tables. |
 
-// Conversation
-$response = $this->ai->conversation([new UserMessage('Hi')], extensionKey: 'my_ext');
-
-// Streaming conversation
-$response = $this->ai->conversationStream([new UserMessage('Tell me about TYPO3')], extensionKey: 'my_ext');
-foreach ($response->streamIterator as $chunk) {
-    echo $chunk;
-    flush();
-}
-
-// Embeddings
-$response = $this->ai->embed('TYPO3 is a CMS', dimensions: 256, extensionKey: 'my_ext');
-
-// Image generation
-$response = $this->ai->generateImage(
-    prompt: 'A minimalist header illustration of a lighthouse at sunset',
-    options: ['size' => '1536x1024', 'quality' => 'high'], // provider-specific, passed through as-is
-    extensionKey: 'my_ext',
-);
-if ($response instanceof \B13\Aim\Response\ImageGenerationResponse) {
-    foreach ($response->images as $image) {
-        if ($image->isUrl()) {
-            // Some providers return a temporary URL instead of the bytes.
-            file_put_contents('header.png', file_get_contents($image->url));
-        } else {
-            // $image->data is base64-encoded, $image->mimeType e.g. "image/png"
-            file_put_contents('header.png', base64_decode($image->data));
-        }
-    }
-}
-
-// Image generation guided by a reference image (style transfer)
-$response = $this->ai->generateImage(
-    prompt: 'The same lighthouse scene, but as a header for the "About us" page',
-    referenceImageData: base64_encode(file_get_contents('brand-style-reference.png')),
-    referenceMimeType: 'image/png',
-    extensionKey: 'my_ext',
-);
-```
-
-### Request a specific provider
-
-If your extension specifically needs OpenAI (e.g. for vision quality), request it but gracefully fall back if it's not available:
-
-```php
-$response = $this->ai->vision(
-    imageData: $data,
-    mimeType: 'image/jpeg',
-    prompt: 'Describe this product photo',
-    provider: 'openai:*',  // prefer OpenAI, admin picks the model
-    extensionKey: 'my_shop',
-);
-```
-
-If OpenAI isn't configured, AiM uses whatever default provider the admin set up. Your extension never breaks.
-
-### Fluent builder for more control
-
-```php
-$response = $this->ai->request()
-    ->vision($imageData, 'image/jpeg')
-    ->prompt('Generate alt text')
-    ->systemPrompt('You are an accessibility expert.')
-    ->maxTokens(100)
-    ->temperature(0.3)
-    ->provider('openai:*')
-    ->from('my_extension')
-    ->send();
-```
-
-The same builder covers image generation:
-
-```php
-$response = $this->ai->request()
-    ->image()
-    ->prompt('A minimalist header illustration of a lighthouse at sunset')
-    ->referenceImage($imageData, 'image/png')
-    ->options(['size' => '1536x1024'])
-    ->from('my_extension')
-    ->send();
-```
-
-### Register your own AI provider
-
-Any extension can add AI providers:
-
-```php
-#[AsAiProvider(
-    identifier: 'my-provider',
-    name: 'My Custom AI',
-    supportedModels: ['my-model-v1' => 'My Model v1'],
-)]
-class MyProvider implements AiProviderInterface, TextGenerationCapableInterface
-{
-    public function processTextGenerationRequest(TextGenerationRequest $request): TextResponse
-    {
-        // Your implementation
-    }
-}
-```
-
-Auto-discovered via the PHP attribute. No registration code needed.
-
-### Add custom middleware
-
-Intercept all AI requests for custom logic:
-
-```php
-#[AsAiMiddleware(priority: 50)]
-class MyMiddleware implements AiMiddlewareInterface
-{
-    public function process(
-        AiRequestInterface $request,
-        AiProviderInterface $provider,
-        ProviderConfiguration $configuration,
-        AiMiddlewareHandler $next,
-    ): TextResponse {
-        // Before: inspect, modify, or block the request
-        $response = $next->handle($request, $provider, $configuration);
-        // After: inspect or modify the response
-        return $response;
-    }
-}
-```
+[CHANGELOG.md](../CHANGELOG.md) has the release notes, including the upgrade notes for 0.5.0.
 
 ---
 
@@ -464,4 +320,4 @@ GPL-2.0-or-later
 
 ## Credits
 
-Created by [Oli Bartsch](https://github.com/o-ba) for [b13 GmbH, Stuttgart](https://b13.com).
+Created with 🧡 by [Oli Bartsch](https://github.com/o-ba) for [b13 GmbH, Stuttgart](https://b13.com).
