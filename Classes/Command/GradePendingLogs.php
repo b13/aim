@@ -32,7 +32,7 @@ use Symfony\Component\Console\Output\OutputInterface;
  */
 #[AsCommand(
     name: 'aim:grade-pending',
-    description: 'Grade tx_aim_request_log rows still marked grade_status=pending.',
+    description: 'Grade logged AI responses that are still waiting for their quality score.',
 )]
 final class GradePendingLogs extends Command
 {

@@ -16,11 +16,13 @@ use PHPUnit\Framework\Attributes\Test;
 use Psr\Http\Message\ResponseInterface;
 use TYPO3\CMS\Backend\Controller\Wizard\SuggestWizardController;
 use TYPO3\CMS\Backend\Routing\Route;
-use TYPO3\CMS\Core\Core\SystemEnvironmentBuilder;
+use TYPO3\CMS\Core\Configuration\SiteConfiguration;
 use TYPO3\CMS\Core\Configuration\SiteWriter;
+use TYPO3\CMS\Core\Core\SystemEnvironmentBuilder;
 use TYPO3\CMS\Core\Http\NormalizedParams;
 use TYPO3\CMS\Core\Http\ServerRequest;
 use TYPO3\CMS\Core\Localization\LanguageServiceFactory;
+use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\TestingFramework\Core\Functional\FunctionalTestCase;
 
 /**
@@ -135,7 +137,10 @@ final class PromptFragmentSuggestReceiverTest extends FunctionalTestCase
         $pages->insert('pages', ['uid' => 100, 'pid' => 0, 'title' => 'Site root', 'is_siteroot' => 1]);
         $pages->insert('pages', ['uid' => 101, 'pid' => 100, 'title' => 'Sysfolder', 'doktype' => 254]);
         $pages->insert('pages', ['uid' => 102, 'pid' => 100, 'title' => 'Editing target']);
-        $this->get(SiteWriter::class)->write('main-suggest-test', ['rootPageId' => 100, 'base' => '/']);
+        // Writing a site configuration moved from SiteConfiguration to the new
+        // SiteWriter in v13; the write() signature is identical in both.
+        $writer = class_exists(SiteWriter::class) ? SiteWriter::class : SiteConfiguration::class;
+        $this->get($writer)->write('main-suggest-test', ['rootPageId' => 100, 'base' => '/']);
 
         $this->getConnectionPool()->getConnectionForTable('tx_aim_prompt_fragment')->insert('tx_aim_prompt_fragment', [
             'pid' => 101,
@@ -203,7 +208,10 @@ final class PromptFragmentSuggestReceiverTest extends FunctionalTestCase
         $request = $request->withAttribute('applicationType', SystemEnvironmentBuilder::REQUESTTYPE_BE);
         $request = $request->withAttribute('normalizedParams', NormalizedParams::createFromRequest($request));
 
-        $response = $this->get(SuggestWizardController::class)->searchAction($request);
+        // Not $this->get(): the controller is only a container service from
+        // v13 on (#[AsController]), while on 12.4 it has no dependencies at
+        // all. makeInstance() covers both.
+        $response = GeneralUtility::makeInstance(SuggestWizardController::class)->searchAction($request);
         self::assertInstanceOf(ResponseInterface::class, $response);
 
         return json_decode((string)$response->getBody(), true);

@@ -12,17 +12,39 @@ jobs:
         include:
           # composer.json's own require allows ^12.4 too, but
           # typo3/testing-framework ^9.0 (the only version supporting
-          # typo3/cms-core ^14.0 at all) dropped v12 support entirely - there
-          # is no single testing-framework version this suite could run
-          # against both v12 and v14 with, so v12 isn't covered here.
+          # typo3/cms-core ^14.0 at all) dropped v12 support entirely, so the
+          # v12 leg pins testing-framework ^8.0 instead.
+          # PHP 8.2, not 8.1: phpunit ^11 and symfony/ai-platform ^0.11, both
+          # dev dependencies, require >= 8.2, so the leg could not install at
+          # all on 8.1. TYPO3 12.4 itself supports 8.2.
+          - TYPO3: '12'
+            php: '8.2'
+            dbms: sqlite
           - TYPO3: '13'
             php: '8.2'
+            dbms: sqlite
           - TYPO3: '13'
             php: '8.3'
+            dbms: sqlite
           - TYPO3: '14'
             php: '8.3'
+            dbms: sqlite
+            # PHPStan is analysed against the installed core, so its baseline is
+            # version-specific: running it on the v12 or v13 leg would report
+            # findings the baseline does not know. It therefore runs on exactly
+            # the leg the baseline was generated against. Coding standards are
+            # version-independent and ride along on the same leg so they run once.
+            tools: true
           - TYPO3: '14'
             php: '8.4'
+            dbms: sqlite
+          # SQLite reads a double-quoted unknown column as a string literal
+          # instead of erroring, so a query against a column that does not
+          # exist yet passes there and fails on every other DBMS. At least one
+          # leg therefore has to run on MariaDB.
+          - TYPO3: '14'
+            php: '8.3'
+            dbms: mariadb
 
     steps:
       - name: Checkout
@@ -49,17 +71,88 @@ jobs:
         if: matrix.TYPO3 == '14'
         run: composer install --no-progress --no-interaction
 
+      # The static-analysis tools pin typo3/cms-core ^14.0 and php ^8.2, so
+      # they cannot be resolved on the older legs. They only ever run on the
+      # tools leg anyway, so drop them from composer.json first (--no-update
+      # just edits the file) and let the downgrade resolve without them.
+      - name: Drop v14-only dev tools before downgrading
+        if: matrix.TYPO3 != '14'
+        run: |
+          composer remove --dev --no-update --no-interaction \
+            phpstan/phpstan saschaegerer/phpstan-typo3 typo3/coding-standards
+
+      # Every TYPO3 package is named explicitly: one left at ^14 pins the
+      # others through its own requirements and the downgrade cannot resolve.
       - name: Install composer dependencies TYPO3 13
         if: matrix.TYPO3 == '13'
-        run: composer require typo3/cms-core:^13.4 typo3/cms-backend:^13.4 --no-progress --no-interaction --dev -W
+        run: |
+          composer require --dev --no-progress --no-interaction -W \
+            typo3/cms-core:^13.4 typo3/cms-backend:^13.4 \
+            typo3/cms-install:^13.4 typo3/cms-dashboard:^13.4
+
+      # Two more constraints than the v13 leg needs. phpunit has to come down
+      # with the rest: typo3/cms-install ^12.4 and phpunit ^11 cannot be
+      # resolved together (php-code-coverage ^11 pulls sebastian/lines-of-code
+      # ^3, which conflicts), and testing-framework ^8.0 wants ^10 anyway. And
+      # the advisory block has to be lifted: TYPO3 v12's free support has
+      # ended, so every publicly released 12.4.x carries advisories whose fix
+      # exists only in ELTS, and composer refuses to install any of them by
+      # default. This leg proves aim's own code runs on 12.4; it says nothing
+      # about the security state of a v12 core, which is the operator's call.
+      - name: Install composer dependencies TYPO3 12
+        if: matrix.TYPO3 == '12'
+        run: |
+          composer config policy.advisories.block false
+          composer require --dev --no-progress --no-interaction -W \
+            typo3/cms-core:^12.4 typo3/cms-backend:^12.4 typo3/cms-install:^12.4 \
+            typo3/cms-dashboard:^12.4 typo3/testing-framework:^8.0 \
+            phpunit/phpunit:^10.5
 
       - name: Lint
         run: find Classes Tests -name "*.php" -print0 | xargs -0 -n1 -P4 php -l
 
+      - name: PHPStan
+        if: matrix.tools
+        run: .Build/vendor/bin/phpstan analyse -c phpstan.neon --no-progress
+
+      - name: Coding Standards
+        if: matrix.tools
+        run: .Build/vendor/bin/php-cs-fixer fix --dry-run --diff
+
       - name: Unit Tests
         run: .Build/vendor/bin/phpunit -c Build/phpunit/UnitTests.xml
 
-      - name: Functional Tests
+      - name: Functional Tests (SQLite)
+        if: matrix.dbms == 'sqlite'
         env:
           typo3DatabaseDriver: pdo_sqlite
+        run: .Build/vendor/bin/phpunit -c Build/phpunit/FunctionalTests.xml
+
+      # The password guards nothing: this container lives for one job and holds
+      # only a throwaway test database. Bound to loopback so that stays true on
+      # a self-hosted runner, where the port would otherwise be reachable by
+      # anything else on the machine for the duration of the job.
+      - name: Start MariaDB
+        if: matrix.dbms == 'mariadb'
+        run: |
+          docker run --name aim-mariadb -d \
+            -e MARIADB_ROOT_PASSWORD=funcp -p 127.0.0.1:3306:3306 \
+            mariadb:10.11 \
+            --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+          for _ in $(seq 1 60); do
+            if docker exec aim-mariadb mariadb-admin ping -uroot -pfuncp >/dev/null 2>&1; then
+              break
+            fi
+            sleep 1
+          done
+
+      - name: Functional Tests (MariaDB)
+        if: matrix.dbms == 'mariadb'
+        env:
+          typo3DatabaseDriver: mysqli
+          typo3DatabaseHost: 127.0.0.1
+          typo3DatabasePort: '3306'
+          typo3DatabaseName: func_test
+          typo3DatabaseUsername: root
+          typo3DatabasePassword: funcp
         run: .Build/vendor/bin/phpunit -c Build/phpunit/FunctionalTests.xml

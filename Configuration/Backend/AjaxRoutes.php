@@ -1,7 +1,7 @@
 <?php
 
-use B13\Aim\Controller\ProviderController;
 use B13\Aim\Controller\PromptManagementController;
+use B13\Aim\Controller\ProviderController;
 use B13\Aim\Controller\RequestLogController;
 
 return [

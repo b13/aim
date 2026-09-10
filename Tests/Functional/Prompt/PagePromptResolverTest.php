@@ -152,6 +152,28 @@ final class PagePromptResolverTest extends FunctionalTestCase
     }
 
     #[Test]
+    public function anInactiveAssignmentIsNotComposedIntoThePrompt(): void
+    {
+        // Set before anything is resolved: the resolver caches per instance.
+        $this->getConnectionPool()->getConnectionForTable('tx_aim_page_prompt_fragment')
+            ->update('tx_aim_page_prompt_fragment', ['hidden' => 1], ['parent_page' => 1]);
+
+        self::assertNull(
+            $this->get(PagePromptResolver::class)->resolve(1, PromptFragmentScope::Text),
+            'A hidden assignment reached the system prompt.',
+        );
+    }
+
+    #[Test]
+    public function anInactiveAssignmentIsNotInheritedDownTheTreeEither(): void
+    {
+        $this->getConnectionPool()->getConnectionForTable('tx_aim_page_prompt_fragment')
+            ->update('tx_aim_page_prompt_fragment', ['hidden' => 1], ['parent_page' => 1]);
+
+        self::assertNull($this->get(PagePromptResolver::class)->resolve(3, PromptFragmentScope::Vision));
+    }
+
+    #[Test]
     public function resolvesOwnAllScopeFragmentOnTheSiterootForAnyRequestedScope(): void
     {
         $resolver = $this->get(PagePromptResolver::class);

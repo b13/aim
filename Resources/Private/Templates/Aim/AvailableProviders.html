@@ -2,7 +2,10 @@
       xmlns:core="http://typo3.org/ns/TYPO3/CMS/Core/ViewHelpers"
       data-namespace-typo3-fluid="true">
 
-<div class="aim-console aim-provider-table" data-toggle-url="{toggleUrl}">
+<div class="aim-console aim-provider-table"
+     data-toggle-url="{toggleUrl}"
+     data-label-toggle-failed-title="{f:translate(key: 'LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:overview.modelToggle.failed.title')}"
+     data-label-toggle-failed-message="{f:translate(key: 'LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:overview.modelToggle.failed.message')}">
     <style>{consoleCss -> f:format.raw()}</style>
     <div class="table-fit">
         <table class="table table-striped table-hover">
@@ -29,9 +32,15 @@
                         </td>
                         <td>
                             <f:for each="{provider.models}" as="model">
+                                <f:variable name="enableLabel">{f:translate(key: 'LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:overview.modelToggle.enable', arguments: '{0: model.id}')}</f:variable>
+                                <f:variable name="disableLabel">{f:translate(key: 'LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:overview.modelToggle.disable', arguments: '{0: model.id}')}</f:variable>
                                 <button type="button"
                                         class="aim-model-toggle"
                                         data-disabled="{f:if(condition: model.disabled, then: '1', else: '0')}"
+                                        aria-pressed="{f:if(condition: model.disabled, then: 'false', else: 'true')}"
+                                        title="{f:if(condition: model.disabled, then: enableLabel, else: disableLabel)}"
+                                        data-label-enable="{enableLabel}"
+                                        data-label-disable="{disableLabel}"
                                         data-model-toggle
                                         data-provider="{provider.identifier}"
                                         data-model="{model.id}">

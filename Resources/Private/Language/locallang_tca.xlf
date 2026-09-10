@@ -21,6 +21,9 @@
             <trans-unit id="tx_aim_configuration.columns.ai_provider.label" resname="tx_aim_configuration.columns.ai_provider.label">
                 <source>AI Provider</source>
             </trans-unit>
+            <trans-unit id="tx_aim_configuration.columns.ai_provider.description" resname="tx_aim_configuration.columns.ai_provider.description">
+                <source>The installed provider bridge this configuration talks to. If the list is empty, no bridge is installed yet; see the Providers module for what to install.</source>
+            </trans-unit>
             <trans-unit id="tx_aim_configuration.columns.title.label" resname="tx_aim_configuration.columns.title.label">
                 <source>Title</source>
             </trans-unit>
@@ -30,11 +33,46 @@
             <trans-unit id="tx_aim_configuration.columns.default.label" resname="tx_aim_configuration.columns.default.label">
                 <source>Default</source>
             </trans-unit>
+            <trans-unit id="tx_aim_configuration.columns.default.description" resname="tx_aim_configuration.columns.default.description">
+                <source>The configuration used when a caller asks for a capability without naming a provider. Only one is needed; if several are flagged, the one with the lowest uid wins.</source>
+            </trans-unit>
+            <trans-unit id="tx_aim_configuration.columns.endpoint.label" resname="tx_aim_configuration.columns.endpoint.label">
+                <source>Endpoint URL</source>
+            </trans-unit>
+            <trans-unit id="tx_aim_configuration.columns.endpoint.description" resname="tx_aim_configuration.columns.endpoint.description">
+                <source>
+Base URL of a self-hosted or proxied provider (Ollama, LM Studio, an OpenAI-compatible gateway).
+Leave empty for hosted providers. This field is stored as plain text, so use the API Key field for the credentials.
+For a host that uses basic auth, enter https://user:password@host. Saving keeps https://user@host here and moves the
+password into the encrypted API Key field. The user name has to stay in the URL, since that is what marks the credential
+as belonging in the URL rather than in a bearer token.
+Only the password half is moved. A provider whose scheme makes the key itself the user name, with an empty password
+(https://key:@host), is not supported here: that key would stay in this plain-text field, would appear in the record
+history, and would be shown in the Providers list. Do not enter one.
+				</source>
+            </trans-unit>
             <trans-unit id="tx_aim_configuration.columns.api_key.label" resname="tx_aim_configuration.columns.api_key.label">
-                <source>API Key / Endpoint URL</source>
+                <source>API Key</source>
             </trans-unit>
             <trans-unit id="tx_aim_configuration.columns.api_key.description" resname="tx_aim_configuration.columns.api_key.description">
-                <source>For local/self-hosted providers like Ollama or LM Studio, enter the endpoint URL (e.g. http://localhost:11434) instead of an API key. For security, an already-saved key is never shown again; leave this empty to keep it unchanged, or enter a new value to replace it.</source>
+                <source>
+The provider credential. Always stored encrypted. A self-hosted provider that needs no credential (Ollama, LM Studio)
+only needs the Endpoint URL. An already-saved key is never shown again; leave this empty to keep it unchanged, or enter
+a new value to replace it. For a host that uses basic auth, put the user name in the endpoint URL (https://user@host)
+and the password here: without a user name in the URL this value is sent as a bearer token instead.
+				</source>
+            </trans-unit>
+            <trans-unit id="tx_aim_configuration.columns.api_key.clear" resname="tx_aim_configuration.columns.api_key.clear">
+                <source>Remove the stored API key on save</source>
+            </trans-unit>
+            <trans-unit id="tx_aim_configuration.columns.api_key.clear.armed" resname="tx_aim_configuration.columns.api_key.clear.armed">
+                <source>Keep the stored API key after all</source>
+            </trans-unit>
+            <trans-unit id="tx_aim_configuration.columns.api_key.clear.pending" resname="tx_aim_configuration.columns.api_key.clear.pending">
+                <source>The stored API key will be removed on save. Click the button again to keep it.</source>
+            </trans-unit>
+            <trans-unit id="tx_aim_configuration.columns.api_key.clear.placeholder" resname="tx_aim_configuration.columns.api_key.clear.placeholder">
+                <source>Will be removed on save</source>
             </trans-unit>
             <trans-unit id="tx_aim_configuration.columns.api_key.placeholder.configured" resname="tx_aim_configuration.columns.api_key.placeholder.configured">
                 <source>A key is configured; leave empty to keep it</source>
@@ -42,14 +80,23 @@
             <trans-unit id="tx_aim_configuration.columns.model.label" resname="tx_aim_configuration.columns.model.label">
                 <source>Model</source>
             </trans-unit>
+            <trans-unit id="tx_aim_configuration.columns.model.description" resname="tx_aim_configuration.columns.model.description">
+                <source>Which model this configuration sends to. It can stay empty while you are setting the provider up, but a configuration without a model is skipped as if it were disabled.</source>
+            </trans-unit>
             <trans-unit id="tx_aim_configuration.columns.total_cost.label" resname="tx_aim_configuration.columns.total_cost.label">
                 <source>Total Cost</source>
+            </trans-unit>
+            <trans-unit id="tx_aim_configuration.columns.total_cost.description" resname="tx_aim_configuration.columns.total_cost.description">
+                <source>Accumulated cost of every logged request made through this configuration. Written by the extension and never reset.</source>
             </trans-unit>
             <trans-unit id="tx_aim_configuration.columns.cost_currency.label" resname="tx_aim_configuration.columns.cost_currency.label">
                 <source>Currency</source>
             </trans-unit>
             <trans-unit id="tx_aim_configuration.columns.be_groups.label" resname="tx_aim_configuration.columns.be_groups.label">
                 <source>Restrict to user groups</source>
+            </trans-unit>
+            <trans-unit id="tx_aim_configuration.columns.be_groups.description" resname="tx_aim_configuration.columns.be_groups.description">
+                <source>Backend groups whose members may use this configuration. Empty means no restriction, so everyone can use it. A command-line run has no backend user and is not group-restricted at all.</source>
             </trans-unit>
             <trans-unit id="tx_aim_configuration.columns.privacy_level.label" resname="tx_aim_configuration.columns.privacy_level.label">
                 <source>Privacy level</source>
@@ -63,11 +110,27 @@
             <trans-unit id="tx_aim_configuration.columns.privacy_level.none" resname="tx_aim_configuration.columns.privacy_level.none">
                 <source>None (no logging at all)</source>
             </trans-unit>
+            <trans-unit id="tx_aim_configuration.columns.accepts_rerouted_requests.label" resname="tx_aim_configuration.columns.accepts_rerouted_requests.label">
+                <source>Accept rerouted requests</source>
+            </trans-unit>
+            <trans-unit id="tx_aim_configuration.columns.accepts_rerouted_requests.description" resname="tx_aim_configuration.columns.accepts_rerouted_requests.description">
+                <source>
+Whether other configurations may hand their requests to this one, as a fallback when they fail, or when the smart router
+picks this model as a cheaper alternative. Turn this off for a model reserved for particular content, so general traffic
+never lands on it. This is the opposite direction to "Allow rerouting", which controls whether this configuration's own
+requests may go elsewhere.
+				</source>
+            </trans-unit>
             <trans-unit id="tx_aim_configuration.columns.rerouting_allowed.label" resname="tx_aim_configuration.columns.rerouting_allowed.label">
                 <source>Allow smart rerouting</source>
             </trans-unit>
             <trans-unit id="tx_aim_configuration.columns.rerouting_allowed.description" resname="tx_aim_configuration.columns.rerouting_allowed.description">
-                <source>When disabled, the smart router will never reroute requests away from this configuration, and will never reroute other requests to it. Use this for configurations that handle sensitive data (e.g. a local model for HR) to prevent data from being sent to a different provider.</source>
+                <source>
+When disabled, this configuration's requests never go anywhere else: the smart router will not downgrade them to a cheaper
+model, and a failed request is not retried against another provider. Use this for configurations handling sensitive data
+(e.g. a local model for HR), so that data stays on the model it was designated for. Whether other configurations may
+reroute TO this one is controlled separately, by "Accept rerouted requests".
+				</source>
             </trans-unit>
             <trans-unit id="tx_aim_configuration.columns.auto_model_switch.label" resname="tx_aim_configuration.columns.auto_model_switch.label">
                 <source>Allow auto model switch</source>
@@ -77,6 +140,9 @@
             </trans-unit>
             <trans-unit id="tx_aim_configuration.columns.max_tokens.label" resname="tx_aim_configuration.columns.max_tokens.label">
                 <source>Max Tokens</source>
+            </trans-unit>
+            <trans-unit id="tx_aim_configuration.columns.max_tokens.description" resname="tx_aim_configuration.columns.max_tokens.description">
+                <source>Upper limit on the length of every response from this configuration, in tokens. The default of 150 is roughly two sentences, which is deliberately small: raise it for anything longer, and raise it well above the answer length you expect for a reasoning model, since its internal reasoning counts against the same limit.</source>
             </trans-unit>
             <trans-unit id="tx_aim_configuration.columns.input_token_cost.label" resname="tx_aim_configuration.columns.input_token_cost.label">
                 <source>Input Token Cost (per 1M)</source>
@@ -148,10 +214,10 @@
                 <source>Optional. One "Q: ..." / "A: ..." pair per example, blank line between examples; steers the AI more reliably than the prompt alone. Keep it to a few short ones; it adds to every call's token cost.</source>
             </trans-unit>
             <trans-unit id="tx_aim_prompt_fragment.columns.scope.label" resname="tx_aim_prompt_fragment.columns.scope.label">
-                <source>Scope</source>
+                <source>Capability</source>
             </trans-unit>
             <trans-unit id="tx_aim_prompt_fragment.columns.scope.description" resname="tx_aim_prompt_fragment.columns.scope.description">
-                <source>Which capabilities this fragment applies to. All are checked by default; uncheck what doesn't apply.</source>
+                <source>All are checked by default; uncheck the capabilities this fragment should not apply to.</source>
             </trans-unit>
             <trans-unit id="tx_aim_prompt_fragment.columns.scope.all" resname="tx_aim_prompt_fragment.columns.scope.all">
                 <source>All capabilities</source>
@@ -191,6 +257,12 @@
             </trans-unit>
             <trans-unit id="tx_aim_page_prompt_fragment.columns.inherit_to_subpages.description" resname="tx_aim_page_prompt_fragment.columns.inherit_to_subpages.description">
                 <source>When enabled (default), this assignment also applies to every page below this one in the tree.</source>
+            </trans-unit>
+            <trans-unit id="tx_aim_page_prompt_fragment.columns.hidden.label" resname="tx_aim_page_prompt_fragment.columns.hidden.label">
+                <source>Active</source>
+            </trans-unit>
+            <trans-unit id="tx_aim_page_prompt_fragment.columns.hidden.description" resname="tx_aim_page_prompt_fragment.columns.hidden.description">
+                <source>Only active assignments are composed into system prompts. Automatically generated assignments start out inactive, so their content needs review before it reaches a model.</source>
             </trans-unit>
             <trans-unit id="tx_aim_page_prompt_fragment.noFragmentSelected" resname="tx_aim_page_prompt_fragment.noFragmentSelected">
                 <source>(no fragment selected)</source>

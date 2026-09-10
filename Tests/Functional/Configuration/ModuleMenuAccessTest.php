@@ -49,6 +49,25 @@ final class ModuleMenuAccessTest extends FunctionalTestCase
         return (new Typo3Version())->getMajorVersion() >= 14 ? 'admin' : 'tools';
     }
 
+    /**
+     * The menu level the three modules live on. 12.4 builds two menu levels
+     * only, so they are registered directly under Admin Tools there rather
+     * than grouped under "aim"; see Configuration/Backend/Modules.php.
+     *
+     * @return array<string, \TYPO3\CMS\Backend\Module\ModuleInterface>
+     */
+    private function aimEntries(array $menu): array
+    {
+        $parentSubModules = $menu[$this->parentModuleIdentifier()]->getSubModules();
+        if ((new Typo3Version())->getMajorVersion() < 13) {
+            return $parentSubModules;
+        }
+
+        self::assertArrayHasKey('aim', $parentSubModules, 'The "AiM" entry must be visible once at least one of its own submodules is granted.');
+
+        return $parentSubModules['aim']->getSubModules();
+    }
+
     #[Test]
     public function aUserGrantedOnlyPromptManagementSeesTheAimEntryWithOnlyThatSubmodule(): void
     {
@@ -65,11 +84,8 @@ final class ModuleMenuAccessTest extends FunctionalTestCase
         // child of TYPO3 core's own built-in Admin Tools module (see
         // Configuration/Backend/Modules.php's $parent), which has no access
         // restriction of its own.
-        $parentIdentifier = $this->parentModuleIdentifier();
-        self::assertArrayHasKey($parentIdentifier, $menu, 'Admin Tools must be visible once at least one of its descendants is granted.');
-        $adminSubModules = $menu[$parentIdentifier]->getSubModules();
-        self::assertArrayHasKey('aim', $adminSubModules, 'The "AiM" entry must be visible once at least one of its own submodules is granted.');
-        $aimSubModules = $adminSubModules['aim']->getSubModules();
+        self::assertArrayHasKey($this->parentModuleIdentifier(), $menu, 'Admin Tools must be visible once at least one of its descendants is granted.');
+        $aimSubModules = $this->aimEntries($menu);
         self::assertArrayHasKey('aim_prompt_management', $aimSubModules, 'The specifically granted submodule must appear.');
         self::assertArrayNotHasKey('aim_providers', $aimSubModules, 'An admin-only sibling must stay hidden for this non-admin user.');
         self::assertArrayNotHasKey('aim_request_log', $aimSubModules, 'An admin-only sibling must stay hidden for this non-admin user.');
@@ -123,14 +139,16 @@ final class ModuleMenuAccessTest extends FunctionalTestCase
 
         $menu = $this->get(ModuleProvider::class)->getModulesForModuleMenu($backendUser);
 
-        $parentIdentifier = $this->parentModuleIdentifier();
-        self::assertArrayHasKey($parentIdentifier, $menu);
-        $adminSubModules = $menu[$parentIdentifier]->getSubModules();
-        self::assertArrayHasKey('aim', $adminSubModules);
-        $aimSubModules = $adminSubModules['aim']->getSubModules();
+        self::assertArrayHasKey($this->parentModuleIdentifier(), $menu);
+        $aimSubModules = $this->aimEntries($menu);
         self::assertArrayHasKey('aim_providers', $aimSubModules);
         self::assertArrayHasKey('aim_request_log', $aimSubModules);
         self::assertArrayHasKey('aim_prompt_management', $aimSubModules);
-        self::assertCount(3, $aimSubModules, 'Prompt Preview and Fragment Library are one merged module now, not two separate submodules.');
+        // Only meaningful where they are grouped: on 12.4 they sit among Admin
+        // Tools' own entries. Prompt Preview and Fragment Library are one
+        // merged module now, not two separate submodules.
+        if ((new Typo3Version())->getMajorVersion() >= 13) {
+            self::assertCount(3, $aimSubModules);
+        }
     }
 }

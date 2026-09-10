@@ -19,6 +19,7 @@ use B13\Aim\Domain\Repository\ProviderConfigurationRepository;
 use B13\Aim\Domain\Repository\RequestLogRepository;
 use B13\Aim\Exception\InvalidProviderNotationException;
 use B13\Aim\Exception\ProviderNotFoundException;
+use B13\Aim\Governance\ConfigurationAccess;
 use B13\Aim\Registry\AiProviderRegistry;
 use B13\Aim\Registry\DisabledModelRegistry;
 use TYPO3\CMS\Core\Site\Entity\Site;
@@ -57,6 +58,7 @@ final class ProviderResolver
         private readonly ProviderConfigurationRepository $configurationRepository,
         private readonly DisabledModelRegistry $disabledModelRegistry,
         private readonly RequestLogRepository $logRepository,
+        private readonly ConfigurationAccess $configurationAccess,
     ) {}
 
     /**
@@ -193,15 +195,13 @@ final class ProviderResolver
             return new ResolvedProvider($manifest, $ephemeral);
         }
 
-        // No API key — find any config for this provider and override the model
+        // No API key: find any config for this provider and override the
+        // model. The result carries that configuration's credential, so it has
+        // to carry its restrictions too, or naming a model that has no record
+        // would be a way around them.
         foreach ($configs as $config) {
             if (!$config->disabled) {
-                $overridden = ProviderConfigurationFactory::ephemeral(
-                    $providerIdentifier,
-                    $model,
-                    $config->apiKey,
-                    $config->title . ' (' . $model . ')',
-                );
+                $overridden = ProviderConfigurationFactory::ephemeralFrom($config, $providerIdentifier, $model);
                 return new ResolvedProvider($manifest, $overridden);
             }
         }
@@ -285,22 +285,58 @@ final class ProviderResolver
     }
 
     /**
-     * Build a FallbackChain of all providers supporting the given capability.
+     * Build a FallbackChain for the given capability.
      *
-     * Returns providers ordered by: default first, then by title.
-     * Useful for building runtime fallback chains for the middleware pipeline.
+     * $primary heads the chain, so a request goes where the caller asked.
+     * Without it the chain heads with the default configuration.
+     *
+     * Fallbacks are the remaining capable configurations, default first, minus:
+     * every one of them when the primary has rerouting_allowed = 0, candidates
+     * with accepts_rerouted_requests = 0, and candidates the current backend
+     * user's be_groups exclude.
      *
      * @template T of AiCapabilityInterface
      * @param class-string<T> $capabilityFqcn
      */
-    public function buildFallbackChain(string $capabilityFqcn): FallbackChain
+    public function buildFallbackChain(string $capabilityFqcn, ?ResolvedProvider $primary = null): FallbackChain
     {
         $resolved = $this->resolveAllForCapability($capabilityFqcn);
-        if ($resolved === []) {
-            throw new ProviderNotFoundException('No provider found for capability "' . $capabilityFqcn . '".', 1773874280);
+        if ($primary === null) {
+            if ($resolved === []) {
+                throw new ProviderNotFoundException('No provider found for capability "' . $capabilityFqcn . '".', 1773874280);
+            }
+            $primary = $resolved[0];
         }
 
-        return new FallbackChain($resolved[0], ...array_slice($resolved, 1));
+        if (!$primary->configuration->reroutingAllowed) {
+            return new FallbackChain($primary);
+        }
+
+        $fallbacks = [];
+        foreach ($resolved as $candidate) {
+            if ($this->isSameConfiguration($candidate, $primary)) {
+                continue;
+            }
+            if (!$candidate->configuration->acceptsReroutedRequests) {
+                continue;
+            }
+            if (!$this->configurationAccess->isAccessibleByCurrentUser($candidate->configuration)) {
+                continue;
+            }
+            $fallbacks[] = $candidate;
+        }
+
+        return new FallbackChain($primary, ...$fallbacks);
+    }
+
+    /**
+     * Same identity notion CoreDispatchMiddleware uses. Ephemeral
+     * configurations all carry uid 0, so the model is part of it.
+     */
+    private function isSameConfiguration(ResolvedProvider $a, ResolvedProvider $b): bool
+    {
+        return $a->configuration->uid === $b->configuration->uid
+            && $a->configuration->model === $b->configuration->model;
     }
 
     /**
@@ -408,6 +444,9 @@ final class ProviderResolver
                 continue;
             }
             if ($this->disabledModelRegistry->isDisabled($config->providerIdentifier, $config->model)) {
+                continue;
+            }
+            if (!$this->configurationAccess->isAccessibleByCurrentUser($config)) {
                 continue;
             }
             if ($config->isDefault) {

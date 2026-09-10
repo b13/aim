@@ -229,4 +229,43 @@ final class PromptFragmentRegistryTest extends TestCase
             unset($GLOBALS['TYPO3_CONF_VARS']['EXTENSIONS']['aim']['promptFragments']);
         }
     }
+
+    /**
+     * The cache is a performance optimisation and nothing else, so it must not
+     * be able to take prompt composition down. This is the state right after a
+     * deployment: the pool is registered, so getCache() answers, but its
+     * database table does not exist yet and the access is what throws. Every
+     * text, vision, conversation, translation and tool-calling request goes
+     * through here, with or without a page.
+     */
+    #[Test]
+    public function aCacheThatThrowsWhenReadStillYieldsTheFragments(): void
+    {
+        $cache = $this->createMock(FrontendInterface::class);
+        $cache->method('get')->willThrowException(
+            new \RuntimeException("Table 'db.cache_aim_prompt_fragments' doesn't exist")
+        );
+        $registry = $this->createRegistry([$this->packageAt('PackageOne')], $cache);
+
+        self::assertSame(
+            ['Never use exclamation marks.'],
+            $registry->getFragments(PromptFragmentScope::Text),
+        );
+    }
+
+    #[Test]
+    public function aCacheThatThrowsWhenWrittenStillYieldsTheFragments(): void
+    {
+        $cache = $this->createMock(FrontendInterface::class);
+        $cache->method('get')->willReturn(false);
+        $cache->method('set')->willThrowException(
+            new \RuntimeException('The cache directory "/var/cache" is not writable')
+        );
+        $registry = $this->createRegistry([$this->packageAt('PackageOne')], $cache);
+
+        self::assertSame(
+            ['Never use exclamation marks.'],
+            $registry->getFragments(PromptFragmentScope::Text),
+        );
+    }
 }

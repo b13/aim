@@ -12,6 +12,8 @@ declare(strict_types=1);
 
 namespace B13\Aim\Tca\ItemsProcFunc;
 
+use B13\Aim\Domain\Repository\ProviderConfigurationRepository;
+use B13\Aim\Provider\EndpointCredential;
 use B13\Aim\Provider\LiveModelDiscovery;
 use B13\Aim\Registry\AiProviderRegistry;
 use B13\Aim\Registry\DisabledModelRegistry;
@@ -27,6 +29,7 @@ class AiProvidersItemsProcFunc
         private readonly DisabledModelRegistry $disabledModelRegistry,
         private readonly LanguageServiceFactory $languageServiceFactory,
         private readonly LiveModelDiscovery $liveModelDiscovery,
+        private readonly ProviderConfigurationRepository $configurationRepository,
     ) {}
 
     public function getAiProviders(&$fieldDefinition): void
@@ -72,9 +75,9 @@ class AiProvidersItemsProcFunc
             ];
         }
 
-        // No static catalog (Ollama, LM Studio, …) — when the record's api_key
-        // points at an HTTP endpoint, query the live server for its models.
-        // Currently understands the Ollama-compatible /api/tags shape.
+        // No static catalog (Ollama, LM Studio, ...): when the record names an
+        // HTTP endpoint, ask that server for its models. Reads the
+        // OpenAI-compatible /v1/models shape.
         if ($provider->supportedModels === []) {
             $this->appendLiveModels($fieldDefinition, $aiProviderIdentifier);
         }
@@ -82,8 +85,18 @@ class AiProvidersItemsProcFunc
 
     private function appendLiveModels(array &$fieldDefinition, string $providerIdentifier): void
     {
-        $endpoint = (string)($fieldDefinition['row']['api_key'] ?? '');
-        foreach ($this->liveModelDiscovery->fetchModelNames($endpoint) as $name) {
+        $row = $fieldDefinition['row'] ?? [];
+        $endpoint = $this->resolveDiscoveryEndpoint($row);
+        $credential = $this->resolveDiscoveryCredential($row);
+
+        // A host doing basic auth wants the credential in the URL and rejects a
+        // bearer token, so it goes to one place or the other, never both.
+        if (EndpointCredential::expectsCredential($endpoint)) {
+            $endpoint = EndpointCredential::merge($endpoint, $credential);
+            $credential = '';
+        }
+
+        foreach ($this->liveModelDiscovery->fetchModelNames($endpoint, $credential) as $name) {
             if ($this->disabledModelRegistry->isDisabled($providerIdentifier, $name)) {
                 continue;
             }
@@ -96,6 +109,43 @@ class AiProvidersItemsProcFunc
                 'value' => $name,
             ];
         }
+    }
+
+    private function resolveDiscoveryEndpoint(array $row): string
+    {
+        $endpoint = (string)($row['endpoint'] ?? '');
+        if ($endpoint !== '') {
+            return $endpoint;
+        }
+
+        $legacy = (string)($row['api_key'] ?? '');
+
+        return $this->liveModelDiscovery->isHttpEndpoint($legacy) ? $legacy : '';
+    }
+
+    /**
+     * A host may want a bearer token for its model list. HideApiKey blanks the
+     * form row's api_key before this runs, which its registration in
+     * ext_localconf.php guarantees by ordering itself before TcaSelectItems, so
+     * the stored credential is read back from the record and decrypted here. A
+     * freshly typed one is still in the row and wins.
+     *
+     * @param array<string, mixed> $row
+     */
+    private function resolveDiscoveryCredential(array $row): string
+    {
+        $typed = (string)($row['api_key'] ?? '');
+        if ($typed !== '') {
+            return $typed;
+        }
+
+        $uid = (int)($row['uid'] ?? 0);
+        if ($uid <= 0) {
+            // A record that has never been saved has no stored credential.
+            return '';
+        }
+
+        return $this->configurationRepository->findByUid($uid)?->apiKey ?? '';
     }
 
     protected function getBackendUser(): BackendUserAuthentication

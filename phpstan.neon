@@ -1,21 +1,29 @@
+# composer.json sets vendor-dir to .Build/vendor, so these are not the
+# default paths a generated config would carry.
 includes:
-    - vendor/phpstan/phpstan/conf/bleedingEdge.neon
-    - vendor/saschaegerer/phpstan-typo3/extension.neon
+    - .Build/vendor/phpstan/phpstan/conf/bleedingEdge.neon
+    - .Build/vendor/saschaegerer/phpstan-typo3/extension.neon
+    - phpstan-baseline.neon
 
 parameters:
   level: 5
 
   treatPhpDocTypesAsCertain: false
 
+  # This extension's own code, not the whole working directory: that pulled
+  # .Build/vendor, i.e. the entire TYPO3 core, into the analysis.
   paths:
-    - %currentWorkingDirectory%/
+    - %currentWorkingDirectory%/Classes/
+    - %currentWorkingDirectory%/Configuration/
+    - %currentWorkingDirectory%/Tests/
+    - %currentWorkingDirectory%/ext_localconf.php
+    - %currentWorkingDirectory%/ext_emconf.php
 
   excludePaths:
     analyseAndScan:
       - */node_modules/*
-      - vendor/*
+      - .Build/*
       - public/*
-      - ./.php-cs-fixer.php
 
   ignoreErrors:
     -
@@ -26,10 +34,6 @@ parameters:
       identifier: method.internalClass
     -
       identifier: new.internalClass
-    -
-      identifier: parameter.internalClass
-    -
-      identifier: property.internalClass
     -
       identifier: staticMethod.internal
     -

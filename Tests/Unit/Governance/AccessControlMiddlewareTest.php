@@ -17,15 +17,19 @@ use B13\Aim\Domain\Repository\RequestLogRepository;
 use B13\Aim\Domain\Repository\UsageBudgetRepository;
 use B13\Aim\Governance\AccessControlMiddleware;
 use B13\Aim\Governance\BudgetService;
+use B13\Aim\Governance\RateLimitCounter;
 use B13\Aim\Middleware\AiMiddlewareHandler;
 use B13\Aim\Provider\AiProviderInterface;
 use B13\Aim\Request\TextGenerationRequest;
 use B13\Aim\Request\VisionRequest;
 use B13\Aim\Response\TextResponse;
 use PHPUnit\Framework\Attributes\Test;
+use TYPO3\CMS\Core\Cache\CacheManager;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
+use TYPO3\CMS\Core\Authentication\CommandLineUserAuthentication;
+use TYPO3\CMS\Core\Cache\Frontend\FrontendInterface;
 
 final class AccessControlMiddlewareTest extends TestCase
 {
@@ -33,7 +37,7 @@ final class AccessControlMiddlewareTest extends TestCase
     {
         return new AccessControlMiddleware(
             new BudgetService($this->createMock(UsageBudgetRepository::class)),
-            $this->createMock(RequestLogRepository::class),
+            new RateLimitCounter($this->createMock(CacheManager::class), new NullLogger()),
             new NullLogger(),
         );
     }
@@ -251,5 +255,124 @@ final class AccessControlMiddlewareTest extends TestCase
         self::assertSame('vision allowed', $result->content);
 
         unset($GLOBALS['BE_USER']);
+    }
+
+    /**
+     * A working cache, so the limiter actually counts.
+     */
+    private function countingCacheManager(): CacheManager
+    {
+        /** @var array<string, int> $store */
+        $store = [];
+        $cache = $this->createMock(FrontendInterface::class);
+        $cache->method('has')->willReturn(false);
+        // A closure, not an arrow function: the latter captures $store by
+        // value, so every read would see the empty array it started with.
+        $cache->method('get')->willReturnCallback(function (string $id) use (&$store) {
+            return $store[$id] ?? false;
+        });
+        $cache->method('set')->willReturnCallback(function (string $id, $data) use (&$store): void {
+            $store[$id] = $data;
+        });
+        $cacheManager = $this->createMock(CacheManager::class);
+        $cacheManager->method('getCache')->willReturn($cache);
+
+        return $cacheManager;
+    }
+
+    private function middlewareWithWorkingCounter(): AccessControlMiddleware
+    {
+        return new AccessControlMiddleware(
+            new BudgetService($this->createMock(UsageBudgetRepository::class)),
+            new RateLimitCounter($this->countingCacheManager(), new NullLogger()),
+            new NullLogger(),
+        );
+    }
+
+    private function dispatch(AccessControlMiddleware $middleware, ProviderConfiguration $config): TextResponse
+    {
+        return $middleware->process(
+            $this->createTextRequest($config),
+            $this->createMock(AiProviderInterface::class),
+            $config,
+            $this->createNextHandler(new TextResponse('ok')),
+        );
+    }
+
+    /**
+     * The exemption is for command-line runs, and it used to be a comparison
+     * against the username "_cli_". An admin can create a non-admin account
+     * with that name and log in with it through the backend, which would make
+     * it permanently exempt from the limit.
+     */
+    #[Test]
+    public function aBackendUserNamedLikeTheCliAccountIsStillRateLimited(): void
+    {
+        $user = $this->createMock(BackendUserAuthentication::class);
+        $user->method('isAdmin')->willReturn(false);
+        $user->method('getTSConfig')->willReturn(['aim.' => ['rateLimit.' => ['requestsPerMinute' => '1']]]);
+        $user->user = ['uid' => 7, 'username' => '_cli_'];
+        $GLOBALS['BE_USER'] = $user;
+
+        $config = $this->createConfig();
+        $middleware = $this->middlewareWithWorkingCounter();
+
+        self::assertSame('ok', $this->dispatch($middleware, $config)->content);
+        $second = $this->dispatch($middleware, $config);
+
+        unset($GLOBALS['BE_USER']);
+        self::assertNotSame('ok', $second->content, 'The second request should have exceeded the limit of 1.');
+        self::assertNotSame([], $second->errors);
+    }
+
+    #[Test]
+    public function aCommandLineRunIsExemptFromTheLimit(): void
+    {
+        $user = $this->createMock(CommandLineUserAuthentication::class);
+        $user->method('isAdmin')->willReturn(false);
+        $user->method('getTSConfig')->willReturn(['aim.' => ['rateLimit.' => ['requestsPerMinute' => '1']]]);
+        $user->user = ['uid' => 7, 'username' => '_cli_'];
+        $GLOBALS['BE_USER'] = $user;
+
+        $config = $this->createConfig();
+        $middleware = $this->middlewareWithWorkingCounter();
+
+        $first = $this->dispatch($middleware, $config);
+        $second = $this->dispatch($middleware, $config);
+
+        unset($GLOBALS['BE_USER']);
+        self::assertSame('ok', $first->content);
+        self::assertSame('ok', $second->content, 'A scheduler or command run must not be capped.');
+    }
+
+    /**
+     * `= 0` is the documented off switch, so a typo must not look like one.
+     */
+    #[Test]
+    public function aRateLimitTSconfigValueThatIsNotANumberFallsBackToTheDefault(): void
+    {
+        $user = $this->createMock(BackendUserAuthentication::class);
+        $user->method('isAdmin')->willReturn(false);
+        $user->method('getTSConfig')->willReturn(['aim.' => ['rateLimit.' => ['requestsPerMinute' => 'sixty']]]);
+        $user->user = ['uid' => 7, 'username' => 'editor'];
+        $GLOBALS['BE_USER'] = $user;
+
+        $config = $this->createConfig();
+        $middleware = $this->middlewareWithWorkingCounter();
+
+        // The default is 60, so 61 dispatches must end in a refusal. If the
+        // typo had turned the limiter off, all of them would pass.
+        $refused = null;
+        for ($i = 0; $i < 61; $i++) {
+            $response = $this->dispatch($middleware, $config);
+            if ($response->content !== 'ok') {
+                $refused = $response;
+                break;
+            }
+        }
+
+        unset($GLOBALS['BE_USER']);
+        self::assertNotNull($refused, 'An unparseable value turned the rate limit off.');
+        self::assertNotSame([], $refused->errors);
     }
 }

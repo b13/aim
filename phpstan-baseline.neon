@@ -1,0 +1,289 @@
+parameters:
+	ignoreErrors:
+		-
+			rawMessage: 'Call to an undefined method TYPO3\CMS\Core\Authentication\BackendUserAuthentication::returnWebmounts().'
+			identifier: method.notFound
+			count: 1
+			path: Classes/Backend/PageTreeResolver.php
+
+		-
+			rawMessage: 'Call to function method_exists() with TYPO3\CMS\Core\Authentication\BackendUserAuthentication and ''getWebmounts'' will always evaluate to true.'
+			identifier: function.alreadyNarrowedType
+			count: 1
+			path: Classes/Backend/PageTreeResolver.php
+
+		-
+			rawMessage: 'Return type of method B13\Aim\Backend\PageTreeResolver::freshRepository() has typehint with internal class TYPO3\CMS\Backend\Tree\Repository\PageTreeRepository.'
+			identifier: return.internalClass
+			count: 1
+			path: Classes/Backend/PageTreeResolver.php
+
+		-
+			rawMessage: 'Method B13\Aim\Command\RotateApiKeys::fetchAllRows() should return list<array{uid: int|string, api_key: string|null}> but returns list<array<string, mixed>>.'
+			identifier: return.type
+			count: 1
+			path: Classes/Command/RotateApiKeys.php
+
+		-
+			rawMessage: Access to undefined constant TYPO3\CMS\Core\Imaging\Icon::SIZE_SMALL.
+			identifier: classConstant.notFound
+			count: 4
+			path: Classes/Controller/PromptManagementController.php
+
+		-
+			rawMessage: 'Call to function method_exists() with TYPO3\CMS\Backend\Template\ModuleTemplate and ''makeDocHeaderModule…'' will always evaluate to true.'
+			identifier: function.alreadyNarrowedType
+			count: 1
+			path: Classes/Controller/PromptManagementController.php
+
+		-
+			rawMessage: 'Parameter #10 $viewBoxes of class B13\Aim\Controller\PromptManagementViewContext constructor expects array<string, array{active: bool, headline: string, description: string}>, array<string, array{view: string, url: string, active: bool, headline: string, description: string}> given.'
+			identifier: argument.type
+			count: 1
+			path: Classes/Controller/PromptManagementController.php
+
+		-
+			rawMessage: 'Parameter &$pageEditAccessCache by-ref type of method B13\Aim\Controller\PromptManagementController::enrichLibraryRow() expects array<int, bool>, array given.'
+			identifier: parameterByRef.type
+			count: 1
+			path: Classes/Controller/PromptManagementController.php
+
+		-
+			rawMessage: Access to undefined constant TYPO3\CMS\Core\Imaging\Icon::SIZE_SMALL.
+			identifier: classConstant.notFound
+			count: 3
+			path: Classes/Controller/ProviderController.php
+
+		-
+			rawMessage: 'Call to function method_exists() with TYPO3\CMS\Backend\Template\ModuleTemplate and ''makeDocHeaderModule…'' will always evaluate to true.'
+			identifier: function.alreadyNarrowedType
+			count: 1
+			path: Classes/Controller/ProviderController.php
+
+		-
+			rawMessage: Access to undefined constant TYPO3\CMS\Core\Imaging\Icon::SIZE_SMALL.
+			identifier: classConstant.notFound
+			count: 2
+			path: Classes/Controller/RequestLogController.php
+
+		-
+			rawMessage: 'Call to function method_exists() with TYPO3\CMS\Backend\Template\ModuleTemplate and ''makeDocHeaderModule…'' will always evaluate to true.'
+			identifier: function.alreadyNarrowedType
+			count: 2
+			path: Classes/Controller/RequestLogController.php
+
+		-
+			rawMessage: Using nullsafe property access "?->value" on left side of ?? is unnecessary. Use -> instead.
+			identifier: nullsafe.neverNull
+			count: 1
+			path: Classes/Domain/Repository/PagePromptFragmentDemand.php
+
+		-
+			rawMessage: 'Method B13\Aim\Domain\Repository\PagePromptFragmentRepository::findAssignmentsForPage() should return list<array{uid: int, inherit_to_subpages: int, title: string, scope: string, hidden: int}> but returns list<array<string, mixed>>.'
+			identifier: return.type
+			count: 1
+			path: Classes/Domain/Repository/PagePromptFragmentRepository.php
+
+		-
+			rawMessage: 'Method B13\Aim\Domain\Repository\PagePromptFragmentRepository::findAutoDetectedFragmentForRootPage() should return array{uid: int, title: string, prompt: string, examples: string, auto_generated_source: string, hidden: int}|null but returns array<string, mixed>|null.'
+			identifier: return.type
+			count: 1
+			path: Classes/Domain/Repository/PagePromptFragmentRepository.php
+
+		-
+			rawMessage: 'Method B13\Aim\Domain\Repository\PagePromptFragmentRepository::findUsagePagesForFragment() should return list<array{uid: int, pid: int, title: string, hidden: bool, doktype: int, is_siteroot: bool}> but returns list<array{uid: int, pid: int, title: string, hidden: bool, doktype: int, is_siteroot: bool, starttime: int, endtime: int, ...}>.'
+			identifier: return.type
+			count: 1
+			path: Classes/Domain/Repository/PagePromptFragmentRepository.php
+
+		-
+			rawMessage: 'Method TYPO3\CMS\Core\Database\Connection::lastInsertId() invoked with 1 parameter, 0 required.'
+			identifier: arguments.count
+			count: 2
+			path: Classes/Domain/Repository/PagePromptFragmentRepository.php
+
+		-
+			rawMessage: 'Parameter #4 $_ of method TYPO3\CMS\Core\Authentication\BackendUserAuthentication::writelog() expects null, int given.'
+			identifier: argument.type
+			count: 1
+			path: Classes/Domain/Repository/PagePromptFragmentRepository.php
+
+		-
+			rawMessage: 'Method B13\Aim\Domain\Repository\RequestLogDemand::getParameters() should return array<string, string> but returns array<string, int|string>.'
+			identifier: return.type
+			count: 1
+			path: Classes/Domain/Repository/RequestLogDemand.php
+
+		-
+			rawMessage: 'Property TYPO3\CMS\Core\Authentication\BackendUserAuthentication::$userGroupsUID (array) on left side of ?? is not nullable.'
+			identifier: nullCoalesce.property
+			count: 1
+			path: Classes/Governance/AccessControlMiddleware.php
+
+		-
+			rawMessage: 'Property TYPO3\CMS\Core\Authentication\BackendUserAuthentication::$userGroupsUID (array) on left side of ?? is not nullable.'
+			identifier: nullCoalesce.property
+			count: 1
+			path: Classes/Governance/ConfigurationAccess.php
+
+		-
+			rawMessage: 'Call to function method_exists() with TYPO3\CMS\Core\Authentication\BackendUserAuthentication and ''getTSConfig'' will always evaluate to true.'
+			identifier: function.alreadyNarrowedType
+			count: 1
+			path: Classes/Middleware/GraderMiddleware.php
+
+		-
+			rawMessage: 'Call to function method_exists() with TYPO3\CMS\Core\Authentication\BackendUserAuthentication and ''getTSConfig'' will always evaluate to true.'
+			identifier: function.alreadyNarrowedType
+			count: 1
+			path: Classes/Middleware/RequestLoggingMiddleware.php
+
+		-
+			rawMessage: 'Offset ''configuration_uid'' on array{request_type: mixed, provider_identifier: string, configuration_uid: int, model_requested: string, extension_key: string, duration_ms: int, user_id: int, metadata: ''{}'', ...}|array{request_type: mixed, provider_identifier: string, configuration_uid: int, model_requested: string, extension_key: string, duration_ms: int, user_id: int, metadata: string, ...} on left side of ?? always exists and is not nullable.'
+			identifier: nullCoalesce.offset
+			count: 1
+			path: Classes/Middleware/RequestLoggingMiddleware.php
+
+		-
+			rawMessage: 'Offset ''error_message'' on array{request_type: mixed, provider_identifier: string, configuration_uid: int, model_requested: string, extension_key: string, duration_ms: int, user_id: int, metadata: ''{}'', ...} on left side of ?? always exists and is not nullable.'
+			identifier: nullCoalesce.offset
+			count: 1
+			path: Classes/Middleware/RequestLoggingMiddleware.php
+
+		-
+			rawMessage: 'Offset ''provider_identifier'' on array{request_type: mixed, provider_identifier: string, configuration_uid: int, model_requested: string, extension_key: string, duration_ms: int, user_id: int, metadata: ''{}'', ...}|array{request_type: mixed, provider_identifier: string, configuration_uid: int, model_requested: string, extension_key: string, duration_ms: int, user_id: int, metadata: string, ...} on left side of ?? always exists and is not nullable.'
+			identifier: nullCoalesce.offset
+			count: 1
+			path: Classes/Middleware/RequestLoggingMiddleware.php
+
+		-
+			rawMessage: 'Parameter #4 $parameters of class Symfony\AI\Platform\Tool\Tool constructor expects array{type: ''object'', properties: array<string, array{type: string, description: string, enum?: list<string>, const?: int|list<string>|string, pattern?: string, minLength?: int, maxLength?: int, minimum?: float|int, ...}>, required: list<string>, additionalProperties: false}|null, non-empty-array given.'
+			identifier: argument.type
+			count: 1
+			path: Classes/Provider/SymfonyAi/SymfonyAiPlatformAdapter.php
+
+		-
+			rawMessage: 'Property B13\Aim\Request\ConversationRequest::$stream (bool) on left side of ?? is not nullable.'
+			identifier: nullCoalesce.property
+			count: 1
+			path: Classes/Provider/SymfonyAi/SymfonyAiPlatformAdapter.php
+
+		-
+			rawMessage: Using nullsafe property access "?->apiKey" on left side of ?? is unnecessary. Use -> instead.
+			identifier: nullsafe.neverNull
+			count: 1
+			path: Classes/Tca/ItemsProcFunc/AiProvidersItemsProcFunc.php
+
+		-
+			rawMessage: Access to internal constant TYPO3\CMS\Core\Core\SystemEnvironmentBuilder::REQUESTTYPE_BE from outside its root namespace TYPO3.
+			identifier: classConstant.internal
+			count: 1
+			path: Tests/Functional/Backend/Form/Wizard/PromptFragmentSuggestReceiverTest.php
+
+		-
+			rawMessage: Access to internal constant TYPO3\CMS\Core\Core\SystemEnvironmentBuilder::REQUESTTYPE_BE from outside its root namespace TYPO3.
+			identifier: classConstant.internal
+			count: 1
+			path: Tests/Functional/Backend/FormDataProvider/DisableAddRecordOnUnsavedAssignmentWiringTest.php
+
+		-
+			rawMessage: 'Return type of method B13\Aim\Tests\Functional\Backend\FormDataProvider\DisableAddRecordOnUnsavedAssignmentWiringTest::buildRequest() has typehint with internal class TYPO3\CMS\Core\Http\ServerRequest.'
+			identifier: return.internalClass
+			count: 1
+			path: Tests/Functional/Backend/FormDataProvider/DisableAddRecordOnUnsavedAssignmentWiringTest.php
+
+		-
+			rawMessage: Access to internal constant TYPO3\CMS\Core\Core\SystemEnvironmentBuilder::REQUESTTYPE_BE from outside its root namespace TYPO3.
+			identifier: classConstant.internal
+			count: 2
+			path: Tests/Functional/Controller/PromptManagementControllerLibraryTest.php
+
+		-
+			rawMessage: 'Property B13\Aim\Tests\Functional\Controller\PromptManagementControllerLibraryTest::$unusedFragmentUid is never read, only written.'
+			identifier: property.onlyWritten
+			count: 1
+			path: Tests/Functional/Controller/PromptManagementControllerLibraryTest.php
+
+		-
+			rawMessage: Access to internal constant TYPO3\CMS\Core\Core\SystemEnvironmentBuilder::REQUESTTYPE_BE from outside its root namespace TYPO3.
+			identifier: classConstant.internal
+			count: 2
+			path: Tests/Functional/Controller/PromptManagementControllerTest.php
+
+		-
+			rawMessage: 'Return type of method B13\Aim\Tests\Functional\Controller\PromptManagementControllerTest::buildRequestWithNormalizedParams() has typehint with internal class TYPO3\CMS\Core\Http\ServerRequest.'
+			identifier: return.internalClass
+			count: 1
+			path: Tests/Functional/Controller/PromptManagementControllerTest.php
+
+		-
+			rawMessage: Access to internal constant TYPO3\CMS\Core\Core\SystemEnvironmentBuilder::REQUESTTYPE_BE from outside its root namespace TYPO3.
+			identifier: classConstant.internal
+			count: 1
+			path: Tests/Functional/Controller/ProviderControllerTest.php
+
+		-
+			rawMessage: 'Return type of method B13\Aim\Tests\Functional\Controller\ProviderControllerTest::buildRequestWithNormalizedParams() has typehint with internal class TYPO3\CMS\Core\Http\ServerRequest.'
+			identifier: return.internalClass
+			count: 1
+			path: Tests/Functional/Controller/ProviderControllerTest.php
+
+		-
+			rawMessage: Access to internal constant TYPO3\CMS\Core\Core\SystemEnvironmentBuilder::REQUESTTYPE_BE from outside its root namespace TYPO3.
+			identifier: classConstant.internal
+			count: 1
+			path: Tests/Functional/Controller/RequestLogControllerPollTest.php
+
+		-
+			rawMessage: 'Call to an undefined method PHPUnit\Framework\MockObject\Builder\InvocationStubber::with().'
+			identifier: method.notFound
+			count: 2
+			path: Tests/Unit/Controller/PromptManagementControllerTest.php
+
+		-
+			rawMessage: 'Call to an undefined method PHPUnit\Framework\MockObject\Builder\InvocationStubber::with().'
+			identifier: method.notFound
+			count: 1
+			path: Tests/Unit/Controller/ProviderControllerTest.php
+
+		-
+			rawMessage: 'Offset string on array{} on left side of ?? does not exist.'
+			identifier: nullCoalesce.offset
+			count: 1
+			path: Tests/Unit/Governance/RateLimitCounterResilienceTest.php
+
+		-
+			rawMessage: 'Call to an undefined method B13\Aim\Request\AiRequestInterface::getSystemPrompt().'
+			identifier: method.notFound
+			count: 1
+			path: Tests/Unit/Middleware/ProviderAddendumMiddlewareTest.php
+
+		-
+			rawMessage: 'Call to an undefined method B13\Aim\Request\AiRequestInterface::getSystemPrompt().'
+			identifier: method.notFound
+			count: 6
+			path: Tests/Unit/Middleware/TonePromptCompositionMiddlewareTest.php
+
+		-
+			rawMessage: 'Offset string on array{} on left side of ?? does not exist.'
+			identifier: nullCoalesce.offset
+			count: 2
+			path: Tests/Unit/Prompt/PromptFragmentRegistryTest.php
+
+		-
+			rawMessage: 'Offset 0 does not exist on array{}.'
+			identifier: offsetAccess.notFound
+			count: 1
+			path: Tests/Unit/Provider/LiveModelDiscoveryCacheTest.php
+
+		-
+			rawMessage: 'Parameter #1 $array (array{}) to function array_values is empty, call has no effect.'
+			identifier: arrayValues.empty
+			count: 1
+			path: Tests/Unit/Provider/LiveModelDiscoveryCacheTest.php
+
+		-
+			rawMessage: 'Method B13\Aim\Tests\Unit\Provider\SymfonyAi\FactoryArgumentsTest::cases() should return array<string, array{array<string, string>, array<string, string>, array<string, string>}> but returns array{''endpoint-only bridge, migrated row'': array{array{endpoint: ''endpoint'', apiKey: null}, array{endpoint: ''http://localhost…'', api_key: ''''}, array{endpoint: ''http://localhost…''}}, ''endpoint-only bridge, unmigrated row'': array{array{endpoint: ''endpoint'', apiKey: null}, array{endpoint: '''', api_key: ''http://localhost…''}, array{endpoint: ''http://localhost…''}}, ''endpoint-only bridge naming it hostUrl'': array{array{endpoint: ''hostUrl'', apiKey: null}, array{endpoint: ''http://localhost…'', api_key: ''''}, array{hostUrl: ''http://localhost…''}}, ''credential-only bridge'': array{array{endpoint: null, apiKey: ''apiKey''}, array{endpoint: '''', api_key: ''sk-secret''}, array{apiKey: ''sk-secret''}}, ''bridge accepting both, gateway with base url and token'': array{array{endpoint: ''endpoint'', apiKey: ''apiKey''}, array{endpoint: ''https://gw/v1'', api_key: ''sk-secret''}, array{endpoint: ''https://gw/v1'', apiKey: ''sk-secret''}}, ''bridge accepting both, unmigrated row must not repeat the url as a credential'': array{array{endpoint: ''endpoint'', apiKey: ''apiKey''}, array{endpoint: '''', api_key: ''http://localhost…''}, array{endpoint: ''http://localhost…''}}, ''bridge accepting both, credential only'': array{array{endpoint: ''endpoint'', apiKey: ''apiKey''}, array{endpoint: '''', api_key: ''sk-secret''}, array{apiKey: ''sk-secret''}}}.'
+			identifier: return.type
+			count: 1
+			path: Tests/Unit/Provider/SymfonyAi/FactoryArgumentsTest.php

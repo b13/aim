@@ -15,6 +15,7 @@ namespace B13\Aim\Service;
 use TYPO3\CMS\Backend\Utility\BackendUtility;
 use TYPO3\CMS\Core\Database\Connection;
 use TYPO3\CMS\Core\Database\ConnectionPool;
+use TYPO3\CMS\Core\Database\Query\Restriction\FrontendGroupRestriction;
 use TYPO3\CMS\Core\DataHandling\TableColumnType;
 use TYPO3\CMS\Core\Schema\Field\FieldTypeInterface;
 use TYPO3\CMS\Core\Schema\TcaSchemaFactory;
@@ -44,12 +45,20 @@ final class PageContentExtractor
     private const MAX_ELEMENTS_PER_PAGE = 100;
 
     /**
-     * Historical, CType-agnostic field set, used whenever the Schema API
-     * can't tell us anything more specific (TYPO3 12.4, where it doesn't
-     * exist yet; or a CType with no matching sub-schema, e.g. a row left
-     * over from an uninstalled extension).
+     * The historical field set. On TYPO3 12.4 it is narrowed to the ones the
+     * CType actually displays, see displayedFallbackFieldsFor(); it is taken
+     * whole only for a CType nothing is known about, e.g. a row left over from
+     * an uninstalled extension.
      */
     private const FALLBACK_FIELDS = ['header', 'subheader', 'bodytext'];
+
+    /**
+     * The TCA types that hold prose. Mirrors the filter the Schema API path
+     * applies (TableColumnType::INPUT and ::TEXT); every other type is a
+     * link, a date, a file reference, a relation or a flexform, and its raw
+     * value has no place in a prompt.
+     */
+    private const TEXT_BEARING_TCA_TYPES = ['input', 'text'];
 
     /** @var array<string, list<string>> */
     private array $fieldNamesByCType = [];
@@ -146,6 +155,10 @@ final class PageContentExtractor
     private function extractPageText(int $pageUid): string
     {
         $queryBuilder = $this->connectionPool->getQueryBuilderForTable('tt_content');
+        // No frontend user in a CLI or backend run.
+        $queryBuilder->getRestrictions()->add(
+            GeneralUtility::makeInstance(FrontendGroupRestriction::class, [0, -1]),
+        );
         $rows = $queryBuilder
             ->select('*')
             ->from('tt_content')
@@ -184,9 +197,10 @@ final class PageContentExtractor
      * time: the historical header/subheader/bodytext trio is exactly what
      * this same filter yields for every core CType anyway.
      *
-     * Falls back to FALLBACK_FIELDS on TYPO3 12.4 (Schema API doesn't exist
-     * yet) or when the CType has no matching sub-schema at all (e.g. a row
-     * left over from an uninstalled extension).
+     * On TYPO3 12.4 there is no Schema API, and the CType's showitem answers
+     * the same question less precisely, see displayedFallbackFieldsFor().
+     * A CType with no matching sub-schema at all, e.g. a row left over from an
+     * uninstalled extension, keeps the historical trio.
      *
      * Cached per CType (not per row): the schema is fixed for the lifetime
      * of the running process, unlike page/fragment data.
@@ -204,7 +218,7 @@ final class PageContentExtractor
     private function resolveTextBearingFieldNames(string $cType): array
     {
         if (!class_exists(TcaSchemaFactory::class)) {
-            return self::FALLBACK_FIELDS;
+            return $this->displayedFallbackFieldsFor($cType);
         }
 
         $tcaSchemaFactory = GeneralUtility::makeInstance(TcaSchemaFactory::class);
@@ -227,6 +241,82 @@ final class PageContentExtractor
         );
 
         return $fieldNames !== [] ? $fieldNames : self::FALLBACK_FIELDS;
+    }
+
+    /**
+     * The 12.4 answer, where there is no Schema API: the CType's own showitem
+     * says which fields it displays, and the TCA type of each of them says
+     * whether it carries prose. Both halves are needed. Taking every displayed
+     * field would put a typolink target or a date into the prompt, and taking
+     * the historical header/subheader/bodytext trio unconditionally, which is
+     * what this did before, extracted a heading-only element's leftover body
+     * text, a value the frontend never shows.
+     *
+     * The type is read through the CType's own columnsOverrides first: a type
+     * can be redefined per CType, and the Schema API's sub-schemas honour that
+     * on v13 and v14, so this has to as well. Core does not redefine a type
+     * that way on tt_content today, but a third-party element may.
+     *
+     * A CType with no type definition at all keeps the trio, since there is
+     * nothing better to go on.
+     *
+     * @return list<string>
+     */
+    private function displayedFallbackFieldsFor(string $cType): array
+    {
+        $typeConfiguration = $GLOBALS['TCA']['tt_content']['types'][$cType] ?? null;
+        if (!is_array($typeConfiguration) || !is_string($typeConfiguration['showitem'] ?? null)) {
+            return self::FALLBACK_FIELDS;
+        }
+
+        $fields = [];
+        foreach (self::displayedFieldNames($typeConfiguration['showitem']) as $fieldName) {
+            if (in_array($this->effectiveFieldType($fieldName, $typeConfiguration), self::TEXT_BEARING_TCA_TYPES, true)) {
+                $fields[] = $fieldName;
+            }
+        }
+
+        return array_values(array_unique($fields));
+    }
+
+    /**
+     * Every column named by a showitem string, including the ones a palette
+     * pulls in. Structural entries (--div--, --palette--, --linebreak--) end up
+     * in the list as their own name and are dropped by the type lookup, which
+     * finds no column for them.
+     *
+     * @return list<string>
+     */
+    private static function displayedFieldNames(string $showitem): array
+    {
+        $names = [];
+        foreach (GeneralUtility::trimExplode(',', $showitem, true) as $item) {
+            $parts = GeneralUtility::trimExplode(';', $item);
+            if ($parts[0] !== '--palette--') {
+                $names[] = $parts[0];
+                continue;
+            }
+            // --palette--;label;name and --palette--;;name both name it third.
+            $palette = (string)($GLOBALS['TCA']['tt_content']['palettes'][$parts[2] ?? '']['showitem'] ?? '');
+            foreach (GeneralUtility::trimExplode(',', $palette, true) as $paletteItem) {
+                $names[] = GeneralUtility::trimExplode(';', $paletteItem)[0];
+            }
+        }
+
+        return $names;
+    }
+
+    /**
+     * @param array<string, mixed> $typeConfiguration
+     */
+    private function effectiveFieldType(string $fieldName, array $typeConfiguration): string
+    {
+        $overridden = $typeConfiguration['columnsOverrides'][$fieldName]['config']['type'] ?? null;
+        if (is_string($overridden)) {
+            return $overridden;
+        }
+
+        return (string)($GLOBALS['TCA']['tt_content']['columns'][$fieldName]['config']['type'] ?? '');
     }
 
     private function cleanText(string $raw): string

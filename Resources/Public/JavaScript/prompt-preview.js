@@ -218,7 +218,15 @@ class AimPromptPreviewToggle extends HTMLElement {
     const contentCol = document.createElement('div');
     contentCol.className = 'aim-channel__content-col';
 
-    if (layer.parts.length === 0) {
+    if (layer.unavailable) {
+      // Distinct from empty on purpose: "could not be read" and "nothing
+      // configured" look identical in a preview but mean opposite things, and
+      // this view exists to show what the model actually receives.
+      channel.classList.add('aim-channel--unavailable');
+      const failed = document.createElement('p');
+      failed.textContent = this.#panel.dataset.labelLayerUnavailable ?? 'Could not be read';
+      contentCol.append(failed);
+    } else if (layer.parts.length === 0) {
       channel.classList.add('aim-channel--empty');
       const empty = document.createElement('p');
       empty.textContent = emptyLabel;

@@ -103,7 +103,7 @@ return static function (ContainerConfigurator $container, ContainerBuilder $cont
                     'groupNames' => 'aim',
                     'title' => 'LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:' . $config['title'] . '.title',
                     'description' => 'LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:' . $config['title'] . '.description',
-                    'iconIdentifier' =>'tx-aim',
+                    'iconIdentifier' => 'tx-aim',
                     'height' => 'medium',
                     'width' => 'small',
                 ]);

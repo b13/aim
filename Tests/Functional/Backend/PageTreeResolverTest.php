@@ -149,6 +149,68 @@ final class PageTreeResolverTest extends FunctionalTestCase
         self::assertSame(1, $result[0]);
     }
 
+    // --- visibility: the module filter and the crawl want opposite things ---
+    //
+    //   1 "Root"
+    //     2 "Visible child"
+    //     3 "Hidden child"          (hidden = 1)
+    //     4 "Storage"               (doktype = 254 sysfolder)
+    //       5 "Below storage"
+    //     6 "Members only"          (fe_group = 2)
+
+    private function seedVisibilityFixture(): void
+    {
+        $pages = $this->getConnectionPool()->getConnectionForTable('pages');
+        $pages->insert('pages', ['uid' => 1, 'pid' => 0, 'title' => 'Root']);
+        $pages->insert('pages', ['uid' => 2, 'pid' => 1, 'title' => 'Visible child']);
+        $pages->insert('pages', ['uid' => 3, 'pid' => 1, 'title' => 'Hidden child', 'hidden' => 1]);
+        $pages->insert('pages', ['uid' => 4, 'pid' => 1, 'title' => 'Storage', 'doktype' => 254]);
+        $pages->insert('pages', ['uid' => 5, 'pid' => 4, 'title' => 'Below storage']);
+        $pages->insert('pages', ['uid' => 6, 'pid' => 1, 'title' => 'Members only', 'fe_group' => '2']);
+    }
+
+    /**
+     * The module's tree filter is an editor-facing listing, so it must not hide
+     * anything: a sysfolder is a common place to keep fragments, and dropping
+     * it took everything beneath it too.
+     */
+    #[Test]
+    public function resolveSubtreeKeepsHiddenPagesSysfoldersAndWhatIsBelowThem(): void
+    {
+        $this->seedVisibilityFixture();
+
+        $ids = $this->resolver()->resolveSubtree(1);
+        sort($ids);
+
+        self::assertSame([1, 2, 3, 4, 5, 6], $ids, 'The module filter dropped a page an editor can see.');
+    }
+
+    /**
+     * The crawl sends page text to an AI provider, so it is limited to what a
+     * visitor could open. fe_group sits on the page here, not on its content.
+     */
+    #[Test]
+    public function resolveBoundedSliceSkipsWhatAVisitorCouldNotOpen(): void
+    {
+        $this->seedVisibilityFixture();
+
+        $ids = $this->resolver()->resolveBoundedSlice(1, 99, 100);
+
+        self::assertSame([1, 2], $ids, 'A hidden page, a sysfolder or a members-only page was crawled.');
+    }
+
+    /**
+     * Naming a page with --page must not be a way around the same rules.
+     */
+    #[Test]
+    public function resolveBoundedSliceDoesNotCrawlAnInvisibleRootJustBecauseItWasNamed(): void
+    {
+        $this->seedVisibilityFixture();
+
+        self::assertSame([], $this->resolver()->resolveBoundedSlice(3, 99, 100), 'A hidden root was crawled.');
+        self::assertSame([], $this->resolver()->resolveBoundedSlice(6, 99, 100), 'A members-only root was crawled.');
+    }
+
     private function seedAccessibilityFixture(): void
     {
         $pages = $this->getConnectionPool()->getConnectionForTable('pages');

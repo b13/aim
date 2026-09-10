@@ -41,6 +41,14 @@
                                 </a>
                             </f:be.infobox>
                         </f:then>
+                        <f:else>
+                            <f:be.infobox title="{f:translate(key: 'LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.pageOutOfRange.title')}" state="-1">
+                                <p><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.pageOutOfRange.message" arguments="{0: demand.page, 1: statistics.total_requests}" /></p>
+                                <a href="{paginationBaseUrl}&amp;page=1" class="btn btn-default">
+                                    <f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.pageOutOfRange.firstPage" />
+                                </a>
+                            </f:be.infobox>
+                        </f:else>
                     </f:if>
                 </f:else>
             </f:if>

@@ -22,6 +22,11 @@ namespace B13\Aim\Domain\Model;
  * a consumer's own equivalent, driven by the persisted auto_generated_source
  * column rather than the title, which an editor is free to rename without
  * affecting this.
+ *
+ * $isActive is false while the assignment is still waiting for a human to
+ * switch it on, which is how a machine-derived fragment is saved. Such a
+ * fragment is composed into no prompt at all, so a consumer UI that shows the
+ * tone of voice without showing this reads as "in effect" when it is not.
  */
 final class ToneOfVoiceInfo
 {
@@ -32,5 +37,6 @@ final class ToneOfVoiceInfo
         public readonly string $tone,
         public readonly string $examples,
         public readonly string $editUrl,
+        public readonly bool $isActive = true,
     ) {}
 }

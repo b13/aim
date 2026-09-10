@@ -113,7 +113,7 @@ final class Ai
             user: $user,
             metadata: $this->buildMetadata($extensionKey, $metadata),
         );
-        return $this->dispatch($request, VisionCapableInterface::class);
+        return $this->dispatch($request, VisionCapableInterface::class, $resolvedProvider);
     }
 
     /**
@@ -145,7 +145,7 @@ final class Ai
             user: $user,
             metadata: $this->buildMetadata($extensionKey, $metadata),
         );
-        return $this->dispatch($request, TextGenerationCapableInterface::class);
+        return $this->dispatch($request, TextGenerationCapableInterface::class, $resolvedProvider);
     }
 
     /**
@@ -181,7 +181,7 @@ final class Ai
             user: $user,
             metadata: $this->buildMetadata($extensionKey, $metadata),
         );
-        return $this->dispatch($request, TranslationCapableInterface::class);
+        return $this->dispatch($request, TranslationCapableInterface::class, $resolvedProvider);
     }
 
     /**
@@ -215,7 +215,7 @@ final class Ai
             user: $user,
             metadata: $this->buildMetadata($extensionKey, $metadata),
         );
-        return $this->dispatch($request, ConversationCapableInterface::class);
+        return $this->dispatch($request, ConversationCapableInterface::class, $resolvedProvider);
     }
 
     /**
@@ -264,7 +264,7 @@ final class Ai
             stream: true,
         );
 
-        $response = $this->dispatch($request, ConversationCapableInterface::class);
+        $response = $this->dispatch($request, ConversationCapableInterface::class, $resolvedProvider);
         if ($response instanceof ConversationResponse) {
             return $response;
         }
@@ -324,7 +324,7 @@ final class Ai
             user: $user,
             metadata: $this->buildMetadata($extensionKey, $metadata),
         );
-        return $this->dispatch($request, ToolCallingCapableInterface::class);
+        return $this->dispatch($request, ToolCallingCapableInterface::class, $resolvedProvider);
     }
 
     /**
@@ -347,7 +347,7 @@ final class Ai
             user: $user,
             metadata: $this->buildMetadata($extensionKey),
         );
-        return $this->dispatch($request, EmbeddingCapableInterface::class);
+        return $this->dispatch($request, EmbeddingCapableInterface::class, $resolvedProvider);
     }
 
     /**
@@ -395,7 +395,7 @@ final class Ai
             user: $user,
             metadata: $this->buildMetadata($extensionKey, $metadata),
         );
-        return $this->dispatch($request, ImageGenerationCapableInterface::class);
+        return $this->dispatch($request, ImageGenerationCapableInterface::class, $resolvedProvider);
     }
 
     /**
@@ -429,11 +429,19 @@ final class Ai
         return $this->providerResolver->resolveForCapability($capabilityFqcn);
     }
 
-    private function dispatch(AiRequestInterface $request, string $capabilityFqcn): TextResponse
+    /**
+     * $resolvedProvider is the provider resolve() actually picked for this call.
+     * It has to be handed to the chain builder, not re-derived: rebuilding the
+     * chain from the capability alone heads it with the default configuration,
+     * and CoreDispatchMiddleware then rewrites the request to match, which
+     * silently sends a request made with ->provider('ollama:llama3') to
+     * whichever configuration happens to be the default.
+     */
+    private function dispatch(AiRequestInterface $request, string $capabilityFqcn, ResolvedProvider $resolvedProvider): TextResponse
     {
         return $this->pipeline->dispatchWithFallback(
             $request,
-            $this->providerResolver->buildFallbackChain($capabilityFqcn),
+            $this->providerResolver->buildFallbackChain($capabilityFqcn, $resolvedProvider),
         );
     }
 

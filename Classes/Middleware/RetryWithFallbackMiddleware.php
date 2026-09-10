@@ -52,6 +52,11 @@ final class RetryWithFallbackMiddleware implements AiMiddlewareInterface
         ProviderConfiguration $configuration,
         AiMiddlewareHandler $next,
     ): TextResponse {
+        // The chain belongs to one dispatch, but this middleware is
+        // a shared service, so it has to be taken and cleared here.
+        $fallbackChain = $this->fallbackChain;
+        $this->fallbackChain = null;
+
         try {
             $response = $next->handle($request, $provider, $configuration);
             if ($response->isSuccessful()) {
@@ -61,14 +66,22 @@ final class RetryWithFallbackMiddleware implements AiMiddlewareInterface
             $response = new TextResponse('', errors: [$e->getMessage()]);
         }
 
+        // A governance refusal is about the caller, not the provider. Every
+        // fallback would be refused by the same rule, so sweeping the chain
+        // would only burn rate-limit slots and log lines, and would end up
+        // reporting the refusal against the last configuration tried.
+        if ($next->context->governanceDenied) {
+            return $response;
+        }
+
         // No fallback chain or no fallbacks available — return the failed response
-        if ($this->fallbackChain === null || count($this->fallbackChain) <= 1) {
+        if ($fallbackChain === null || count($fallbackChain) <= 1) {
             return $response;
         }
 
         // Try each fallback provider
         $originalError = $response->errors[0] ?? 'Unknown error';
-        foreach ($this->fallbackChain->getFallbacks() as $fallback) {
+        foreach ($fallbackChain->getFallbacks() as $fallback) {
             $this->logger->info(sprintf(
                 'AI provider "%s" failed, trying fallback "%s".',
                 $configuration->providerIdentifier,

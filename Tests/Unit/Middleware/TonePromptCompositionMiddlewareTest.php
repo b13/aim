@@ -24,11 +24,13 @@ use B13\Aim\Provider\AiProviderInterface;
 use B13\Aim\Request\AiRequestInterface;
 use B13\Aim\Request\EmbeddingRequest;
 use B13\Aim\Request\ImageGenerationRequest;
+use B13\Aim\Request\SupportsSystemPromptInterface;
 use B13\Aim\Request\TextGenerationRequest;
 use B13\Aim\Response\TextResponse;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\LoggerInterface;
 use TYPO3\CMS\Core\Configuration\ExtensionConfiguration;
 
 final class TonePromptCompositionMiddlewareTest extends TestCase
@@ -39,7 +41,7 @@ final class TonePromptCompositionMiddlewareTest extends TestCase
     }
 
     /**
-     * @return array{0: TonePromptCompositionMiddleware, 1: PagePromptResolver&MockObject, 2: UserPromptFragmentResolver&MockObject, 3: PromptFragmentRegistry&MockObject, 4: ExtensionConfiguration&MockObject}
+     * @return array{0: TonePromptCompositionMiddleware, 1: PagePromptResolver&MockObject, 2: UserPromptFragmentResolver&MockObject, 3: PromptFragmentRegistry&MockObject, 4: ExtensionConfiguration&MockObject, 5: LoggerInterface&MockObject}
      */
     private function createMiddleware(): array
     {
@@ -47,9 +49,10 @@ final class TonePromptCompositionMiddlewareTest extends TestCase
         $userFragmentResolver = $this->createMock(UserPromptFragmentResolver::class);
         $registry = $this->createMock(PromptFragmentRegistry::class);
         $extensionConfiguration = $this->createMock(ExtensionConfiguration::class);
+        $logger = $this->createMock(LoggerInterface::class);
 
-        $middleware = new TonePromptCompositionMiddleware($pageResolver, $userFragmentResolver, $registry, $extensionConfiguration);
-        return [$middleware, $pageResolver, $userFragmentResolver, $registry, $extensionConfiguration];
+        $middleware = new TonePromptCompositionMiddleware($pageResolver, $userFragmentResolver, $registry, $extensionConfiguration, $logger);
+        return [$middleware, $pageResolver, $userFragmentResolver, $registry, $extensionConfiguration, $logger];
     }
 
     /**
@@ -65,6 +68,41 @@ final class TonePromptCompositionMiddlewareTest extends TestCase
             $captured = $request;
             return new TextResponse('ok');
         }, $context);
+    }
+
+    /**
+     * The tone of voice is an addition to the request, not the request itself.
+     * The realistic cause of a failure here is a deployment whose schema
+     * update has not run yet, where reading the assignment table raises a
+     * database error, and losing the whole AI request over that is worse than
+     * answering without the page's tone.
+     */
+    #[Test]
+    public function aFailingToneLookupDoesNotTakeTheRequestDown(): void
+    {
+        [$middleware, $pageResolver, $userFragmentResolver, $registry, , $logger] = $this->createMiddleware();
+        $pageResolver->method('resolve')->willThrowException(
+            new \RuntimeException("Unknown column 'tx_aim_page_prompt_fragment.hidden'")
+        );
+        $userFragmentResolver->method('getFragments')->willReturn(['Assigned to this editor.']);
+        $registry->method('getFragments')->willReturn([]);
+        $logger->expects(self::once())->method('error');
+
+        $config = $this->createConfig();
+        $request = new TextGenerationRequest(configuration: $config, prompt: 'Hi', systemPrompt: 'Generate alt text.', pageId: 5);
+
+        $captured = null;
+        $middleware->process($request, $this->createMock(AiProviderInterface::class), $config, $this->capturingHandler($captured));
+
+        // assertInstanceOf rather than assertNotNull: it is the real assertion
+        // (the request reached the next middleware and still carries a system
+        // prompt) and it narrows the type, so this does not add to the
+        // pre-existing getSystemPrompt() debt the baseline records.
+        self::assertInstanceOf(SupportsSystemPromptInterface::class, $captured, 'The request never reached the next middleware.');
+        // Everything except the tone still composed.
+        $composed = $captured->getSystemPrompt();
+        self::assertStringContainsString('Generate alt text.', $composed);
+        self::assertStringContainsString('Assigned to this editor.', $composed);
     }
 
     #[Test]

@@ -83,7 +83,6 @@ final class GradePendingLogsTest extends FunctionalTestCase
     private function stubGradingService(\Closure $onGrade): GradingService
     {
         return new class($onGrade) extends GradingService {
-            // @phpstan-ignore-next-line — overriding constructor on purpose
             public function __construct(private readonly \Closure $onGrade) {}
 
             public function grade(int $logUid): void

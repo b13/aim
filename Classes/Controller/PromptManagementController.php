@@ -69,6 +69,12 @@ class PromptManagementController
      */
     private const MAX_USAGE_PAGES_SHOWN = 25;
 
+    /**
+     * Caps for the two billable AJAX endpoints below.
+     */
+    private const MAX_CALIBRATION_INPUT_CHARS = 12000;
+    private const MAX_EXTRACTED_PAGES = 25;
+
     public function __construct(
         private readonly ModuleTemplateFactory $moduleTemplateFactory,
         private readonly PromptPreviewService $previewService,
@@ -451,6 +457,7 @@ class PromptManagementController
             'pageId' => (string)$pageId,
             'modalTitle' => sprintf($translate('modalTitle'), $pageTitle),
             'labelEmpty' => $translate('result.empty'),
+            'labelLayerUnavailable' => $translate('result.layerUnavailable'),
             'labelCharacters' => $translate('result.characters.label'),
             'labelTokens' => $translate('result.tokens.label'),
             'labelPageTone' => $translate('layer.pageTone'),
@@ -641,8 +648,10 @@ class PromptManagementController
      */
     public function previewAction(ServerRequestInterface $request): ResponseInterface
     {
-        if (!$this->getBackendUser()->check('tables_select', 'tx_aim_prompt_fragment')) {
-            return new JsonResponse(['ok' => false, 'message' => 'Access denied']);
+        if (!$this->getBackendUser()->check('modules', 'aim_prompt_management')
+            || !$this->getBackendUser()->check('tables_select', 'tx_aim_prompt_fragment')
+        ) {
+            return new JsonResponse(['ok' => false, 'message' => 'Access denied'], 403);
         }
 
         $body = $request->getParsedBody() ?? [];
@@ -697,9 +706,13 @@ class PromptManagementController
             return new JsonResponse(['ok' => false, 'message' => 'Access denied'], 403);
         }
 
-        return new JsonResponse($this->voiceCalibrationService->calibrate(
-            (string)(($request->getParsedBody() ?? [])['text'] ?? '')
-        ));
+        // Capped here rather than trusting the textarea's own maxlength.
+        $text = (string)(($request->getParsedBody() ?? [])['text'] ?? '');
+        if (mb_strlen($text) > self::MAX_CALIBRATION_INPUT_CHARS) {
+            $text = mb_substr($text, 0, self::MAX_CALIBRATION_INPUT_CHARS);
+        }
+
+        return new JsonResponse($this->voiceCalibrationService->calibrate($text));
     }
 
     /**
@@ -721,6 +734,7 @@ class PromptManagementController
         if ($pageUids === []) {
             return new JsonResponse(['ok' => false, 'message' => 'No page selected']);
         }
+        $pageUids = array_slice($pageUids, 0, self::MAX_EXTRACTED_PAGES);
 
         $accessiblePageIds = $this->pageTreeResolver->resolveAccessiblePageIds($this->getBackendUser());
         if ($accessiblePageIds !== null) {

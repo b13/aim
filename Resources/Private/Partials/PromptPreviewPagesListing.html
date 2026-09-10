@@ -14,11 +14,11 @@
                             <table class="table table-striped table-hover">
                                 <thead>
                                     <tr>
-                                        <th class="col-icon"></th>
+                                        <th class="col-icon" aria-hidden="true"></th>
                                         <f:render partial="SortableHeader" arguments="{sortUrls: sortUrls, field: 'title', labelKey: 'LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:promptPreview.list.column.title'}" />
                                         <th><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:promptPreview.list.column.scopes" /></th>
                                         <th><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:promptPreview.list.column.fragments" /></th>
-                                        <th class="col-control"></th>
+                                        <th class="col-control"><span class="visually-hidden"><f:translate key="LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels._CONTROL_" /></span></th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -166,6 +166,7 @@
                                             data-page-id="{page.uid}"
                                             data-modal-title="{f:translate(key: 'LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:promptPreview.modalTitle', arguments: '{0: page.title}')}"
                                             data-label-empty="{f:translate(key: 'LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:promptPreview.result.empty')}"
+                                            data-label-layer-unavailable="{f:translate(key: 'LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:promptPreview.result.layerUnavailable')}"
                                             data-label-characters="{f:translate(key: 'LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:promptPreview.result.characters.label')}"
                                             data-label-tokens="{f:translate(key: 'LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:promptPreview.result.tokens.label')}"
                                             data-label-page-tone="{f:translate(key: 'LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:promptPreview.layer.pageTone')}"

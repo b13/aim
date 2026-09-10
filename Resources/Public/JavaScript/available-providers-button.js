@@ -7,6 +7,7 @@
  */
 
 import Modal from '@typo3/backend/modal.js';
+import Notification from '@typo3/backend/notification.js';
 import AjaxRequest from '@typo3/core/ajax/ajax-request.js';
 
 class AimAvailableProviders extends HTMLElement {
@@ -68,13 +69,26 @@ class AimAvailableProviders extends HTMLElement {
           const response = await new AjaxRequest(toggleUrl)
             .post({ provider: btn.dataset.provider, model: btn.dataset.model });
           const data = await response.resolve();
-          btn.dataset.disabled = data.disabled ? '1' : '0';
+          this.#applyModelState(btn, data.disabled);
           onChanged();
         } catch (e) {
-          console.error('Model toggle failed:', e);
+          Notification.error(
+            container.dataset.labelToggleFailedTitle,
+            e?.message || container.dataset.labelToggleFailedMessage,
+            10,
+          );
         }
         btn.disabled = false;
       });
+    }
+  }
+
+  #applyModelState(btn, disabled) {
+    btn.dataset.disabled = disabled ? '1' : '0';
+    btn.setAttribute('aria-pressed', disabled ? 'false' : 'true');
+    const title = disabled ? btn.dataset.labelEnable : btn.dataset.labelDisable;
+    if (title) {
+      btn.title = title;
     }
   }
 }

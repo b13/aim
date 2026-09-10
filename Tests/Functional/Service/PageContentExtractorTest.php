@@ -14,6 +14,7 @@ namespace B13\Aim\Tests\Functional\Service;
 
 use B13\Aim\Service\PageContentExtractor;
 use PHPUnit\Framework\Attributes\Test;
+use TYPO3\CMS\Core\Localization\LanguageServiceFactory;
 use TYPO3\TestingFramework\Core\Functional\FunctionalTestCase;
 
 final class PageContentExtractorTest extends FunctionalTestCase
@@ -25,6 +26,11 @@ final class PageContentExtractorTest extends FunctionalTestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        // BackendUtility::getRecordTitle() reads $GLOBALS['LANG'] unguarded, so
+        // without this these tests only pass when an earlier test in the suite
+        // happened to set it, and every one of them errors under --filter.
+        $GLOBALS['LANG'] = $this->get(LanguageServiceFactory::class)->create('default');
 
         $pages = $this->getConnectionPool()->getConnectionForTable('pages');
         $pages->insert('pages', ['uid' => 1, 'pid' => 0, 'title' => 'About Us']);

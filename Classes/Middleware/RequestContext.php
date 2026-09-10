@@ -12,6 +12,8 @@ declare(strict_types=1);
 
 namespace B13\Aim\Middleware;
 
+use B13\Aim\Governance\PrivacyLevel;
+
 /**
  * Per-request context object passed through the middleware chain.
  *
@@ -55,4 +57,32 @@ final class RequestContext
      * getSystemPromptOverride() itself a second time for the same request.
      */
     public bool $promptOverrideApplied = false;
+
+    /**
+     * Set by AccessControlMiddleware when it refuses a request. That refusal is
+     * about the caller, not the provider, so RetryWithFallbackMiddleware must
+     * not read it as "this provider is down" and sweep the whole chain: every
+     * hop would be refused for the same reason, and the user would be shown the
+     * failure attributed to the last configuration tried.
+     */
+    public bool $governanceDenied = false;
+
+    /**
+     * Whether the rate limiter has already counted this dispatch.
+     * AccessControlMiddleware runs inside RetryWithFallbackMiddleware, so it is
+     * entered once per fallback hop, and counting each of them would make the
+     * effective limit the configured one divided by the chain length.
+     */
+    public bool $rateLimitCounted = false;
+
+    /**
+     * The strictest privacy level any configuration in this dispatch asked for.
+     *
+     * The level is otherwise read from the configuration of the current
+     * attempt, so a primary set to log nothing would fall back to a `standard`
+     * configuration and that attempt would write the full prompt. The
+     * originating configuration's choice has to follow the request through the
+     * chain, the same way the TSconfig and per-request override do.
+     */
+    public ?PrivacyLevel $privacyFloor = null;
 }

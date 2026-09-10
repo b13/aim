@@ -10,17 +10,24 @@ import AjaxRequest from '@typo3/core/ajax/ajax-request.js';
 import Notification from '@typo3/backend/notification.js';
 import Icons from '@typo3/backend/icons.js';
 
+const TONES = {
+  checking: 'info',
+  connected: 'good',
+  disconnected: 'critical',
+  failed: 'critical',
+};
+
 class AimVerifyProvider extends HTMLElement {
   #abortController;
   #button;
-  #statusBadge;
+  #statusCell;
 
   connectedCallback() {
     this.#abortController = new AbortController();
     this.#button = this.querySelector('button');
     if (!this.#button) return;
 
-    this.#statusBadge = document.querySelector(`[data-verify-status="${this.uid}"]`);
+    this.#statusCell = document.querySelector(`[data-verify-status="${this.uid}"]`);
     this.#button.addEventListener('click', this.#handleClick, {
       signal: this.#abortController.signal,
     });
@@ -44,12 +51,8 @@ class AimVerifyProvider extends HTMLElement {
       this.#button.innerHTML = spinner;
     });
 
-    if (this.#statusBadge) {
-      const badge = this.#statusBadge.querySelector('.badge');
-      if (badge) {
-        badge.className = 'badge badge-secondary';
-        badge.textContent = 'checking\u2026';
-      }
+    if (this.#statusCell) {
+      this.#renderStatus(TONES.checking, 'checking\u2026');
     }
 
     try {
@@ -62,13 +65,18 @@ class AimVerifyProvider extends HTMLElement {
         Notification.error('Provider disconnected', data.message, 10);
       }
 
-      if (this.#statusBadge) {
-        this.#updateStatusBadge(data);
+      if (this.#statusCell) {
+        this.#renderStatus(
+          data.ok ? TONES.connected : TONES.disconnected,
+          data.ok ? 'connected' : 'disconnected',
+          data.message ?? '',
+          data.checkedAt ? new Date(data.checkedAt * 1000).toLocaleString() : '',
+        );
       }
     } catch (e) {
       Notification.error('Verification failed', e.message, 10);
-      if (this.#statusBadge) {
-        this.#statusBadge.innerHTML = '<span class="badge badge-danger">error</span>';
+      if (this.#statusCell) {
+        this.#renderStatus(TONES.failed, 'error', e.message ?? '');
       }
     }
 
@@ -76,19 +84,18 @@ class AimVerifyProvider extends HTMLElement {
     this.#button.disabled = false;
   }
 
-  #updateStatusBadge(data) {
-    const badgeClass = data.ok ? 'badge-success' : 'badge-danger';
-    const badgeText = data.ok ? 'connected' : 'disconnected';
-    const time = data.checkedAt ? new Date(data.checkedAt * 1000).toLocaleString() : '';
+  #renderStatus(tone, text, title = '', time = '') {
+    const chip = document.createElement('span');
+    chip.className = 'aim-chip';
+    chip.dataset.tone = tone;
+    chip.textContent = text;
+    if (title !== '') {
+      chip.title = title;
+    }
 
-    const badge = document.createElement('span');
-    badge.className = `badge ${badgeClass}`;
-    badge.title = data.message ?? '';
-    badge.textContent = badgeText;
-
-    this.#statusBadge.replaceChildren(badge);
-    if (time) {
-      this.#statusBadge.append(
+    this.#statusCell.replaceChildren(chip);
+    if (time !== '') {
+      this.#statusCell.append(
         document.createElement('br'),
         Object.assign(document.createElement('small'), {
           className: 'text-body-secondary',

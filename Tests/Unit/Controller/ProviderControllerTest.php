@@ -25,6 +25,7 @@ use B13\Aim\Domain\Repository\ProviderConfigurationRepository;
 use B13\Aim\Domain\Repository\RequestLogRepository;
 use B13\Aim\Provider\AiProviderInterface;
 use B13\Aim\Provider\LiveModelDiscovery;
+use B13\Aim\Provider\CredentialRedactor;
 use B13\Aim\Registry\AiProviderRegistry;
 use B13\Aim\Registry\DisabledModelRegistry;
 use B13\Aim\Request\ConversationRequest;
@@ -200,6 +201,7 @@ final class ProviderControllerTest extends TestCase
             $sortUrlBuilder,
             new ConsoleStylesheetProvider(),
             $moduleProvider,
+            new CredentialRedactor(),
         );
 
         $request = $this->createStub(ServerRequestInterface::class);

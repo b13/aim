@@ -20,6 +20,4 @@ namespace B13\Aim\Capability;
  * implement. The system discovers capabilities via instanceof checks
  * against these interfaces - no registration needed.
  */
-interface AiCapabilityInterface
-{
-}
+interface AiCapabilityInterface {}

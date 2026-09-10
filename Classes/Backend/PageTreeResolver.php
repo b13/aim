@@ -14,6 +14,10 @@ namespace B13\Aim\Backend;
 
 use TYPO3\CMS\Backend\Tree\Repository\PageTreeRepository;
 use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
+use TYPO3\CMS\Core\Database\Connection;
+use TYPO3\CMS\Core\Database\ConnectionPool;
+use TYPO3\CMS\Core\Database\Query\Restriction\FrontendGroupRestriction;
+use TYPO3\CMS\Core\Domain\Repository\PageRepository;
 use TYPO3\CMS\Core\Type\Bitmask\Permission;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 
@@ -32,11 +36,13 @@ use TYPO3\CMS\Core\Utility\GeneralUtility;
  *    sample of this site" rather than every descendant.
  *
  * Each method gets its own fresh PageTreeRepository instance rather than a
- * shared, constructor-injected on.
+ * shared, constructor-injected one.
  */
 final class PageTreeResolver
 {
     private const RECURSIVE_PAGE_LEVEL = 99;
+
+    public function __construct(private readonly ConnectionPool $connectionPool) {}
 
     /**
      * @return list<int>|null null means "no restriction" (admin). An empty list means "no accessible pages".
@@ -70,7 +76,14 @@ final class PageTreeResolver
      */
     public function resolveSubtree(int $pageId): array
     {
-        return $this->resolveBoundedSlice($pageId, self::RECURSIVE_PAGE_LEVEL, PHP_INT_MAX);
+        $repository = $this->freshRepository();
+
+        $pageIds = [$pageId];
+        foreach ($repository->getFlattenedPages([$pageId], self::RECURSIVE_PAGE_LEVEL) as $page) {
+            $pageIds[] = (int)$page['uid'];
+        }
+
+        return array_values(array_unique($pageIds));
     }
 
     /**
@@ -80,14 +93,87 @@ final class PageTreeResolver
      */
     public function resolveBoundedSlice(int $rootPageId, int $maxDepth, int $maxPages): array
     {
+        // This feeds a crawl whose text is sent to an AI provider, so it is
+        // limited to what a visitor could see.
+        $repository = $this->freshRepository();
+        $repository->setAdditionalWhereClause($this->publiclyVisiblePagesClause());
+
+        // The root is included so the traversal has a starting point, but it is
+        // then filtered like every other page: seeding it unconditionally
+        // crawled a hidden page, a sysfolder or a recycler whenever it was
+        // named directly with --page.
         $pageIds = [$rootPageId];
-        foreach ($this->freshRepository()->getFlattenedPages([$rootPageId], max(0, $maxDepth)) as $page) {
+        foreach ($repository->getFlattenedPages([$rootPageId], max(0, $maxDepth)) as $page) {
             $pageIds[] = (int)$page['uid'];
         }
 
-        $pageIds = array_values(array_unique($pageIds));
+        $pageIds = $this->keepPubliclyVisible(array_values(array_unique($pageIds)));
 
         return array_slice($pageIds, 0, max(1, $maxPages));
+    }
+
+    /**
+     * Keeps only the pages an anonymous visitor could open, preserving order.
+     *
+     * The WHERE fragment below covers the enable fields and the doktype cap,
+     * but it cannot express fe_group: that is a comma-separated list, and
+     * getting the membership test right by hand is how this kind of check goes
+     * wrong. Core's FrontendGroupRestriction already does it, so the collected
+     * ids are put through it here. Group 0 plus -1 is what a visitor with no
+     * login sees, -1 being the "hide at login" case.
+     *
+     * @param list<int> $pageIds
+     * @return list<int>
+     */
+    private function keepPubliclyVisible(array $pageIds): array
+    {
+        if ($pageIds === []) {
+            return [];
+        }
+
+        $qb = $this->connectionPool->getQueryBuilderForTable('pages');
+        $qb->getRestrictions()
+            ->add(GeneralUtility::makeInstance(FrontendGroupRestriction::class, [0, -1]));
+
+        $visible = $qb->select('uid')
+            ->from('pages')
+            ->where(
+                $qb->expr()->in('uid', $qb->createNamedParameter($pageIds, Connection::PARAM_INT_ARRAY)),
+                $qb->expr()->lt('doktype', $qb->createNamedParameter(
+                    PageRepository::DOKTYPE_BE_USER_SECTION,
+                    Connection::PARAM_INT,
+                )),
+            )
+            ->executeQuery()
+            ->fetchFirstColumn();
+
+        $visible = array_map('intval', $visible);
+
+        return array_values(array_filter($pageIds, static fn(int $uid): bool => in_array($uid, $visible, true)));
+    }
+
+    /**
+     * Enable-fields plus a doktype cap as a WHERE fragment, which is the only
+     * hook PageTreeRepository exposes.
+     */
+    private function publiclyVisiblePagesClause(): string
+    {
+        $enableColumns = $GLOBALS['TCA']['pages']['ctrl']['enablecolumns'] ?? [];
+        $now = (int)($GLOBALS['SIM_ACCESS_TIME'] ?? time());
+
+        $clauses = [];
+        if (isset($enableColumns['disabled'])) {
+            $clauses[] = 'pages.' . $enableColumns['disabled'] . ' = 0';
+        }
+        if (isset($enableColumns['starttime'])) {
+            $clauses[] = '(pages.' . $enableColumns['starttime'] . ' = 0 OR pages.' . $enableColumns['starttime'] . ' <= ' . $now . ')';
+        }
+        if (isset($enableColumns['endtime'])) {
+            $clauses[] = '(pages.' . $enableColumns['endtime'] . ' = 0 OR pages.' . $enableColumns['endtime'] . ' > ' . $now . ')';
+        }
+        $clauses[] = 'pages.doktype < ' . PageRepository::DOKTYPE_BE_USER_SECTION;
+
+        return ' AND ' . implode(' AND ', $clauses);
     }
 
     private function freshRepository(): PageTreeRepository

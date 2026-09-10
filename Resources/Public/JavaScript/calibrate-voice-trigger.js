@@ -80,7 +80,7 @@ const TEMPLATE = `
       <button type="button" class="btn aim-btn-primary" data-role="analyze"></button>
       <span class="text-body-secondary" data-role="loading" hidden></span>
     </div>
-    <p class="text-danger" data-role="error" hidden></p>
+    <p class="text-danger" data-role="error" role="alert" hidden></p>
     <div class="aim-calibrate-voice__results" data-role="result" hidden>
       <div class="aim-master">
         <span class="aim-master__corner aim-master__corner--tl"></span>
@@ -107,6 +107,8 @@ const TEMPLATE = `
     </div>
   </div>
 `;
+
+let instanceCount = 0;
 
 class AimCalibrateVoiceTrigger extends HTMLElement {
   #abortController;
@@ -189,6 +191,15 @@ class AimCalibrateVoiceTrigger extends HTMLElement {
     this.#insertedLabels = [];
     selectPagesButton.addEventListener('click', () => this.#browsePages(textarea, pagesSpinner, pagesStatus));
     textarea.placeholder = this.dataset.placeholder || '';
+    const inputId = `aim-calibrate-voice-input-${++instanceCount}`;
+    textarea.id = inputId;
+    if (this.dataset.placeholder) {
+      textarea.setAttribute('aria-label', this.dataset.placeholder);
+    }
+    if (this.dataset.intro) {
+      intro.id = `${inputId}-intro`;
+      textarea.setAttribute('aria-describedby', intro.id);
+    }
     analyzeButton.textContent = this.dataset.analyzeLabel || 'Analyze';
     loading.textContent = this.dataset.loadingLabel || '';
     panel.querySelector('[data-role="tone-label"]').textContent = this.dataset.toneLabel || 'Tone';
@@ -221,7 +232,14 @@ class AimCalibrateVoiceTrigger extends HTMLElement {
     const text = textarea.value.trim();
     errorEl.hidden = true;
     resultEl.hidden = true;
-    if (!text) return;
+    if (!text) {
+      textarea.focus();
+      errorEl.textContent = this.dataset.intro || '';
+      if (errorEl.textContent !== '') {
+        errorEl.hidden = false;
+      }
+      return;
+    }
 
     analyzeButton.disabled = true;
     loading.hidden = false;

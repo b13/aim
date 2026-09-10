@@ -149,7 +149,7 @@ class RequestLogRepository
 
     public function countByDemand(RequestLogDemand $demand): int
     {
-        return (int)$this->getQueryBuilderForDemand($demand)
+        return (int)$this->getQueryBuilderForDemand($demand, false)
             ->count('*')
             ->executeQuery()
             ->fetchOne();
@@ -263,15 +263,15 @@ class RequestLogRepository
         $done = GradeStatus::Done->value;
         $qb = $this->getQueryBuilder();
         $qb->selectLiteral(
-                'model_used',
-                $qb->expr()->count('*', 'request_count'),
-                'AVG(cost) AS avg_cost',
-                'AVG(duration_ms) AS avg_duration_ms',
-                'SUM(success) AS successful_requests',
-                'AVG(total_tokens) AS avg_tokens',
-                sprintf("SUM(CASE WHEN grade_status = '%s' THEN grade_score ELSE 0 END) AS grade_score_sum", $done),
-                sprintf("SUM(CASE WHEN grade_status = '%s' THEN 1 ELSE 0 END) AS graded_count", $done),
-            );
+            'model_used',
+            $qb->expr()->count('*', 'request_count'),
+            'AVG(cost) AS avg_cost',
+            'AVG(duration_ms) AS avg_duration_ms',
+            'SUM(success) AS successful_requests',
+            'AVG(total_tokens) AS avg_tokens',
+            sprintf("SUM(CASE WHEN grade_status = '%s' THEN grade_score ELSE 0 END) AS grade_score_sum", $done),
+            sprintf("SUM(CASE WHEN grade_status = '%s' THEN 1 ELSE 0 END) AS graded_count", $done),
+        );
         if ($requestType !== '') {
             $qb->where($qb->expr()->eq('request_type', $qb->createNamedParameter($requestType)));
             $qb->andWhere($qb->expr()->neq('model_used', $qb->createNamedParameter('')));
@@ -329,7 +329,7 @@ class RequestLogRepository
             ->fetchFirstColumn();
     }
 
-    protected function getQueryBuilderForDemand(RequestLogDemand $demand): QueryBuilder
+    protected function getQueryBuilderForDemand(RequestLogDemand $demand, bool $withOrdering = true): QueryBuilder
     {
         $qb = $this->getQueryBuilder();
 
@@ -346,10 +346,12 @@ class RequestLogRepository
                     'be_users',
                     'be_users',
                     $qb->expr()->eq(self::TABLE . '.user_id', $qb->quoteIdentifier('be_users.uid'))
-                )
-                ->orderBy('be_users.username', $demand->getOrderDirection())
-                ->addOrderBy(self::TABLE . '.uid', 'desc');
-        } else {
+                );
+            if ($withOrdering) {
+                $qb->orderBy('be_users.username', $demand->getOrderDirection())
+                    ->addOrderBy(self::TABLE . '.uid', 'desc');
+            }
+        } elseif ($withOrdering) {
             $qb->orderBy($demand->getOrderField(), $demand->getOrderDirection());
             if ($demand->getOrderField() !== 'uid') {
                 $qb->addOrderBy('uid', 'desc');

@@ -13,6 +13,7 @@
 #   Build/Scripts/runTests.sh -s phpstan       # Run static analysis
 #   Build/Scripts/runTests.sh -s cgl           # Run coding standards check
 #   Build/Scripts/runTests.sh -p 8.3           # Use PHP 8.3
+#   Build/Scripts/runTests.sh -s functional -d mariadb   # Functional on MariaDB
 #   Build/Scripts/runTests.sh -x               # Enable Xdebug
 #
 
@@ -24,9 +25,19 @@ ROOT_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 # Defaults
 PHP_VERSION="8.2"
 TEST_SUITE="unit"
+DBMS="sqlite"
 EXTRA_ARGS=""
 XDEBUG=""
 CI=${CI:-false}
+
+# SQLite accepts a double-quoted unknown column as a string literal instead of
+# erroring, so a query against a column that does not exist yet passes there and
+# fails on every other DBMS. Functional tests therefore need to be runnable
+# against MariaDB too.
+MARIADB_IMAGE="mariadb:10.11"
+DB_CONTAINER="aim-test-mariadb-$$"
+DB_NETWORK="aim-test-net-$$"
+DB_PASSWORD="funcp"
 
 # Image base, matches TYPO3 Core CI images.
 IMAGE_PREFIX="ghcr.io/typo3/core-testing-php"
@@ -55,6 +66,7 @@ Usage: $(basename "$0") [options] [-- phpunit-args]
 Options:
     -s <suite>    Test suite: unit (default), functional, phpstan, cgl, lint
     -p <version>  PHP version: 8.2 (default), 8.3, 8.4
+    -d <dbms>     Functional DBMS: sqlite (default), mariadb
     -x            Enable Xdebug
     -h            Show this help
 
@@ -62,15 +74,17 @@ Examples:
     $(basename "$0")                           Run unit tests
     $(basename "$0") -s unit -p 8.3            Run unit tests with PHP 8.3
     $(basename "$0") -s phpstan                Run PHPStan
+    $(basename "$0") -s functional -d mariadb  Functional tests on MariaDB
     $(basename "$0") -- --filter BudgetService Run specific test
 EOF
     exit 0
 }
 
-while getopts "s:p:xh" opt; do
+while getopts "s:p:d:xh" opt; do
     case ${opt} in
         s) TEST_SUITE="${OPTARG}" ;;
         p) PHP_VERSION="${OPTARG}" ;;
+        d) DBMS="${OPTARG}" ;;
         x) XDEBUG="-e XDEBUG_MODE=debug -e XDEBUG_CONFIG=client_host=host.docker.internal" ;;
         h) usage ;;
         *) usage ;;
@@ -102,14 +116,60 @@ case ${TEST_SUITE} in
             .Build/vendor/bin/phpunit -c Build/phpunit/UnitTests.xml ${EXTRA_ARGS}
         ;;
     functional)
-        echo "Running functional tests with PHP ${PHP_VERSION} (SQLite)..."
-        docker run --rm \
-            -v "${ROOT_DIR}:/app" \
-            -w /app \
-            -e typo3DatabaseDriver=pdo_sqlite \
-            ${XDEBUG} \
-            "${PHP_IMAGE}" \
-            .Build/vendor/bin/phpunit -c Build/phpunit/FunctionalTests.xml ${EXTRA_ARGS}
+        case ${DBMS} in
+            sqlite)
+                echo "Running functional tests with PHP ${PHP_VERSION} (SQLite)..."
+                docker run --rm \
+                    -v "${ROOT_DIR}:/app" \
+                    -w /app \
+                    -e typo3DatabaseDriver=pdo_sqlite \
+                    ${XDEBUG} \
+                    "${PHP_IMAGE}" \
+                    .Build/vendor/bin/phpunit -c Build/phpunit/FunctionalTests.xml ${EXTRA_ARGS}
+                ;;
+            mariadb)
+                echo "Running functional tests with PHP ${PHP_VERSION} (MariaDB)..."
+                # Preserve the phpunit exit code: the cleanup commands would
+                # otherwise become the script's status and turn a red run green.
+                cleanupDb() {
+                    local code=$?
+                    docker rm -f "${DB_CONTAINER}" >/dev/null 2>&1 || true
+                    docker network rm "${DB_NETWORK}" >/dev/null 2>&1 || true
+                    exit "${code}"
+                }
+                trap cleanupDb EXIT
+                docker network create "${DB_NETWORK}" >/dev/null
+                docker run --rm --name "${DB_CONTAINER}" --network "${DB_NETWORK}" -d \
+                    -e MARIADB_ROOT_PASSWORD="${DB_PASSWORD}" \
+                    "${MARIADB_IMAGE}" \
+                    --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci >/dev/null
+                echo -n "Waiting for MariaDB"
+                for _ in $(seq 1 60); do
+                    if docker exec "${DB_CONTAINER}" mariadb-admin ping -uroot -p"${DB_PASSWORD}" >/dev/null 2>&1; then
+                        break
+                    fi
+                    echo -n "."
+                    sleep 1
+                done
+                echo ""
+                docker run --rm \
+                    -v "${ROOT_DIR}:/app" \
+                    -w /app \
+                    --network "${DB_NETWORK}" \
+                    -e typo3DatabaseDriver=mysqli \
+                    -e typo3DatabaseHost="${DB_CONTAINER}" \
+                    -e typo3DatabaseName=func_test \
+                    -e typo3DatabaseUsername=root \
+                    -e typo3DatabasePassword="${DB_PASSWORD}" \
+                    ${XDEBUG} \
+                    "${PHP_IMAGE}" \
+                    .Build/vendor/bin/phpunit -c Build/phpunit/FunctionalTests.xml ${EXTRA_ARGS}
+                ;;
+            *)
+                echo "Unknown DBMS: ${DBMS} (expected sqlite or mariadb)"
+                exit 1
+                ;;
+        esac
         ;;
     phpstan)
         echo "Running PHPStan with PHP ${PHP_VERSION}..."

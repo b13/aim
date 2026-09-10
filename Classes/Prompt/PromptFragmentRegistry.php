@@ -107,14 +107,36 @@ class PromptFragmentRegistry
             return $this->scanPackages();
         }
 
-        $cached = $cache->get('packages');
-        if (is_array($cached)) {
-            return $cached;
+        try {
+            $cached = $cache->get('packages');
+            if (is_array($cached)) {
+                return $cached;
+            }
+        } catch (\Throwable $e) {
+            $this->logCacheFailure($e);
+
+            return $this->scanPackages();
         }
 
         $merged = $this->scanPackages();
-        $cache->set('packages', $merged);
+        try {
+            $cache->set('packages', $merged);
+        } catch (\Throwable $e) {
+            $this->logCacheFailure($e);
+        }
+
         return $merged;
+    }
+
+    private function logCacheFailure(\Throwable $e): void
+    {
+        if (self::$missingCacheWarningLogged) {
+            return;
+        }
+        self::$missingCacheWarningLogged = true;
+        $this->logger->warning(
+            'The "aim_prompt_fragments" cache is unusable, falling back to an uncached package scan: ' . $e->getMessage()
+        );
     }
 
     /**

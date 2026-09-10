@@ -323,7 +323,6 @@ final class GraderMiddlewareTest extends FunctionalTestCase
     private function buildStubGradingService(): GradingService
     {
         return new class extends GradingService {
-            // @phpstan-ignore-next-line — overriding constructor on purpose
             public function __construct() {}
 
             public function grade(int $logUid): void {}

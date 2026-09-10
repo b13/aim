@@ -21,6 +21,4 @@ namespace B13\Aim\Provider;
  * Actual functionality is declared via capability interfaces
  * (e.g. VisionCapableInterface, ConversationCapableInterface).
  */
-interface AiProviderInterface
-{
-}
+interface AiProviderInterface {}

@@ -12,6 +12,7 @@ declare(strict_types=1);
 
 namespace B13\Aim\Controller;
 
+use B13\Aim\Backend\Button\RawHtmlButton;
 use B13\Aim\Backend\ConsoleStylesheetProvider;
 use B13\Aim\Backend\SortUrlBuilder;
 use B13\Aim\Capability\ConversationCapableInterface;
@@ -24,6 +25,8 @@ use B13\Aim\Domain\Repository\ProviderConfigurationDemand;
 use B13\Aim\Domain\Repository\ProviderConfigurationRepository;
 use B13\Aim\Domain\Repository\RequestLogRepository;
 use B13\Aim\Pagination\DemandedArrayPaginator;
+use B13\Aim\Provider\CredentialRedactor;
+use B13\Aim\Provider\EndpointCredential;
 use B13\Aim\Provider\LiveModelDiscovery;
 use B13\Aim\Registry\AiProviderRegistry;
 use B13\Aim\Registry\DisabledModelRegistry;
@@ -36,20 +39,19 @@ use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use TYPO3\CMS\Backend\Attribute\AsController;
 use TYPO3\CMS\Backend\Module\ModuleProvider;
-use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
-use TYPO3\CMS\Core\Http\JsonResponse;
-use TYPO3\CMS\Core\Pagination\SimplePagination;
 use TYPO3\CMS\Backend\Routing\UriBuilder;
 use TYPO3\CMS\Backend\Template\Components\ButtonBar;
 use TYPO3\CMS\Backend\Template\Components\Buttons\Action\ShortcutButton;
-use B13\Aim\Backend\Button\RawHtmlButton;
 use TYPO3\CMS\Backend\Template\Components\Buttons\LinkButton;
 use TYPO3\CMS\Backend\Template\Components\ComponentFactory;
 use TYPO3\CMS\Backend\Template\ModuleTemplateFactory;
+use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
+use TYPO3\CMS\Core\Http\JsonResponse;
 use TYPO3\CMS\Core\Imaging\Icon;
 use TYPO3\CMS\Core\Imaging\IconFactory;
 use TYPO3\CMS\Core\Imaging\IconSize;
 use TYPO3\CMS\Core\Localization\LanguageService;
+use TYPO3\CMS\Core\Pagination\SimplePagination;
 use TYPO3\CMS\Core\Registry;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 
@@ -69,6 +71,7 @@ class ProviderController
         private readonly SortUrlBuilder $sortUrlBuilder,
         private readonly ConsoleStylesheetProvider $consoleStylesheetProvider,
         private readonly ModuleProvider $moduleProvider,
+        private readonly CredentialRedactor $credentialRedactor,
     ) {}
 
     public function overviewAction(ServerRequestInterface $request): ResponseInterface
@@ -136,6 +139,7 @@ class ProviderController
         $rows = array_map(function (ProviderConfiguration $configuration): array {
             $row = $configuration->row;
             unset($row['api_key']);
+            $row['endpoint'] = EndpointCredential::forDisplay($configuration->endpoint);
             $row['modelDisabled'] = $this->disabledModelRegistry->isDisabled(
                 $configuration->providerIdentifier,
                 $configuration->model,
@@ -156,10 +160,10 @@ class ProviderController
             $providerTypes[$manifest->identifier] = $languageService->sL($manifest->name) ?: $manifest->name;
         }
 
-        $paginationBaseUrl = (string)$this->uriBuilder->buildUriFromRoute('aim_providers', [
-            'orderField' => $demand->getOrderField(),
-            'orderDirection' => $demand->getOrderDirection(),
-        ]);
+        $paginationBaseUrl = (string)$this->uriBuilder->buildUriFromRoute(
+            'aim_providers',
+            $this->sortUrlBuilder->buildFilterParameters($demand),
+        );
 
         return $view->assignMultiple([
             'demand' => $demand,
@@ -253,12 +257,15 @@ class ProviderController
         $models = [];
         $seenEndpoints = [];
         foreach ($this->configurationRepository->findByProviderIdentifier($manifest->identifier) as $configuration) {
-            $endpoint = $configuration->apiKey;
+            $endpoint = $configuration->endpoint;
             if ($endpoint === '' || isset($seenEndpoints[$endpoint]) || !$this->liveModelDiscovery->isHttpEndpoint($endpoint)) {
                 continue;
             }
             $seenEndpoints[$endpoint] = true;
-            foreach ($this->liveModelDiscovery->fetchModelNames($endpoint) as $modelId) {
+            foreach ($this->liveModelDiscovery->fetchModelNames(
+                $configuration->getRequestEndpoint(),
+                $configuration->expectsCredentialInUrl() ? '' : $configuration->apiKey,
+            ) as $modelId) {
                 $models[$modelId] = true;
             }
         }
@@ -279,6 +286,8 @@ class ProviderController
             'TextGenerationCapableInterface' => 'capability.textGeneration',
             'TranslationCapableInterface' => 'capability.translation',
             'ToolCallingCapableInterface' => 'capability.toolCalling',
+            'EmbeddingCapableInterface' => 'capability.embedding',
+            'ImageGenerationCapableInterface' => 'capability.imageGeneration',
         ];
 
         $languageService = $this->getLanguageService();
@@ -411,10 +420,7 @@ class ProviderController
 
     private function sanitizeVerificationMessage(string $message, string $apiKey): string
     {
-        if ($apiKey === '' || !str_contains($message, $apiKey)) {
-            return $message;
-        }
-        return str_replace($apiKey, '***', $message);
+        return $this->credentialRedactor->redact($message, $apiKey);
     }
 
     private function saveVerificationResult(int $configUid, array $result): void

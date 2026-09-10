@@ -38,6 +38,12 @@ use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
 #[AsAiMiddleware(priority: -700)]
 final class RequestLoggingMiddleware implements AiMiddlewareInterface
 {
+    /**
+     * Kept as a marker rather than an empty string, so the log still shows that
+     * the request failed and only the wording is withheld.
+     */
+    private const REDACTED_MESSAGE = '[redacted: privacy level reduced]';
+
     public function __construct(
         private readonly RequestLogRepository $repository,
         private readonly LoggerInterface $logger,
@@ -143,14 +149,20 @@ final class RequestLoggingMiddleware implements AiMiddlewareInterface
         RequestContext $context,
     ): void {
         // Determine effective privacy level
-        $privacyLevel = $this->resolvePrivacyLevel($configuration, $request);
+        $privacyLevel = $this->resolvePrivacyLevel($configuration, $request, $context);
         if ($privacyLevel === PrivacyLevel::None) {
             return;
         }
         $requestClass = (new \ReflectionClass($request))->getShortName();
         $metadata = $this->extractMetadata($request);
         $extensionKey = (string)($metadata['extension'] ?? '');
-        $userId = $this->resolveUserId($request);
+        $userId = $this->resolveUserId();
+
+        // Kept as context about the call, not as its author; the rate
+        // limiter and the log attribute by the real backend user.
+        if (property_exists($request, 'user') && is_string($request->user) && $request->user !== '') {
+            $metadata['callerUser'] ??= $request->user;
+        }
 
         [$prompt, $systemPrompt] = $this->extractPromptContent($request);
 
@@ -177,7 +189,7 @@ final class RequestLoggingMiddleware implements AiMiddlewareInterface
             'extension_key' => $extensionKey,
             'duration_ms' => $durationMs,
             'user_id' => $userId,
-            'metadata' => json_encode($metadata, JSON_THROW_ON_ERROR),
+            'metadata' => self::encodeJson($metadata),
             'rerouted' => $rerouted ? 1 : 0,
             'reroute_type' => $rerouteType,
             'reroute_reason' => $rerouteReason,
@@ -196,7 +208,7 @@ final class RequestLoggingMiddleware implements AiMiddlewareInterface
             $data['cost'] = $usage->cost;
             $data['model_used'] = $usage->modelUsed !== '' ? $usage->modelUsed : $configuration->model;
             $data['system_fingerprint'] = $usage->systemFingerprint;
-            $data['raw_usage'] = $usage->rawUsage !== [] ? json_encode($usage->rawUsage, JSON_THROW_ON_ERROR) : '';
+            $data['raw_usage'] = $usage->rawUsage !== [] ? self::encodeJson($usage->rawUsage) : '';
             $data['error_message'] = $response->errors[0] ?? '';
             $data['response_content'] = $response->content;
         } else {
@@ -219,12 +231,22 @@ final class RequestLoggingMiddleware implements AiMiddlewareInterface
             $data['reroute_reason'] = (string)($context->fallbackInfo['reason'] ?? '');
         }
 
-        // Redact content for reduced privacy
+        // Redact content for reduced privacy. A provider's own error text and
+        // the reroute reason routinely quote the input that was refused, and
+        // raw_usage is provider-shaped, so none of them can be assumed
+        // content-free just because they are not the prompt column.
         if ($privacyLevel === PrivacyLevel::Reduced) {
             $data['request_prompt'] = '';
             $data['request_system_prompt'] = '';
             $data['response_content'] = '';
             $data['metadata'] = '{}';
+            $data['raw_usage'] = '';
+            if (($data['error_message'] ?? '') !== '') {
+                $data['error_message'] = self::REDACTED_MESSAGE;
+            }
+            if (($data['reroute_reason'] ?? '') !== '') {
+                $data['reroute_reason'] = self::REDACTED_MESSAGE;
+            }
         }
 
         try {
@@ -233,8 +255,12 @@ final class RequestLoggingMiddleware implements AiMiddlewareInterface
                 $response->requestLogUid = $context->logUid;
             }
         } catch (\Throwable $logError) {
+            // Deliberately without $data: it carries the prompt, system
+            // prompt and response, none of which belong in var/log.
             $this->logger->error('AiM request log insert failed: ' . $logError->getMessage(), [
-                'data' => $data,
+                'request_type' => $data['request_type'] ?? '',
+                'provider_identifier' => $data['provider_identifier'] ?? '',
+                'configuration_uid' => $data['configuration_uid'] ?? 0,
             ]);
         }
     }
@@ -244,8 +270,11 @@ final class RequestLoggingMiddleware implements AiMiddlewareInterface
      * and any per-request override carried on the request. The strictest of
      * the three wins — an override can only escalate, never relax.
      */
-    private function resolvePrivacyLevel(ProviderConfiguration $configuration, AiRequestInterface $request): PrivacyLevel
-    {
+    private function resolvePrivacyLevel(
+        ProviderConfiguration $configuration,
+        AiRequestInterface $request,
+        ?RequestContext $context = null,
+    ): PrivacyLevel {
         $level = PrivacyLevel::fromString($configuration->privacyLevel);
 
         $user = $this->getBackendUser();
@@ -259,6 +288,15 @@ final class RequestLoggingMiddleware implements AiMiddlewareInterface
         $requestOverride = $request->getPrivacyLevelOverride();
         if ($requestOverride !== null) {
             $level = $level->strictest($requestOverride);
+        }
+
+        // A fallback attempt must not log more than the configuration the
+        // caller originally addressed would have.
+        if ($context !== null) {
+            if ($context->privacyFloor !== null) {
+                $level = $level->strictest($context->privacyFloor);
+            }
+            $context->privacyFloor = $level;
         }
 
         return $level;
@@ -315,17 +353,28 @@ final class RequestLoggingMiddleware implements AiMiddlewareInterface
         return [$prompt, $systemPrompt];
     }
 
-    private function resolveUserId(AiRequestInterface $request): int
+    /**
+     * The real backend user. A caller-supplied $request->user is kept
+     * as metadata instead, so it cannot misattribute the log.
+     */
+    private function resolveUserId(): int
     {
-        // Try request user property first
-        if (property_exists($request, 'user') && is_string($request->user) && $request->user !== '') {
-            $userId = (int)$request->user;
-            if ($userId > 0) {
-                return $userId;
-            }
-        }
-        // Fall back to current backend user
         return (int)(($this->getBackendUser())?->user['uid'] ?? 0);
+    }
+
+    /**
+     * Never throws: this runs inside a finally block, where an exception would
+     * destroy the response of an already-paid-for API call.
+     *
+     * @param array<mixed> $value
+     */
+    private static function encodeJson(array $value): string
+    {
+        try {
+            return json_encode($value, JSON_THROW_ON_ERROR | JSON_INVALID_UTF8_SUBSTITUTE);
+        } catch (\JsonException) {
+            return '{}';
+        }
     }
 
     private function getBackendUser(): ?BackendUserAuthentication

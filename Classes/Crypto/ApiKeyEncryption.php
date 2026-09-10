@@ -46,7 +46,9 @@ final class ApiKeyEncryption
 
     public function encrypt(string $plaintext): string
     {
-        if ($plaintext === '' || $this->isEncrypted($plaintext) || $this->isEndpointUrl($plaintext)) {
+        // Endpoints have their own plaintext column, so everything reaching
+        // this method is treated as a secret, including URL-shaped values.
+        if ($plaintext === '' || $this->isEncrypted($plaintext)) {
             return $plaintext;
         }
 
@@ -57,9 +59,8 @@ final class ApiKeyEncryption
     }
 
     /**
-     * The api_key column doubles as an endpoint URL for providers that
-     * expose a local HTTP service (Ollama, LM Studio, OpenAI-compatible
-     * proxies). Those values aren't secrets and shouldn't be encrypted.
+     * Recognises legacy rows whose api_key holds an endpoint URL. Not a
+     * judgement about whether the value is a secret.
      */
     public function isEndpointUrl(string $value): bool
     {
@@ -105,9 +106,42 @@ final class ApiKeyEncryption
         }
     }
 
+    /**
+     * Whether $value is a payload this class produced. The prefix alone is not
+     * enough, since a pasted value can carry it, so the body has to decode too.
+     */
     public function isEncrypted(string $value): bool
     {
-        return str_starts_with($value, self::PREFIX_ANY);
+        if (str_starts_with($value, self::PREFIX_V2)) {
+            // The core cipher is v14-only, so on v12/v13 the payload cannot
+            // be validated, but it is still ciphertext, and re-encrypting it
+            // would be worse. decrypt() reports it as unreadable.
+            return $this->coreCipherAvailable()
+                ? $this->isWellFormedCorePayload(substr($value, strlen(self::PREFIX_V2)))
+                : true;
+        }
+        if (str_starts_with($value, self::PREFIX_V1)) {
+            return $this->isWellFormedSecretboxPayload(substr($value, strlen(self::PREFIX_V1)));
+        }
+
+        return false;
+    }
+
+    private function isWellFormedCorePayload(string $payload): bool
+    {
+        try {
+            CipherValue::fromSerialized($payload);
+            return true;
+        } catch (\Throwable) {
+            return false;
+        }
+    }
+
+    private function isWellFormedSecretboxPayload(string $payload): bool
+    {
+        $bytes = base64_decode($payload, true);
+
+        return $bytes !== false && strlen($bytes) > SODIUM_CRYPTO_SECRETBOX_NONCEBYTES;
     }
 
     private function coreCipherAvailable(): bool
@@ -125,12 +159,22 @@ final class ApiKeyEncryption
 
     private function decryptViaCore(string $payload): string
     {
+        if (!$this->coreCipherAvailable()) {
+            // A v14-written key read on v12/v13. Without this, makeInstance()
+            // raises an Error the catch below cannot cover; those exception
+            // classes are v14-only too.
+            throw new ApiKeyEncryptionException(
+                'AiM API key was encrypted with the TYPO3 v14 core cipher, which is not available on this TYPO3 version.',
+                1773874411,
+            );
+        }
+
         try {
             $keyFactory = GeneralUtility::makeInstance(KeyFactory::class);
             $cipher = GeneralUtility::makeInstance(CipherService::class);
             $sharedKey = $keyFactory->deriveSharedKeyFromEncryptionKey(self::class);
             return $cipher->decrypt(CipherValue::fromSerialized($payload), $sharedKey);
-        } catch (CipherDecryptionFailedException | CipherException $e) {
+        } catch (CipherDecryptionFailedException|CipherException $e) {
             throw new ApiKeyEncryptionException(
                 'AiM API key could not be decrypted via core CipherService: ' . $e->getMessage(),
                 1773874410,

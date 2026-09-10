@@ -19,7 +19,7 @@ class ProviderConfigurationDemand implements SortableDemandInterface
     protected const ORDER_DESCENDING = 'desc';
     protected const ORDER_ASCENDING = 'asc';
     protected const DEFAULT_ORDER_FIELD = 'title';
-    protected const ORDER_FIELDS = ['title', 'ai_provider', 'model', 'total_cost'];
+    protected const ORDER_FIELDS = ['title', 'ai_provider', 'endpoint', 'model', 'total_cost'];
 
     protected int $limit = 15;
 

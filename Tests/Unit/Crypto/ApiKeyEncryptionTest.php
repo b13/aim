@@ -69,24 +69,25 @@ final class ApiKeyEncryptionTest extends TestCase
     }
 
     #[Test]
-    public function encryptLeavesEndpointUrlsUntouched(): void
+    public function encryptNoLongerExemptsValuesThatLookLikeUrls(): void
     {
         $service = new ApiKeyEncryption();
-        $endpoint = 'http://host.docker.internal:11434';
+        $credentialBearingUrl = 'https://svc:s3cr3t-token@gateway.example.com/v1';
 
-        $result = $service->encrypt($endpoint);
+        $result = $service->encrypt($credentialBearingUrl);
 
-        self::assertSame($endpoint, $result);
-        self::assertFalse($service->isEncrypted($result));
+        self::assertTrue($service->isEncrypted($result));
+        self::assertSame($credentialBearingUrl, $service->decrypt($result));
     }
 
     #[Test]
-    public function encryptLeavesHttpsEndpointUrlsUntouched(): void
+    public function isEndpointUrlStillRecognisesLegacyRowsForTheMigration(): void
     {
         $service = new ApiKeyEncryption();
-        $endpoint = 'https://my-self-hosted-llm.example.com:8443';
 
-        self::assertSame($endpoint, $service->encrypt($endpoint));
+        self::assertTrue($service->isEndpointUrl('http://host.docker.internal:11434'));
+        self::assertTrue($service->isEndpointUrl('https://my-self-hosted-llm.example.com:8443'));
+        self::assertFalse($service->isEndpointUrl('sk-proj-A1b2C3'));
     }
 
     #[Test]
@@ -141,8 +142,67 @@ final class ApiKeyEncryptionTest extends TestCase
     {
         $service = new ApiKeyEncryption();
         self::assertFalse($service->isEncrypted('sk-plaintext'));
-        self::assertTrue($service->isEncrypted(ApiKeyEncryption::PREFIX_V1 . 'whatever'));
-        self::assertTrue($service->isEncrypted(ApiKeyEncryption::PREFIX_V2 . 'whatever'));
+        self::assertTrue($service->isEncrypted($service->encrypt('sk-real-key')));
+    }
+
+    #[Test]
+    public function isEncryptedRejectsAPrefixWithoutAWellFormedPayload(): void
+    {
+        $service = new ApiKeyEncryption();
+
+        self::assertFalse($service->isEncrypted(ApiKeyEncryption::PREFIX_V1 . 'whatever'));
+    }
+
+    /**
+     * The v2 payload can only be validated where the core cipher exists. On
+     * v12/v13 a v2 prefix is taken at face value on purpose: it is ciphertext
+     * from a v14 install, and re-encrypting it would be worse than reporting it
+     * as unreadable at decrypt time.
+     */
+    #[Test]
+    public function aV2PrefixIsValidatedOnlyWhereTheCoreCipherExists(): void
+    {
+        $service = new ApiKeyEncryption();
+        $malformed = ApiKeyEncryption::PREFIX_V2 . 'whatever';
+
+        if (class_exists(CipherService::class)) {
+            self::assertFalse($service->isEncrypted($malformed));
+
+            return;
+        }
+
+        self::assertTrue($service->isEncrypted($malformed));
+    }
+
+    #[Test]
+    public function aPastedValueLookingLikeCiphertextIsEncryptedRatherThanStoredVerbatim(): void
+    {
+        if (!class_exists(CipherService::class)) {
+            self::markTestSkipped('Without the core cipher a v2 prefix is deliberately trusted, see the test above.');
+        }
+        $service = new ApiKeyEncryption();
+        $pasted = ApiKeyEncryption::PREFIX_V2 . 'not-actually-a-payload';
+
+        $stored = $service->encrypt($pasted);
+
+        self::assertNotSame($pasted, $stored);
+        self::assertSame($pasted, $service->decrypt($stored));
+    }
+
+    /**
+     * The v1 path is validated on every version, so the pasted-value guard the
+     * 0.5.0 notes describe has to hold there without a version condition.
+     */
+    #[Test]
+    public function aPastedV1ValueIsEncryptedRatherThanStoredVerbatim(): void
+    {
+        $service = new ApiKeyEncryption();
+        $pasted = ApiKeyEncryption::PREFIX_V1 . 'not-actually-a-payload';
+
+        $stored = $service->encrypt($pasted);
+
+        self::assertNotSame($pasted, $stored);
+        self::assertSame($pasted, $service->decrypt($stored));
     }
 
     #[Test]

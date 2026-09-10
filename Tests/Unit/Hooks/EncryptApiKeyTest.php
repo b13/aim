@@ -16,6 +16,7 @@ use B13\Aim\Crypto\ApiKeyEncryption;
 use B13\Aim\Hooks\EncryptApiKey;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
+use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\DataHandling\DataHandler;
 
 final class EncryptApiKeyTest extends TestCase
@@ -38,7 +39,7 @@ final class EncryptApiKeyTest extends TestCase
     #[Test]
     public function encryptsPlaintextApiKeyOnSave(): void
     {
-        $hook = new EncryptApiKey(new ApiKeyEncryption());
+        $hook = new EncryptApiKey(new ApiKeyEncryption(), $this->createMock(ConnectionPool::class));
         $fieldArray = ['api_key' => 'sk-secret', 'title' => 'My Provider'];
 
         $hook->processDatamap_postProcessFieldArray('new', 'tx_aim_configuration', 'NEW1', $fieldArray, $this->createDataHandlerMock());
@@ -51,7 +52,7 @@ final class EncryptApiKeyTest extends TestCase
     public function leavesAlreadyEncryptedValueUntouched(): void
     {
         $encryption = new ApiKeyEncryption();
-        $hook = new EncryptApiKey($encryption);
+        $hook = new EncryptApiKey($encryption, $this->createMock(ConnectionPool::class));
         $alreadyEncrypted = $encryption->encrypt('sk-secret');
         $fieldArray = ['api_key' => $alreadyEncrypted];
 
@@ -63,7 +64,7 @@ final class EncryptApiKeyTest extends TestCase
     #[Test]
     public function ignoresOtherTables(): void
     {
-        $hook = new EncryptApiKey(new ApiKeyEncryption());
+        $hook = new EncryptApiKey(new ApiKeyEncryption(), $this->createMock(ConnectionPool::class));
         $fieldArray = ['api_key' => 'sk-secret'];
 
         $hook->processDatamap_postProcessFieldArray('new', 'tt_content', 'NEW1', $fieldArray, $this->createDataHandlerMock());
@@ -74,7 +75,7 @@ final class EncryptApiKeyTest extends TestCase
     #[Test]
     public function ignoresUpdatesThatDoNotTouchApiKey(): void
     {
-        $hook = new EncryptApiKey(new ApiKeyEncryption());
+        $hook = new EncryptApiKey(new ApiKeyEncryption(), $this->createMock(ConnectionPool::class));
         $fieldArray = ['title' => 'Renamed'];
 
         $hook->processDatamap_postProcessFieldArray('update', 'tx_aim_configuration', 1, $fieldArray, $this->createDataHandlerMock());
@@ -89,7 +90,7 @@ final class EncryptApiKeyTest extends TestCase
         // an empty submission on an update must not overwrite the stored
         // key with a blank value; it has to be dropped from the field
         // array entirely so DataHandler leaves the column untouched.
-        $hook = new EncryptApiKey(new ApiKeyEncryption());
+        $hook = new EncryptApiKey(new ApiKeyEncryption(), $this->createMock(ConnectionPool::class));
         $fieldArray = ['api_key' => '', 'title' => 'Renamed'];
 
         $hook->processDatamap_postProcessFieldArray('update', 'tx_aim_configuration', 1, $fieldArray, $this->createDataHandlerMock());
@@ -103,7 +104,7 @@ final class EncryptApiKeyTest extends TestCase
     {
         // A brand-new record has nothing stored to preserve, so an empty
         // key (e.g. a keyless local Ollama endpoint) saves as-is.
-        $hook = new EncryptApiKey(new ApiKeyEncryption());
+        $hook = new EncryptApiKey(new ApiKeyEncryption(), $this->createMock(ConnectionPool::class));
         $fieldArray = ['api_key' => ''];
 
         $hook->processDatamap_postProcessFieldArray('new', 'tx_aim_configuration', 'NEW1', $fieldArray, $this->createDataHandlerMock());

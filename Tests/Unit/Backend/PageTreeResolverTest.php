@@ -16,6 +16,7 @@ use B13\Aim\Backend\PageTreeResolver;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
+use TYPO3\CMS\Core\Database\ConnectionPool;
 
 /**
  * Covers only the two resolveAccessiblePageIds() branches that don't need a
@@ -33,7 +34,9 @@ final class PageTreeResolverTest extends TestCase
         $backendUser->method('isAdmin')->willReturn(true);
         $backendUser->expects(self::never())->method('getWebmounts');
 
-        self::assertNull((new PageTreeResolver())->resolveAccessiblePageIds($backendUser));
+        $resolver = new PageTreeResolver($this->createStub(ConnectionPool::class));
+
+        self::assertNull($resolver->resolveAccessiblePageIds($backendUser));
     }
 
     #[Test]
@@ -47,6 +50,8 @@ final class PageTreeResolverTest extends TestCase
         $backendUser->method('isAdmin')->willReturn(false);
         $backendUser->method('getWebmounts')->willReturn([]);
 
-        self::assertSame([], (new PageTreeResolver())->resolveAccessiblePageIds($backendUser));
+        $resolver = new PageTreeResolver($this->createStub(ConnectionPool::class));
+
+        self::assertSame([], $resolver->resolveAccessiblePageIds($backendUser));
     }
 }

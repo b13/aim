@@ -13,7 +13,6 @@ declare(strict_types=1);
 namespace B13\Aim\Backend\Form\Wizard;
 
 use TYPO3\CMS\Backend\Form\Wizard\SuggestWizardDefaultReceiver;
-use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
 use TYPO3\CMS\Core\Database\Connection;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Site\SiteFinder;

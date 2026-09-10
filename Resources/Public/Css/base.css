@@ -216,6 +216,12 @@ aim-calibrate-voice-trigger .btn,
     font-style: italic;
 }
 
+.aim-channel--unavailable .aim-channel__content-col p {
+    color: var(--typo3-state-warning-color, #b54708);
+    font-style: italic;
+    font-weight: 600;
+}
+
 .aim-caller-note {
     margin-top: 4px;
 }

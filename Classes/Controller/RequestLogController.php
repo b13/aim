@@ -28,10 +28,10 @@ use TYPO3\CMS\Backend\Template\Components\Buttons\LinkButton;
 use TYPO3\CMS\Backend\Template\Components\ComponentFactory;
 use TYPO3\CMS\Backend\Template\ModuleTemplateFactory;
 use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
+use TYPO3\CMS\Core\Http\JsonResponse;
 use TYPO3\CMS\Core\Imaging\Icon;
 use TYPO3\CMS\Core\Imaging\IconFactory;
 use TYPO3\CMS\Core\Imaging\IconSize;
-use TYPO3\CMS\Core\Http\JsonResponse;
 use TYPO3\CMS\Core\Localization\LanguageService;
 use TYPO3\CMS\Core\Package\PackageManager;
 use TYPO3\CMS\Core\Pagination\SimplePagination;
@@ -143,7 +143,8 @@ class RequestLogController
             $languageService->sL('LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.show.title')
         );
 
-        $returnUrl = (string)($request->getQueryParams()['returnUrl'] ?? $this->uriBuilder->buildUriFromRoute('aim_request_log'));
+        $returnUrl = GeneralUtility::sanitizeLocalUrl((string)($request->getQueryParams()['returnUrl'] ?? ''))
+            ?: (string)$this->uriBuilder->buildUriFromRoute('aim_request_log');
         $backButton = GeneralUtility::makeInstance(LinkButton::class)
             ->setHref($returnUrl)
             ->setTitle($languageService->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.goBack'))

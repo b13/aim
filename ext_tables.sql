@@ -15,6 +15,7 @@ CREATE TABLE tx_aim_page_prompt_fragment (
     inherit_to_subpages tinyint(1) unsigned DEFAULT '1' NOT NULL,
     auto_generated tinyint(1) unsigned DEFAULT '0' NOT NULL,
     auto_generated_source varchar(32) DEFAULT '' NOT NULL,
+    hidden tinyint(1) unsigned DEFAULT '0' NOT NULL,
 
     KEY parent_page (parent_page),
     KEY fragment (fragment)
@@ -26,6 +27,7 @@ CREATE TABLE tx_aim_configuration (
     description text,
     `default` tinyint(4) unsigned DEFAULT '0' NOT NULL,
     api_key text,
+    endpoint varchar(2048) DEFAULT '' NOT NULL,
     model varchar(255) DEFAULT '' NOT NULL,
     total_cost decimal(10,6) DEFAULT '0.000000' NOT NULL,
     cost_currency varchar(10) DEFAULT 'USD' NOT NULL,
@@ -36,6 +38,7 @@ CREATE TABLE tx_aim_configuration (
     be_groups varchar(255) DEFAULT '' NOT NULL,
     privacy_level varchar(20) DEFAULT 'standard' NOT NULL,
     rerouting_allowed tinyint(1) unsigned DEFAULT '1' NOT NULL,
+    accepts_rerouted_requests tinyint(1) unsigned DEFAULT '1' NOT NULL,
     auto_model_switch tinyint(1) unsigned DEFAULT '1' NOT NULL,
     grading_enabled tinyint(1) unsigned DEFAULT '0' NOT NULL,
     judge_configuration_uid int(11) unsigned DEFAULT '0' NOT NULL,

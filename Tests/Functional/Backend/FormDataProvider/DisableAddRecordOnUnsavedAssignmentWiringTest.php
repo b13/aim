@@ -57,7 +57,11 @@ final class DisableAddRecordOnUnsavedAssignmentWiringTest extends FunctionalTest
         $GLOBALS['BE_USER'] = $backendUser;
         $GLOBALS['LANG'] = $this->get(\TYPO3\CMS\Core\Localization\LanguageServiceFactory::class)->createFromUserPreferences($backendUser);
 
-        $formData = $this->get(FormDataCompiler::class)->compile(
+        // Not $this->get(): on 12.4 the compiler is no container service and
+        // still carries its deprecated (optional) formDataGroup constructor
+        // argument. makeInstance() builds it there and returns the injected
+        // service on v13 and v14, where the group is a compile() argument only.
+        $formData = GeneralUtility::makeInstance(FormDataCompiler::class)->compile(
             [
                 'request' => $this->buildRequest(),
                 'tableName' => 'tx_aim_page_prompt_fragment',
@@ -103,7 +107,7 @@ final class DisableAddRecordOnUnsavedAssignmentWiringTest extends FunctionalTest
         $GLOBALS['BE_USER'] = $backendUser;
         $GLOBALS['LANG'] = $this->get(\TYPO3\CMS\Core\Localization\LanguageServiceFactory::class)->createFromUserPreferences($backendUser);
 
-        $formData = $this->get(FormDataCompiler::class)->compile(
+        $formData = GeneralUtility::makeInstance(FormDataCompiler::class)->compile(
             [
                 'request' => $this->buildRequest(),
                 'tableName' => 'tx_aim_page_prompt_fragment',

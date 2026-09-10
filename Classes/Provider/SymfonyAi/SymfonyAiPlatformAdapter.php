@@ -21,6 +21,7 @@ use B13\Aim\Capability\TranslationCapableInterface;
 use B13\Aim\Capability\VisionCapableInterface;
 use B13\Aim\Domain\Model\ProviderConfiguration;
 use B13\Aim\Provider\AiProviderInterface;
+use B13\Aim\Provider\CredentialRedactor;
 use B13\Aim\Request\ConversationRequest;
 use B13\Aim\Request\EmbeddingRequest;
 use B13\Aim\Request\ImageGenerationRequest;
@@ -29,6 +30,7 @@ use B13\Aim\Request\Message\AssistantMessage;
 use B13\Aim\Request\Message\ToolMessage;
 use B13\Aim\Request\TextGenerationRequest;
 use B13\Aim\Request\ToolCallingRequest;
+use B13\Aim\Request\ToolDefinition;
 use B13\Aim\Request\ToolResult;
 use B13\Aim\Request\TranslationRequest;
 use B13\Aim\Request\VisionRequest;
@@ -51,6 +53,8 @@ use Symfony\AI\Platform\Result\ToolCall as SymfonyToolCall;
 use Symfony\AI\Platform\TokenUsage\TokenUsageInterface;
 use Symfony\AI\Platform\Tool\ExecutionReference;
 use Symfony\AI\Platform\Tool\Tool as SymfonyTool;
+use TYPO3\CMS\Core\Log\LogManager;
+use TYPO3\CMS\Core\Utility\GeneralUtility;
 
 /**
  * Bridges any Symfony AI Platform bridge to AiM's provider system.
@@ -78,21 +82,64 @@ class SymfonyAiPlatformAdapter implements
     private array $platforms = [];
 
     private readonly string $maxTokensKey;
+    private readonly string $endpointParam;
+    private readonly bool $factoryAcceptsEndpoint;
+    private readonly bool $factoryAcceptsApiKey;
 
     /**
      * @param string $factoryClass Fully-qualified class name of the bridge's Factory
      * @param string $factoryParam Name of the factory parameter to pass the config value to ('apiKey' or 'endpoint')
+     * @param CredentialRedactor $redactor The redactor is defaulted rather than injected, so the bridge
+     *                                     definitions the compiler pass builds stay two-argument.
      */
     public function __construct(
         private readonly string $factoryClass,
         private readonly string $factoryParam = 'apiKey',
+        private readonly CredentialRedactor $redactor = new CredentialRedactor(),
     ) {
         $this->maxTokensKey = self::resolveMaxTokensKey($factoryClass);
+        $parameters = self::resolveFactoryParameterNames($factoryClass);
+        $this->endpointParam = $parameters['endpoint'] ?? 'endpoint';
+        $this->factoryAcceptsEndpoint = isset($parameters['endpoint']);
+        $this->factoryAcceptsApiKey = isset($parameters['apiKey']);
+    }
+
+    /**
+     * Which arguments Factory::createProvider() declares, and under which name
+     * (endpoint, hostUrl or baseUrl).
+     *
+     * @return array{endpoint?: string, apiKey?: string}
+     */
+    private static function resolveFactoryParameterNames(string $factoryClass): array
+    {
+        $names = [];
+        try {
+            foreach ((new \ReflectionMethod($factoryClass, 'createProvider'))->getParameters() as $parameter) {
+                $name = $parameter->getName();
+                if (in_array($name, ['endpoint', 'hostUrl', 'baseUrl'], true)) {
+                    $names['endpoint'] ??= $name;
+                }
+                if ($name === 'apiKey') {
+                    $names['apiKey'] = $name;
+                }
+            }
+        } catch (\ReflectionException) {
+        }
+
+        return $names;
+    }
+
+    /**
+     * Every catch block goes through here: the configuration is still in scope,
+     * so this is where a quoted credential can be redacted.
+     */
+    private function describeError(\Throwable $e, ProviderConfiguration $configuration): string
+    {
+        return 'Symfony AI error: ' . $this->redactor->redact($e->getMessage(), $configuration->apiKey);
     }
 
     public function processVisionRequest(VisionRequest $request): TextResponse
     {
-        $platform = $this->getPlatform($request->configuration);
         $messages = new MessageBag(
             Message::forSystem($request->systemPrompt ?: 'You are a helpful AI assistant that analyzes images.'),
             Message::ofUser(
@@ -102,17 +149,17 @@ class SymfonyAiPlatformAdapter implements
         );
 
         try {
+            $platform = $this->getPlatform($request->configuration);
             $options = $this->buildOptions($request->configuration->model, $request->maxTokens, $request->temperature);
             $result = $platform->invoke($request->configuration->model, $messages, $options);
             return $this->toTextResponse($result, $request->configuration);
         } catch (\Throwable $e) {
-            return new TextResponse('', errors: ['Symfony AI error: ' . $e->getMessage()]);
+            return new TextResponse('', errors: [$this->describeError($e, $request->configuration)]);
         }
     }
 
     public function processTextGenerationRequest(TextGenerationRequest $request): TextResponse
     {
-        $platform = $this->getPlatform($request->configuration);
         $messages = new MessageBag(
             Message::forSystem($request->systemPrompt ?: 'You are a helpful AI assistant.'),
             Message::ofUser($request->prompt),
@@ -125,16 +172,16 @@ class SymfonyAiPlatformAdapter implements
         $options = $this->buildOptions($request->configuration->model, $request->maxTokens, $request->temperature, $extra);
 
         try {
+            $platform = $this->getPlatform($request->configuration);
             $result = $platform->invoke($request->configuration->model, $messages, $options);
             return $this->toTextResponse($result, $request->configuration);
         } catch (\Throwable $e) {
-            return new TextResponse('', errors: ['Symfony AI error: ' . $e->getMessage()]);
+            return new TextResponse('', errors: [$this->describeError($e, $request->configuration)]);
         }
     }
 
     public function processTranslationRequest(TranslationRequest $request): TextResponse
     {
-        $platform = $this->getPlatform($request->configuration);
         $systemPrompt = $request->systemPrompt
             ?: 'You are an AI assistant that accurately translates text while preserving the original meaning, tone, and context. Adapt cultural references where appropriate and ensure the result sounds natural and fluent in the target language. Output ONLY the translated text. No explanations, no alternatives, no commentary.';
         $userPrompt = sprintf(
@@ -149,18 +196,18 @@ class SymfonyAiPlatformAdapter implements
         );
 
         try {
+            $platform = $this->getPlatform($request->configuration);
             $options = $this->buildOptions($request->configuration->model, $request->maxTokens, $request->temperature);
             $result = $platform->invoke($request->configuration->model, $messages, $options);
             return $this->toTextResponse($result, $request->configuration);
         } catch (\Throwable $e) {
-            return new TextResponse('', errors: ['Symfony AI error: ' . $e->getMessage()]);
+            return new TextResponse('', errors: [$this->describeError($e, $request->configuration)]);
         }
     }
 
     public function processConversationRequest(ConversationRequest $request): ConversationResponse
     {
         $stream = $request->stream ?? false;
-        $platform = $this->getPlatform($request->configuration);
         $messages = $this->buildMessageBag($request->messages, $request->systemPrompt);
 
         $extra = [];
@@ -173,6 +220,7 @@ class SymfonyAiPlatformAdapter implements
         $options = $this->buildOptions($request->configuration->model, $request->maxTokens, $request->temperature, $extra);
 
         try {
+            $platform = $this->getPlatform($request->configuration);
             $result = $platform->invoke($request->configuration->model, $messages, $options);
 
             if ($stream) {
@@ -191,13 +239,12 @@ class SymfonyAiPlatformAdapter implements
                 $textResponse->errors,
             );
         } catch (\Throwable $e) {
-            return new ConversationResponse('', errors: ['Symfony AI error: ' . $e->getMessage()]);
+            return new ConversationResponse('', errors: [$this->describeError($e, $request->configuration)]);
         }
     }
 
     public function processToolCallingRequest(ToolCallingRequest $request): ToolCallingResponse
     {
-        $platform = $this->getPlatform($request->configuration);
         $messages = $this->buildMessageBag($request->messages, $request->systemPrompt, true, $request->toolResults);
 
         $tools = array_map(
@@ -217,6 +264,7 @@ class SymfonyAiPlatformAdapter implements
         $options = $this->buildOptions($request->configuration->model, $request->maxTokens, $request->temperature, $extra);
 
         try {
+            $platform = $this->getPlatform($request->configuration);
             $result = $platform->invoke($request->configuration->model, $messages, $options);
 
             if ($request->stream) {
@@ -230,17 +278,19 @@ class SymfonyAiPlatformAdapter implements
             $usage = $this->extractUsage($result, $request->configuration);
             $rawResponse = $this->extractRawResponse($result);
             $content = $this->resolveTextContent($result);
-            $toolCalls = $this->extractToolCallsFromRawResponse($rawResponse);
+            $toolCalls = $this->rejectUndeclaredToolCalls(
+                $this->extractToolCallsFromRawResponse($rawResponse),
+                $request->tools,
+            );
 
             return new ToolCallingResponse($content, $toolCalls, $usage, $rawResponse);
         } catch (\Throwable $e) {
-            return new ToolCallingResponse('', [], errors: ['Symfony AI error: ' . $e->getMessage()]);
+            return new ToolCallingResponse('', [], errors: [$this->describeError($e, $request->configuration)]);
         }
     }
 
     public function processEmbeddingRequest(EmbeddingRequest $request): EmbeddingResponse
     {
-        $platform = $this->getPlatform($request->configuration);
         $model = $request->model !== '' ? $request->model : $request->configuration->model;
 
         $options = [];
@@ -249,6 +299,7 @@ class SymfonyAiPlatformAdapter implements
         }
 
         try {
+            $platform = $this->getPlatform($request->configuration);
             $result = $platform->invoke($model, $request->input, $options);
             $usage = $this->extractUsage($result, $request->configuration);
             $rawResponse = $this->extractRawResponse($result);
@@ -264,7 +315,7 @@ class SymfonyAiPlatformAdapter implements
 
             return new EmbeddingResponse($embeddings, $usage, $rawResponse);
         } catch (\Throwable $e) {
-            return new EmbeddingResponse(errors: ['Symfony AI error: ' . $e->getMessage()]);
+            return new EmbeddingResponse(errors: [$this->describeError($e, $request->configuration)]);
         }
     }
 
@@ -274,7 +325,6 @@ class SymfonyAiPlatformAdapter implements
      */
     public function processImageGenerationRequest(ImageGenerationRequest $request): ImageGenerationResponse
     {
-        $platform = $this->getPlatform($request->configuration);
 
         $options = $request->options;
         if ($request->count > 1) {
@@ -287,6 +337,7 @@ class SymfonyAiPlatformAdapter implements
         }
 
         try {
+            $platform = $this->getPlatform($request->configuration);
             $result = $platform->invoke($request->configuration->model, $request->prompt, $options);
             $images = $this->extractImages($result);
             if ($images === []) {
@@ -297,7 +348,7 @@ class SymfonyAiPlatformAdapter implements
             $rawResponse = $this->extractRawResponse($result);
             return new ImageGenerationResponse($images, $usage, $rawResponse);
         } catch (\Throwable $e) {
-            return new ImageGenerationResponse(errors: ['Symfony AI error: ' . $e->getMessage()]);
+            return new ImageGenerationResponse(errors: [$this->describeError($e, $request->configuration)]);
         }
     }
 
@@ -323,15 +374,46 @@ class SymfonyAiPlatformAdapter implements
      */
     private function getPlatform(ProviderConfiguration $config): ProviderInterface
     {
-        $cacheKey = $config->uid > 0 ? (string)$config->uid : md5($config->apiKey . $config->model);
+        $cacheKey = $config->uid > 0 ? (string)$config->uid : md5($config->apiKey . $config->endpoint . $config->model);
         if (!isset($this->platforms[$cacheKey])) {
             $factoryClass = $this->factoryClass;
-            $this->platforms[$cacheKey] = match ($this->factoryParam) {
-                'endpoint' => $factoryClass::createProvider(endpoint: $config->apiKey),
-                default => $factoryClass::createProvider(apiKey: $config->apiKey),
-            };
+            $this->platforms[$cacheKey] = $factoryClass::createProvider(...$this->buildFactoryArguments($config));
         }
         return $this->platforms[$cacheKey];
+    }
+
+    /**
+     * A bridge declaring both parameters gets both. Unmigrated rows still carry
+     * their endpoint in api_key, so the credential is dropped when it would
+     * only repeat the endpoint.
+     *
+     * @return array<string, string>
+     */
+    private function buildFactoryArguments(ProviderConfiguration $config): array
+    {
+        $arguments = [];
+        if ($this->factoryAcceptsEndpoint && $config->endpoint !== '') {
+            $arguments[$this->endpointParam] = $config->getRequestEndpoint();
+        }
+        // A credential that belongs in the URL is already in it, and such a host
+        // rejects a bearer token, so it must not go out twice.
+        if ($this->factoryAcceptsApiKey
+            && $config->apiKey !== ''
+            && $config->apiKey !== $config->endpoint
+            && !$config->expectsCredentialInUrl()
+        ) {
+            $arguments['apiKey'] = $config->apiKey;
+        }
+
+        if ($arguments === []) {
+            // Fall back to one argument so the failure surfaces as the
+            // provider's own error, not an ArgumentCountError.
+            $arguments = $this->factoryParam === 'endpoint'
+                ? [$this->endpointParam => $config->endpoint ?: $config->apiKey]
+                : ['apiKey' => $config->apiKey];
+        }
+
+        return $arguments;
     }
 
     private function toTextResponse(object $result, ProviderConfiguration $config): TextResponse
@@ -429,6 +511,46 @@ class SymfonyAiPlatformAdapter implements
         } catch (\Throwable) {
         }
         return [];
+    }
+
+    /**
+     * Drops tool calls naming a tool this request never declared. Arguments are
+     * left alone; validating those is the consumer's job.
+     *
+     * @param list<ToolCall> $toolCalls
+     * @param list<ToolDefinition> $tools
+     * @return list<ToolCall>
+     */
+    private function rejectUndeclaredToolCalls(array $toolCalls, array $tools): array
+    {
+        if ($toolCalls === []) {
+            return $toolCalls;
+        }
+
+        $declared = array_map(static fn(ToolDefinition $tool): string => $tool->name, $tools);
+
+        $kept = array_values(array_filter(
+            $toolCalls,
+            static fn(ToolCall $call): bool => in_array($call->name, $declared, true),
+        ));
+
+        if (count($kept) !== count($toolCalls)) {
+            // Loud rather than silent, so a bridge reporting names in an unexpected shape is visible.
+            $dropped = array_diff(
+                array_map(static fn(ToolCall $call): string => $call->name, $toolCalls),
+                $declared,
+            );
+            GeneralUtility::makeInstance(LogManager::class)
+                ->getLogger(self::class)
+                ->warning(sprintf(
+                    'Dropped %d tool call(s) naming undeclared tool(s) "%s". Declared: "%s".',
+                    count($toolCalls) - count($kept),
+                    implode('", "', $dropped),
+                    implode('", "', $declared),
+                ));
+        }
+
+        return $kept;
     }
 
     /**

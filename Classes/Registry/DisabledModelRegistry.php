@@ -12,8 +12,8 @@ declare(strict_types=1);
 
 namespace B13\Aim\Registry;
 
-use TYPO3\CMS\Core\Registry;
 use Symfony\Component\DependencyInjection\Attribute\Autoconfigure;
+use TYPO3\CMS\Core\Registry;
 
 /**
  * Tracks which provider models are disabled by the admin.

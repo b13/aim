@@ -26,6 +26,7 @@ use B13\Aim\Request\ImageGenerationRequest;
 use B13\Aim\Request\SupportsPageContextInterface;
 use B13\Aim\Request\SupportsSystemPromptInterface;
 use B13\Aim\Response\TextResponse;
+use Psr\Log\LoggerInterface;
 use TYPO3\CMS\Core\Configuration\ExtensionConfiguration;
 
 /**
@@ -84,6 +85,7 @@ final class TonePromptCompositionMiddleware implements AiMiddlewareInterface
         private readonly UserPromptFragmentResolver $userFragmentResolver,
         private readonly PromptFragmentRegistry $fragmentRegistry,
         private readonly ExtensionConfiguration $extensionConfiguration,
+        private readonly LoggerInterface $logger,
     ) {}
 
     public function process(
@@ -148,7 +150,16 @@ final class TonePromptCompositionMiddleware implements AiMiddlewareInterface
     private function resolveTone(?int $pageId, PromptFragmentScope $scope): string
     {
         if ($pageId !== null) {
-            return $this->pagePromptResolver->resolve($pageId, $scope) ?? '';
+            try {
+                return $this->pagePromptResolver->resolve($pageId, $scope) ?? '';
+            } catch (\Throwable $e) {
+                $this->logger->error(
+                    'Could not resolve the tone of voice for page {page}, continuing without it. {reason}',
+                    ['page' => $pageId, 'reason' => $e->getMessage(), 'exception' => $e],
+                );
+
+                return '';
+            }
         }
 
         try {

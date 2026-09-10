@@ -13,15 +13,17 @@ declare(strict_types=1);
 namespace B13\Aim\Middleware;
 
 use B13\Aim\Attribute\AsAiMiddleware;
-use B13\Aim\Domain\Model\ProviderConfiguration;
-use B13\Aim\Domain\Repository\RequestLogRepository;
-use B13\Aim\Provider\AiProviderInterface;
-use B13\Aim\Provider\ProviderResolver;
 use B13\Aim\Capability\ConversationCapableInterface;
 use B13\Aim\Capability\TextGenerationCapableInterface;
 use B13\Aim\Capability\ToolCallingCapableInterface;
 use B13\Aim\Capability\TranslationCapableInterface;
 use B13\Aim\Capability\VisionCapableInterface;
+use B13\Aim\Domain\Model\ProviderConfiguration;
+use B13\Aim\Domain\Repository\RequestLogRepository;
+use B13\Aim\Governance\ConfigurationAccess;
+use B13\Aim\Governance\PrivacyLevel;
+use B13\Aim\Provider\AiProviderInterface;
+use B13\Aim\Provider\ProviderResolver;
 use B13\Aim\Request\AiRequestInterface;
 use B13\Aim\Request\ConversationRequest;
 use B13\Aim\Request\EmbeddingRequest;
@@ -33,7 +35,6 @@ use B13\Aim\Request\VisionRequest;
 use B13\Aim\Response\TextResponse;
 use B13\Aim\Routing\ComplexitySignalRegistry;
 use Psr\Log\LoggerInterface;
-use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
 
 /**
  * Classifies prompt complexity and optionally reroutes to a cheaper model.
@@ -81,6 +82,7 @@ final class SmartRoutingMiddleware implements AiMiddlewareInterface
         private readonly RequestLogRepository $logRepository,
         private readonly ProviderResolver $providerResolver,
         private readonly ComplexitySignalRegistry $signalRegistry,
+        private readonly ConfigurationAccess $configurationAccess,
         private readonly LoggerInterface $logger,
     ) {}
 
@@ -112,7 +114,9 @@ final class SmartRoutingMiddleware implements AiMiddlewareInterface
         // Store on the per-request context (read by RequestLoggingMiddleware)
         $next->context->complexity = $classification;
 
-        // Respect rerouting_allowed flag — never reroute away from protected configs
+        // Respect rerouting_allowed: never reroute away from a pinned config.
+        // Whether a config may be routed TO is accepts_rerouted_requests, checked
+        // against each candidate in findCheaperModel().
         if (!$configuration->reroutingAllowed) {
             return $next->handle($request, $provider, $configuration);
         }
@@ -132,6 +136,11 @@ final class SmartRoutingMiddleware implements AiMiddlewareInterface
                     $classification['reason'],
                     $gradeNote,
                 ));
+
+                // The privacy level is read from the configuration of the attempt that gets logged,
+                // so the level the caller actually asked for has to travel with the request.
+                $sourceLevel = PrivacyLevel::fromString($configuration->privacyLevel);
+                $next->context->privacyFloor = $next->context->privacyFloor?->strictest($sourceLevel) ?? $sourceLevel;
 
                 return $next->handle(
                     $request,
@@ -353,8 +362,8 @@ final class SmartRoutingMiddleware implements AiMiddlewareInterface
             foreach ($allProviders as $resolved) {
                 if ($resolved->configuration->model === $bestCandidate['model_used']
                     && !$resolved->configuration->disabled
-                    && $resolved->configuration->reroutingAllowed
-                    && $this->isAccessibleByCurrentUser($resolved->configuration)
+                    && $resolved->configuration->acceptsReroutedRequests
+                    && $this->configurationAccess->isAccessibleByCurrentUser($resolved->configuration)
                 ) {
                     return [
                         'provider' => $resolved->manifest->getInstance(),
@@ -368,23 +377,6 @@ final class SmartRoutingMiddleware implements AiMiddlewareInterface
         }
 
         return null;
-    }
-
-    /**
-     * Check if the current backend user can access a provider configuration.
-     */
-    private function isAccessibleByCurrentUser(ProviderConfiguration $config): bool
-    {
-        if ($config->beGroups === '') {
-            return true;
-        }
-        $user = $this->getBackendUser();
-        if ($user === null || $user->isAdmin()) {
-            return true;
-        }
-        $allowedGroupIds = array_map('intval', explode(',', $config->beGroups));
-        $userGroupIds = array_map('intval', $user->userGroupsUID ?? []);
-        return array_intersect($allowedGroupIds, $userGroupIds) !== [];
     }
 
     private function extractPrompt(AiRequestInterface $request): string
@@ -423,10 +415,5 @@ final class SmartRoutingMiddleware implements AiMiddlewareInterface
             $request instanceof ToolCallingRequest => ToolCallingCapableInterface::class,
             default => null,
         };
-    }
-
-    private function getBackendUser(): ?BackendUserAuthentication
-    {
-        return $GLOBALS['BE_USER'] ?? null;
     }
 }

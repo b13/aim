@@ -133,6 +133,51 @@ final class PrivacyLoggingTest extends FunctionalTestCase
         self::assertSame('', $rows[0]['response_content']);
     }
 
+    /**
+     * A provider that refuses a prompt routinely quotes the offending text back,
+     * so error_message is a content field even though it is not the prompt
+     * column. Same for reroute_reason, which embeds the upstream error, and for
+     * raw_usage, whose shape is entirely up to the provider.
+     */
+    #[Test]
+    public function reducedPrivacyRedactsProviderErrorTextToo(): void
+    {
+        $config = $this->createConfig('reduced');
+        $request = new TextGenerationRequest(
+            configuration: $config,
+            prompt: 'PATIENT RECORD 12345',
+        );
+
+        $this->createLoggingMiddleware()->process(
+            $request,
+            $this->createMock(AiProviderInterface::class),
+            $config,
+            new AiMiddlewareHandler(
+                static fn() => new TextResponse(
+                    '',
+                    new AiUsageStatistics(
+                        promptTokens: 10,
+                        completionTokens: 20,
+                        rawUsage: ['echo' => 'PATIENT RECORD 12345'],
+                    ),
+                    errors: ['content filter refused: PATIENT RECORD 12345'],
+                ),
+            ),
+        );
+
+        $rows = $this->getConnectionPool()
+            ->getConnectionForTable('tx_aim_request_log')
+            ->select(['*'], 'tx_aim_request_log')
+            ->fetchAllAssociative();
+
+        self::assertCount(1, $rows);
+        self::assertStringNotContainsString('PATIENT RECORD 12345', (string)$rows[0]['error_message']);
+        self::assertStringNotContainsString('PATIENT RECORD 12345', (string)$rows[0]['raw_usage']);
+        // The failure itself still has to be visible in the log.
+        self::assertSame(0, (int)$rows[0]['success']);
+        self::assertNotSame('', (string)$rows[0]['error_message']);
+    }
+
     #[Test]
     public function nonePrivacySkipsLoggingEntirely(): void
     {

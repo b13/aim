@@ -8,21 +8,21 @@
             <f:if condition="{pagination.previousPageNumber} && {pagination.previousPageNumber} >= {pagination.firstPageNumber}">
                 <f:then>
                     <li class="page-item">
-                        <a href="{baseUrl}&amp;page=1" title="{f:translate(key:'LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:pagination.first')}" class="page-link">
+                        <a href="{baseUrl}&amp;page=1" title="{f:translate(key:'LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:pagination.first')}" aria-label="{f:translate(key:'LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:pagination.first')}" class="page-link">
                             <core:icon identifier="actions-view-paging-first" />
                         </a>
                     </li>
                     <li class="page-item">
-                        <a href="{baseUrl}&amp;page={pagination.previousPageNumber}" title="{f:translate(key:'LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:pagination.previous')}" class="page-link">
+                        <a href="{baseUrl}&amp;page={pagination.previousPageNumber}" title="{f:translate(key:'LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:pagination.previous')}" aria-label="{f:translate(key:'LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:pagination.previous')}" class="page-link">
                             <core:icon identifier="actions-view-paging-previous" />
                         </a>
                     </li>
                 </f:then>
                 <f:else>
-                    <li class="page-item disabled">
+                    <li class="page-item disabled" aria-hidden="true">
                         <span class="page-link"><core:icon identifier="empty-empty"/></span>
                     </li>
-                    <li class="page-item disabled">
+                    <li class="page-item disabled" aria-hidden="true">
                         <span class="page-link"><core:icon identifier="empty-empty"/></span>
                     </li>
                 </f:else>
@@ -58,27 +58,27 @@
             <f:if condition="{pagination.nextPageNumber} && {pagination.nextPageNumber} <= {pagination.lastPageNumber}">
                 <f:then>
                     <li class="page-item">
-                        <a href="{baseUrl}&amp;page={pagination.nextPageNumber}" title="{f:translate(key:'LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:pagination.next')}" class="page-link">
+                        <a href="{baseUrl}&amp;page={pagination.nextPageNumber}" title="{f:translate(key:'LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:pagination.next')}" aria-label="{f:translate(key:'LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:pagination.next')}" class="page-link">
                             <core:icon identifier="actions-view-paging-next" />
                         </a>
                     </li>
                     <li class="page-item">
-                        <a href="{baseUrl}&amp;page={pagination.lastPageNumber}" title="{f:translate(key:'LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:pagination.last')}" class="page-link">
+                        <a href="{baseUrl}&amp;page={pagination.lastPageNumber}" title="{f:translate(key:'LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:pagination.last')}" aria-label="{f:translate(key:'LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:pagination.last')}" class="page-link">
                             <core:icon identifier="actions-view-paging-last" />
                         </a>
                     </li>
                 </f:then>
                 <f:else>
-                    <li class="page-item disabled">
+                    <li class="page-item disabled" aria-hidden="true">
                         <span class="page-link"><core:icon identifier="empty-empty"/></span>
                     </li>
-                    <li class="page-item disabled">
+                    <li class="page-item disabled" aria-hidden="true">
                         <span class="page-link"><core:icon identifier="empty-empty"/></span>
                     </li>
                 </f:else>
             </f:if>
             <li class="page-item">
-                <a href="{baseUrl}&amp;page={paginator.currentPageNumber}" title="{f:translate(key:'LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:pagination.refresh')}" class="page-link">
+                <a href="{baseUrl}&amp;page={paginator.currentPageNumber}" title="{f:translate(key:'LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:pagination.refresh')}" aria-label="{f:translate(key:'LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:pagination.refresh')}" class="page-link">
                     <core:icon identifier="actions-refresh" />
                 </a>
             </li>

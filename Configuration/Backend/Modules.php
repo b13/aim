@@ -9,6 +9,16 @@ use TYPO3\CMS\Core\Information\Typo3Version;
 $majorVersion = (new Typo3Version())->getMajorVersion();
 $parent = $majorVersion >= 14 ? 'admin' : 'tools';
 
+// TYPO3 12.4's module menu is two levels deep: getModulesForModuleMenu() does
+// one non-recursive pass, so a submodule of a submodule never enters the menu.
+// Grouping the three modules under "aim" there left them reachable by URL only,
+// and the auto-derived route for the grouping entry itself is admin-only, so a
+// user granted just Prompt Management got a link they may not open. On 12.4 the
+// three are therefore registered directly under Admin Tools, and the grouping
+// entry is left out entirely.
+$groupSubmodules = $majorVersion >= 13;
+$submoduleParent = $groupSubmodules ? 'aim' : $parent;
+
 $aim = [
     'parent' => $parent,
     'position' => ['before' => '*'],
@@ -25,10 +35,9 @@ if ($majorVersion >= 14) {
     $aim['showSubmoduleOverview'] = true;
 }
 
-return [
-    'aim' => $aim,
+$modules = [
     'aim_providers' => [
-        'parent' => 'aim',
+        'parent' => $submoduleParent,
         'access' => 'admin',
         'position' => ['before' => '*'],
         'path' => '/module/admin/aim/providers',
@@ -45,7 +54,7 @@ return [
         ],
     ],
     'aim_request_log' => [
-        'parent' => 'aim',
+        'parent' => $submoduleParent,
         'access' => 'admin',
         'position' => ['after' => 'aim_providers'],
         'path' => '/module/admin/aim/request-log',
@@ -68,7 +77,7 @@ return [
         ],
     ],
     'aim_prompt_management' => [
-        'parent' => 'aim',
+        'parent' => $submoduleParent,
         'access' => 'user',
         'position' => ['after' => 'aim_request_log'],
         'path' => '/module/admin/aim/prompt-management',
@@ -91,3 +100,9 @@ return [
         ],
     ],
 ];
+
+if ($groupSubmodules) {
+    $modules = ['aim' => $aim] + $modules;
+}
+
+return $modules;

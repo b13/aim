@@ -287,7 +287,7 @@ final class AiRequestBuilder
         );
         return $this->pipeline->dispatchWithFallback(
             $request,
-            $this->providerResolver->buildFallbackChain($capabilityClass),
+            $this->providerResolver->buildFallbackChain($capabilityClass, $resolvedProvider),
         );
     }
 
@@ -311,7 +311,7 @@ final class AiRequestBuilder
         );
         return $this->pipeline->dispatchWithFallback(
             $request,
-            $this->providerResolver->buildFallbackChain($capabilityClass),
+            $this->providerResolver->buildFallbackChain($capabilityClass, $resolvedProvider),
         );
     }
 
@@ -334,7 +334,7 @@ final class AiRequestBuilder
         );
         return $this->pipeline->dispatchWithFallback(
             $request,
-            $this->providerResolver->buildFallbackChain($capabilityClass),
+            $this->providerResolver->buildFallbackChain($capabilityClass, $resolvedProvider),
         );
     }
 
@@ -358,7 +358,7 @@ final class AiRequestBuilder
         );
         return $this->pipeline->dispatchWithFallback(
             $request,
-            $this->providerResolver->buildFallbackChain($capabilityClass),
+            $this->providerResolver->buildFallbackChain($capabilityClass, $resolvedProvider),
         );
     }
 

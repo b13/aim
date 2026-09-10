@@ -305,23 +305,33 @@ class RequestLogPoll {
   }
 
   #getFilterParams() {
-    const form = document.querySelector('form[name="demand"]');
-    if (!form) return {};
-
     const params = {};
-    const names = [
-      'demand[provider_identifier]',
-      'demand[extension_key]',
-      'demand[request_type]',
-      'demand[success]',
-    ];
-    for (const name of names) {
-      const el = form.querySelector(`[name="${name}"]`);
-      if (el?.value) {
-        params[name] = el.value;
+    const form = document.querySelector('form[name="demand"]');
+    if (form) {
+      // Selector-driven instead of a hardcoded name list, so a filter added
+      // to Filters.html is polled along with the rest rather than silently
+      // dropped. orderField/orderDirection are the hidden inputs the same
+      // form carries.
+      const fields = form.querySelectorAll('[name^="demand["], [name="orderField"], [name="orderDirection"]');
+      for (const field of fields) {
+        // Not a truthiness check: the "failed" status filter is the string
+        // "0".
+        if (field.value !== '') {
+          params[field.name] = field.value;
+        }
       }
     }
+    const page = this.#getCurrentPage();
+    if (page > 1) {
+      params.page = String(page);
+    }
     return params;
+  }
+
+  #getCurrentPage() {
+    const input = document.querySelector('input[name="paginator-target-page"]');
+    const page = Number.parseInt(input?.getAttribute('value') ?? '', 10);
+    return Number.isInteger(page) && page > 0 ? page : 1;
   }
 }
 

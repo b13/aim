@@ -15,6 +15,7 @@ namespace B13\Aim\Tests\Unit\Governance;
 use B13\Aim\Domain\Model\ProviderConfiguration;
 use B13\Aim\Domain\Repository\ProviderConfigurationRepository;
 use B13\Aim\Domain\Repository\RequestLogRepository;
+use B13\Aim\Governance\ConfigurationAccess;
 use B13\Aim\Middleware\AiMiddlewareHandler;
 use B13\Aim\Middleware\SmartRoutingMiddleware;
 use B13\Aim\Provider\AiProviderInterface;
@@ -44,8 +45,9 @@ final class SmartRoutingRestrictionTest extends TestCase
 
         return new SmartRoutingMiddleware(
             $this->createMock(RequestLogRepository::class),
-            new ProviderResolver($registry, $configRepo, $disabledModels, $this->createMock(RequestLogRepository::class)),
+            new ProviderResolver($registry, $configRepo, $disabledModels, $this->createMock(RequestLogRepository::class), new ConfigurationAccess()),
             new ComplexitySignalRegistry($packageManager),
+            new ConfigurationAccess(),
             new NullLogger(),
         );
     }

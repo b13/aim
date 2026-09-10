@@ -38,7 +38,7 @@ use Symfony\Component\DependencyInjection\Reference;
  * scans all installed Composer packages declaring the `symfony-ai-platform`
  * Composer package type, the convention both Symfony's own bridges (e.g.
  * `symfony/ai-open-ai-platform`) and third-party ones (e.g.
- * `mittwald/symfony-ai-platform`) declare, rather than matching on package
+ * `t3ppy/symfony-ai-platform`) declare, rather than matching on package
  * name/vendor. For each bridge it:
  *
  * 1. Derives the PHP namespace from the package's autoload configuration
@@ -210,6 +210,13 @@ final class SymfonyAiCompilerPass implements CompilerPassInterface
 
         // Derive display name from package name
         $name = 'Symfony AI: ' . $this->deriveName($package['name']);
+        if (str_contains($identifier, '/')) {
+            $declared = $this->declaredProviderName($factoryClass);
+            if ($declared !== null) {
+                $identifier = $declared;
+                $name = 'Symfony AI: ' . ucfirst($declared);
+            }
+        }
 
         // Detect factory auth parameter via reflection
         $factoryParam = $this->detectFactoryParam($factoryClass);
@@ -378,11 +385,91 @@ final class SymfonyAiCompilerPass implements CompilerPassInterface
     }
 
     /**
-     * Derive a AiM provider identifier from a Composer package name.
+     * The name a bridge declares for itself, read at container compile time.
+     *
+     * The name is a routing key inside Symfony AI, not prose, and reading it
+     * needs no credential and no network. This is only reached for a package
+     * whose name deriveIdentifier() cannot interpret.
+     *
+     * A bridge that declares `string $name = '...'` on its factory, is read by
+     * reflection alone, so no bridge code runs at container compile time.
+     * Otherwise the factory is built and asked, with empty values for exactly
+     * the parameters it declares, the way SymfonyAiPlatformAdapter builds its
+     * arguments: a positional call would put the empty string on whatever comes
+     * first, which is not always the credential, and a parameter that cannot be
+     * satisfied with a string is not guessed at. A factory that refuses to be
+     * built lands in the catch and the derived value stays.
+     */
+    private function declaredProviderName(string $factoryClass): ?string
+    {
+        try {
+            $method = new \ReflectionMethod($factoryClass, 'createProvider');
+
+            // Every bridge measured so far carries the canonical name as the
+            // default of a `$name` parameter, which reflection reads without
+            // running a line of bridge code. That is the whole probe for those,
+            // and it answers even for a factory that refuses to be built:
+            // symfony/ai-open-ai-platform validates an empty credential and
+            // throws, while its signature still says `string $name = 'openai'`.
+            foreach ($method->getParameters() as $parameter) {
+                if ($parameter->getName() === 'name' && $parameter->isDefaultValueAvailable()) {
+                    $declared = self::usableIdentifier($parameter->getDefaultValue());
+                    if ($declared !== null) {
+                        return $declared;
+                    }
+                }
+            }
+
+            $arguments = [];
+            foreach ($method->getParameters() as $parameter) {
+                if ($parameter->isOptional()) {
+                    continue;
+                }
+                $type = $parameter->getType();
+                if (!$type instanceof \ReflectionNamedType || $type->getName() !== 'string') {
+                    return null;
+                }
+                $arguments[$parameter->getName()] = '';
+            }
+
+            $provider = $factoryClass::createProvider(...$arguments);
+            if (!is_object($provider) || !method_exists($provider, 'getName')) {
+                return null;
+            }
+
+            return self::usableIdentifier($provider->getName());
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    /**
+     * Whatever a bridge answers has to be usable as an identifier: it ends up
+     * in a service id and in a database column, and a bridge handing out
+     * something shaped like a package name would only move the problem.
+     */
+    private static function usableIdentifier(mixed $declared): ?string
+    {
+        if (!is_string($declared)) {
+            return null;
+        }
+        $declared = trim($declared);
+
+        return preg_match('/^[A-Za-z0-9_-]{1,64}$/', $declared) === 1 ? $declared : null;
+    }
+
+    /**
+     * Derive an AiM provider identifier from a Composer package name.
      *
      * symfony/ai-open-ai-platform → openai
      * symfony/ai-ollama-platform → ollama
      * symfony/ai-anthropic-platform → anthropic
+     *
+     * Only the symfony/ai-* naming can be read this way. Any other
+     * vendor's package keeps its vendor prefix, slash included
+     * (t3ppy/symfony-ai-platform → t3ppy/symfonyai), which is why
+     * buildBridgeDefinition() asks such a bridge for its own name
+     * and treats this as the fallback for it.
      */
     private function deriveIdentifier(string $packageName): string
     {
@@ -400,6 +487,10 @@ final class SymfonyAiCompilerPass implements CompilerPassInterface
      * symfony/ai-open-ai-platform → OpenAI
      * symfony/ai-ollama-platform → Ollama
      * symfony/ai-anthropic-platform → Anthropic
+     *
+     * Same limit as deriveIdentifier(): for a package outside that naming this
+     * produces the vendor prefix as prose ("T3ppy/symfony Ai"), so the
+     * display name for those comes from the declared provider name instead.
      */
     private function deriveName(string $packageName): string
     {

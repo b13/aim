@@ -139,7 +139,59 @@ final class RequestLogControllerPollTest extends FunctionalTestCase
         self::assertNotEmpty($body['message']);
     }
 
-    private function poll(): ResponseInterface
+    /**
+     * The counterpart to Tests/Unit/Controller/RequestLogPollParametersTest.php:
+     * that one pins which parameters request-log-poll.js sends, this one pins
+     * that each of them actually changes what comes back. Without the pair, a
+     * poll that quietly drops a parameter looks like a working refresh while it
+     * replaces the user's filtered/sorted/paged view with the default one.
+     */
+    #[Test]
+    public function pollActionHonoursTheFilterSortingAndPageOfTheCurrentView(): void
+    {
+        $this->getConnectionPool()->getConnectionForTable('be_users')->insert('be_users', [
+            'uid' => 1,
+            'pid' => 0,
+            'username' => 'admin',
+            'admin' => 1,
+        ]);
+        $this->setUpBackendUser(1);
+        $GLOBALS['LANG'] = $this->get(LanguageServiceFactory::class)->createFromUserPreferences($GLOBALS['BE_USER']);
+
+        $logRepo = $this->get(RequestLogRepository::class);
+        $logRepo->log(['request_type' => 'TextGenerationRequest', 'provider_identifier' => 'test', 'model_used' => 'gpt-4o', 'cost' => 0.5]);
+        $logRepo->log(['request_type' => 'TextGenerationRequest', 'provider_identifier' => 'test', 'model_used' => 'gpt-4o-mini', 'cost' => 0.1]);
+        $logRepo->log(['request_type' => 'TextGenerationRequest', 'provider_identifier' => 'test', 'model_used' => 'gpt-4o-mini', 'cost' => 0.9]);
+
+        $filtered = $this->rowsOf($this->poll(['demand' => ['model_used' => 'gpt-4o-mini']]));
+        self::assertCount(2, $filtered, 'The model filter was ignored, so the poll returns rows the user filtered out.');
+        self::assertSame(['gpt-4o-mini', 'gpt-4o-mini'], array_column($filtered, 'model_used'));
+
+        $sorted = $this->rowsOf($this->poll(['orderField' => 'cost', 'orderDirection' => 'asc']));
+        self::assertSame(
+            ['0.100000', '0.500000', '0.900000'],
+            array_column($sorted, 'cost'),
+            'The sorting was ignored, so the poll reorders the table under the sort arrow the user set.',
+        );
+
+        // The page size is 25 (RequestLogDemand), so the second page of three
+        // entries is deliberately empty: proof the offset is applied at all.
+        self::assertCount(3, $this->rowsOf($this->poll(['page' => '1'])));
+        self::assertCount(0, $this->rowsOf($this->poll(['page' => '2'])), 'The page was ignored, so a poll drops the user back to page 1.');
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function rowsOf(ResponseInterface $response): array
+    {
+        return json_decode((string)$response->getBody(), true)['rows'];
+    }
+
+    /**
+     * @param array<string, mixed> $queryParams
+     */
+    private function poll(array $queryParams = []): ResponseInterface
     {
         $controller = $this->get(RequestLogController::class);
         $url = 'https://typo3-testing.local/typo3/ajax/aim/request-log/poll';
@@ -156,6 +208,7 @@ final class RequestLogControllerPollTest extends FunctionalTestCase
         $request = $request->withAttribute('route', new Route('/ajax/aim/request-log/poll', ['packageName' => 'b13/aim']));
         $request = $request->withAttribute('applicationType', SystemEnvironmentBuilder::REQUESTTYPE_BE);
         $request = $request->withAttribute('normalizedParams', NormalizedParams::createFromRequest($request));
+        $request = $request->withQueryParams($queryParams);
 
         return $controller->pollAction($request);
     }

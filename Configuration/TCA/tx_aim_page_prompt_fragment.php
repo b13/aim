@@ -13,6 +13,9 @@ return [
         'crdate' => 'crdate',
         'tstamp' => 'tstamp',
         'delete' => 'deleted',
+        'enablecolumns' => [
+            'disabled' => 'hidden',
+        ],
         'versioningWS' => true,
         'versioningWS_alwaysAllowLiveEdit' => true,
         'security' => [
@@ -24,10 +27,27 @@ return [
     ],
     'types' => [
         '1' => [
-            'showitem' => 'fragment, inherit_to_subpages',
+            'showitem' => 'fragment, inherit_to_subpages, --palette--;;visibility',
+        ],
+    ],
+    'palettes' => [
+        'visibility' => [
+            'showitem' => 'hidden',
         ],
     ],
     'columns' => [
+        'hidden' => [
+            'label' => 'LLL:EXT:aim/Resources/Private/Language/locallang_tca.xlf:tx_aim_page_prompt_fragment.columns.hidden.label',
+            'description' => 'LLL:EXT:aim/Resources/Private/Language/locallang_tca.xlf:tx_aim_page_prompt_fragment.columns.hidden.description',
+            'config' => [
+                'type' => 'check',
+                'renderType' => 'checkboxToggle',
+                'default' => 0,
+                'items' => [
+                    ['label' => '', 'invertStateDisplay' => true],
+                ],
+            ],
+        ],
         'fragment' => [
             'label' => 'LLL:EXT:aim/Resources/Private/Language/locallang_tca.xlf:tx_aim_page_prompt_fragment.columns.fragment.label',
             'description' => 'LLL:EXT:aim/Resources/Private/Language/locallang_tca.xlf:tx_aim_page_prompt_fragment.columns.fragment.description',

@@ -18,6 +18,7 @@ use B13\Aim\Domain\Model\AiProviderManifest;
 use B13\Aim\Domain\Model\ProviderConfiguration;
 use B13\Aim\Domain\Repository\ProviderConfigurationRepository;
 use B13\Aim\Domain\Repository\RequestLogRepository;
+use B13\Aim\Governance\ConfigurationAccess;
 use B13\Aim\Provider\ProviderResolver;
 use B13\Aim\Registry\AiProviderRegistry;
 use B13\Aim\Registry\DisabledModelRegistry;
@@ -78,7 +79,7 @@ final class ProviderResolverTest extends TestCase
         $logRepository = $this->createStub(RequestLogRepository::class);
         $logRepository->method('getModelPerformanceProfile')->willReturn([]);
 
-        $resolver = new ProviderResolver($registry, $configurationRepository, $disabledModelRegistry, $logRepository);
+        $resolver = new ProviderResolver($registry, $configurationRepository, $disabledModelRegistry, $logRepository, new ConfigurationAccess());
 
         $resolved = $resolver->resolveForCapability(ImageGenerationCapableInterface::class);
 
@@ -120,7 +121,7 @@ final class ProviderResolverTest extends TestCase
 
         $logRepository = $this->createStub(RequestLogRepository::class);
 
-        $resolver = new ProviderResolver($registry, $configurationRepository, $disabledModelRegistry, $logRepository);
+        $resolver = new ProviderResolver($registry, $configurationRepository, $disabledModelRegistry, $logRepository, new ConfigurationAccess());
 
         // First entry is an unregistered provider notation and must fail over to the
         // second entry, a plain configuration uid, rather than throwing immediately.

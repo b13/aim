@@ -16,9 +16,11 @@ use B13\Aim\Crypto\ApiKeyEncryption;
 use B13\Aim\Exception\ApiKeyEncryptionException;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
+use Symfony\Component\Console\Helper\QuestionHelper;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Component\Console\Question\Question;
 use TYPO3\CMS\Core\Database\Connection;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 
@@ -61,8 +63,11 @@ final class RotateApiKeys extends Command
             ->addOption(
                 'old-key',
                 null,
-                InputOption::VALUE_REQUIRED,
-                'The previous value of $TYPO3_CONF_VARS[SYS][encryptionKey].',
+                InputOption::VALUE_OPTIONAL,
+                'The previous value of $TYPO3_CONF_VARS[SYS][encryptionKey]. Prefer the '
+                . 'AIM_OLD_ENCRYPTION_KEY environment variable, or omit this and be prompted: '
+                . 'a value passed here is visible in the process table to every other user on '
+                . 'the machine, and lands in the shell history.',
             )
             ->addOption(
                 'dry-run',
@@ -74,9 +79,9 @@ final class RotateApiKeys extends Command
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $oldKey = (string)$input->getOption('old-key');
+        $oldKey = $this->resolveOldKey($input, $output);
         if ($oldKey === '') {
-            $output->writeln('<error>--old-key is required.</error>');
+            $output->writeln('<error>No previous encryption key given. Pass --old-key, set AIM_OLD_ENCRYPTION_KEY, or run interactively to be prompted.</error>');
             return Command::FAILURE;
         }
         $dryRun = (bool)$input->getOption('dry-run');
@@ -145,6 +150,46 @@ final class RotateApiKeys extends Command
      * @return array{0: array<int, string>, 1: array<int, string>, 2: int, 3: int}
      *         [uid => plaintext to re-encrypt], [uid => failure message], already-current count, unencrypted count
      */
+    /**
+     * In order of preference: an environment variable, a hidden prompt, then
+     * the option. The option is what the command used to require outright,
+     * which put the previous system encryption key into the process table -
+     * readable by any other user on the host, and into shell history.
+     */
+    private function resolveOldKey(InputInterface $input, OutputInterface $output): string
+    {
+        $fromEnvironment = (string)(getenv('AIM_OLD_ENCRYPTION_KEY') ?: '');
+        if ($fromEnvironment !== '') {
+            return $fromEnvironment;
+        }
+
+        $fromOption = (string)($input->getOption('old-key') ?? '');
+        if ($fromOption !== '') {
+            $output->writeln(
+                '<comment>--old-key is visible in the process table and shell history. '
+                . 'Prefer AIM_OLD_ENCRYPTION_KEY or the interactive prompt.</comment>'
+            );
+            return $fromOption;
+        }
+
+        // getHelper() throws when the command is not attached to an Application
+        // with a helper set, which is the case under CommandTester.
+        $helperSet = $this->getHelperSet();
+        if (!$input->isInteractive() || $helperSet === null || !$helperSet->has('question')) {
+            return '';
+        }
+        $helper = $helperSet->get('question');
+        if (!$helper instanceof QuestionHelper) {
+            return '';
+        }
+
+        $question = new Question('Previous $TYPO3_CONF_VARS[SYS][encryptionKey]: ');
+        $question->setHidden(true);
+        $question->setHiddenFallback(false);
+
+        return (string)($helper->ask($input, $output, $question) ?? '');
+    }
+
     private function classifyRows(string $oldKey): array
     {
         $toRotate = [];

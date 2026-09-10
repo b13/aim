@@ -92,6 +92,60 @@ final class ProviderControllerTest extends FunctionalTestCase
     }
 
     /**
+     * Deleting a provider configuration destroys a stored API key, so the
+     * confirmation has to say which one. It used to pass the warning through
+     * `data-bs-content` only: v14's modal trigger reads `dataset.content` and
+     * explicitly refuses the legacy attribute (see initializeMarkupTrigger in
+     * core's modal.js), leaving a generic "Are you sure?" with an "OK" button
+     * and a console error, naming nothing. v12.4 and v13.4 read the bs
+     * attribute first, so both spellings have to stay.
+     */
+    #[Test]
+    public function theDeleteConfirmationNamesTheConfigurationOnEveryTypo3Version(): void
+    {
+        $this->setUpBackendUser(1);
+        $GLOBALS['LANG'] = $this->get(LanguageServiceFactory::class)->createFromUserPreferences($GLOBALS['BE_USER']);
+
+        $trigger = self::deleteTrigger((string)$this->overview()->getBody());
+
+        foreach (['data-content', 'data-bs-content'] as $attribute) {
+            $content = self::attribute($trigger, $attribute);
+            self::assertStringContainsString(
+                'Test Configuration',
+                $content,
+                sprintf('%s does not name the record being deleted.', $attribute),
+            );
+            self::assertStringNotContainsString('LLL:', $content);
+        }
+
+        $okText = self::attribute($trigger, 'data-button-ok-text');
+        self::assertNotSame('', $okText, 'Without an explicit label the confirming button just says "OK".');
+        self::assertStringNotContainsString('LLL:', $okText);
+    }
+
+    private static function deleteTrigger(string $body): string
+    {
+        self::assertSame(
+            1,
+            preg_match('/<a[^>]*t3js-modal-trigger[^>]*>/', $body, $matches),
+            'The overview has no delete confirmation trigger at all.',
+        );
+
+        return $matches[0];
+    }
+
+    private static function attribute(string $tag, string $name): string
+    {
+        self::assertSame(
+            1,
+            preg_match('/\s' . preg_quote($name, '/') . '="([^"]*)"/', $tag, $matches),
+            sprintf('The trigger carries no %s attribute.', $name),
+        );
+
+        return html_entity_decode($matches[1], ENT_QUOTES | ENT_HTML5);
+    }
+
+    /**
      * Regression test: availableProvidersAction/toggleModelAction/verifyProviderAction
      * are raw AJAX routes (Configuration/Backend/AjaxRoutes.php), never
      * validated by BackendModuleValidator - unlike this action's own
@@ -174,10 +228,10 @@ final class ProviderControllerTest extends FunctionalTestCase
         self::assertSame(403, $response->getStatusCode());
     }
 
-    private function overview(): ResponseInterface
+    private function overview(array $queryParameters = []): ResponseInterface
     {
         $controller = $this->get(ProviderController::class);
-        $request = $this->buildRequestWithNormalizedParams();
+        $request = $this->buildRequestWithNormalizedParams()->withQueryParams($queryParameters);
 
         return $controller->overviewAction($request);
     }
@@ -199,5 +253,46 @@ final class ProviderControllerTest extends FunctionalTestCase
         $request = $request->withAttribute('applicationType', SystemEnvironmentBuilder::REQUESTTYPE_BE);
 
         return $request->withAttribute('normalizedParams', NormalizedParams::createFromRequest($request));
+    }
+
+    /**
+     * Regression test: the pagination URL was built from the two ordering
+     * parameters only, so paging away from page one dropped the title and
+     * provider filters while the filter fields kept showing their values. The
+     * other two modules already go through SortUrlBuilder for this. Needs more
+     * matching rows than the page size, since the pagination markup only
+     * renders with more than one page.
+     */
+    #[Test]
+    public function paginationLinksPreserveTheActiveFilter(): void
+    {
+        $this->setUpBackendUser(1);
+        $connection = $this->getConnectionPool()->getConnectionForTable('tx_aim_configuration');
+        for ($i = 1; $i <= 30; $i++) {
+            $connection->insert('tx_aim_configuration', [
+                'pid' => 0,
+                'ai_provider' => 'openai',
+                'title' => 'Paginated configuration ' . $i,
+                'model' => 'gpt-4o',
+            ]);
+        }
+
+        $body = (string)$this->overview([
+            'demand' => ['title' => 'Paginated configuration'],
+            'orderField' => 'title',
+            'orderDirection' => 'desc',
+        ])->getBody();
+
+        self::assertMatchesRegularExpression(
+            '/data-navigate-value="[^"]*"/',
+            $body,
+            'Pagination did not render at all, so this test proves nothing.',
+        );
+        preg_match('/data-navigate-value="([^"]*)"/', $body, $matches);
+        $paginationUrl = urldecode($matches[1] ?? '');
+
+        self::assertStringContainsString('demand[title]=Paginated configuration', $paginationUrl);
+        self::assertStringContainsString('orderField=title', $paginationUrl);
+        self::assertStringContainsString('orderDirection=desc', $paginationUrl);
     }
 }

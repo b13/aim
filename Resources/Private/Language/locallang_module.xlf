@@ -138,9 +138,6 @@
             <trans-unit id="promptPreview.provider.none" resname="promptPreview.provider.none">
                 <source>None (don't show a provider addendum)</source>
             </trans-unit>
-            <trans-unit id="promptPreview.submit" resname="promptPreview.submit">
-                <source>Preview</source>
-            </trans-unit>
             <trans-unit id="promptPreview.previewGeneral" resname="promptPreview.previewGeneral">
                 <source>Prompt Preview</source>
             </trans-unit>
@@ -187,7 +184,7 @@
                 <source>Manage providers</source>
             </trans-unit>
             <trans-unit id="promptPreview.calibrateVoice.selectPages" resname="promptPreview.calibrateVoice.selectPages">
-                <source>Select page...</source>
+                <source>Select pages...</source>
             </trans-unit>
             <trans-unit id="promptPreview.calibrateVoice.selectPagesModalTitle" resname="promptPreview.calibrateVoice.selectPagesModalTitle">
                 <source>Select pages to pull example content from</source>
@@ -224,6 +221,9 @@
             </trans-unit>
             <trans-unit id="promptPreview.result.empty" resname="promptPreview.result.empty">
                 <source>(nothing contributed by this layer)</source>
+            </trans-unit>
+            <trans-unit id="promptPreview.result.layerUnavailable" resname="promptPreview.result.layerUnavailable">
+                <source>(this layer could not be read, so the preview is incomplete)</source>
             </trans-unit>
             <trans-unit id="promptPreview.layer.pageTone" resname="promptPreview.layer.pageTone">
                 <source>Page prompt</source>
@@ -294,9 +294,6 @@
             <trans-unit id="overview.title" resname="overview.title">
                 <source>Providers</source>
             </trans-unit>
-            <trans-unit id="overview.description" resname="overview.description">
-                <source>Manage AI provider configurations, API keys and models.</source>
-            </trans-unit>
             <trans-unit id="overview.newConfiguration" resname="overview.newConfiguration">
                 <source>New Configuration</source>
             </trans-unit>
@@ -327,6 +324,24 @@
             <trans-unit id="capability.toolCalling" resname="capability.toolCalling">
                 <source>Tool Calling</source>
             </trans-unit>
+            <trans-unit id="capability.embedding" resname="capability.embedding">
+                <source>Embedding</source>
+            </trans-unit>
+            <trans-unit id="capability.imageGeneration" resname="capability.imageGeneration">
+                <source>Image Generation</source>
+            </trans-unit>
+            <trans-unit id="overview.configurations.model.none" resname="overview.configurations.model.none">
+                <source>no model</source>
+            </trans-unit>
+            <trans-unit id="overview.configurations.model.none.description" resname="overview.configurations.model.none.description">
+                <source>No model is selected, so this configuration is skipped as if it were disabled. Pick one in the record.</source>
+            </trans-unit>
+            <trans-unit id="overview.configurations.endpoint" resname="overview.configurations.endpoint">
+                <source>Endpoint</source>
+            </trans-unit>
+            <trans-unit id="overview.configurations.endpoint.hosted" resname="overview.configurations.endpoint.hosted">
+                <source>hosted</source>
+            </trans-unit>
             <trans-unit id="overview.provider" resname="overview.provider">
                 <source>Provider</source>
             </trans-unit>
@@ -337,10 +352,7 @@
                 <source>No providers</source>
             </trans-unit>
             <trans-unit id="overview.noProviders.message" resname="overview.noProviders.message">
-                <source>No AI providers registered. Install an extension that provides AI capabilities.</source>
-            </trans-unit>
-            <trans-unit id="overview.configurations" resname="overview.configurations">
-                <source>Configurations</source>
+                <source>No AI providers are available yet. Install a provider bridge with Composer, for example "composer require symfony/ai-open-ai-platform", then flush all caches. Any installed package of Composer type symfony-ai-platform is discovered automatically.</source>
             </trans-unit>
             <trans-unit id="overview.configurations.title" resname="overview.configurations.title">
                 <source>Title</source>
@@ -407,13 +419,7 @@
             </trans-unit>
 
             <trans-unit id="requestLog.title" resname="requestLog.title">
-                <source>AI Request Log</source>
-            </trans-unit>
-            <trans-unit id="requestLog.description" resname="requestLog.description">
-                <source>View and analyze all AI requests processed through the LLM proxy pipeline.</source>
-            </trans-unit>
-            <trans-unit id="requestLog.shortDescription" resname="requestLog.shortDescription">
-                <source>AI request history and statistics</source>
+                <source>Request Log</source>
             </trans-unit>
             <trans-unit id="requestLog.noEntries.title" resname="requestLog.noEntries.title">
                 <source>No requests logged</source>
@@ -423,6 +429,15 @@
             </trans-unit>
             <trans-unit id="requestLog.noEntries.filtered" resname="requestLog.noEntries.filtered">
                 <source>No requests match the current filter.</source>
+            </trans-unit>
+            <trans-unit id="requestLog.pageOutOfRange.title" resname="requestLog.pageOutOfRange.title">
+                <source>This page is empty</source>
+            </trans-unit>
+            <trans-unit id="requestLog.pageOutOfRange.message" resname="requestLog.pageOutOfRange.message">
+                <source>Page %1$s holds no entries, although %2$s requests are logged. Entries that used to be on this page were most likely removed by the retention task.</source>
+            </trans-unit>
+            <trans-unit id="requestLog.pageOutOfRange.firstPage" resname="requestLog.pageOutOfRange.firstPage">
+                <source>Go to the first page</source>
             </trans-unit>
             <trans-unit id="requestLog.column.timestamp" resname="requestLog.column.timestamp">
                 <source>Timestamp</source>
@@ -494,7 +509,7 @@
                 <source>Pending grades</source>
             </trans-unit>
             <trans-unit id="requestLog.pendingGrades.message" resname="requestLog.pendingGrades.message">
-                <source>%d request log row(s) have been waiting more than an hour to be graded. The shutdown handler appears to have missed them: run "vendor/bin/typo3 aim:grade-pending" or schedule it via the TYPO3 scheduler.</source>
+                <source>%d request log row(s) have been waiting more than an hour to be graded. The shutdown handler appears to have missed them: run the "aim:grade-pending" command on the TYPO3 command line or schedule it via the TYPO3 scheduler.</source>
             </trans-unit>
             <trans-unit id="requestLog.status.success" resname="requestLog.status.success">
                 <source>Success</source>
@@ -550,6 +565,15 @@
             <trans-unit id="requestLog.stats.totalTokens" resname="requestLog.stats.totalTokens">
                 <source>Total Tokens</source>
             </trans-unit>
+            <trans-unit id="requestLog.stats.totalTokens.info" resname="requestLog.stats.totalTokens.info">
+                <source>Prompt and completion tokens added up across all requests.</source>
+            </trans-unit>
+            <trans-unit id="requestLog.stats.totalTokens.cached" resname="requestLog.stats.totalTokens.cached">
+                <source>Cached:</source>
+            </trans-unit>
+            <trans-unit id="requestLog.stats.totalTokens.reasoning" resname="requestLog.stats.totalTokens.reasoning">
+                <source>Reasoning:</source>
+            </trans-unit>
             <trans-unit id="requestLog.stats.successRate" resname="requestLog.stats.successRate">
                 <source>Success Rate</source>
             </trans-unit>
@@ -562,8 +586,23 @@
             <trans-unit id="requestLog.stats.avgDuration.info" resname="requestLog.stats.avgDuration.info">
                 <source>Average wall-clock time per request in milliseconds. Includes network latency and provider processing time.</source>
             </trans-unit>
+            <trans-unit id="requestLog.stats.info" resname="requestLog.stats.info">
+                <source>What "%s" means</source>
+            </trans-unit>
             <trans-unit id="overview.modelToggleHint" resname="overview.modelToggleHint">
-                <source>Click a model to enable/disable it. Disabled models are excluded on all ai requests and also won't appear in the model selection configurations.</source>
+                <source>Click a model to enable or disable it. Disabled models are excluded from all AI requests and no longer appear in the Model dropdown of provider configurations.</source>
+            </trans-unit>
+            <trans-unit id="overview.modelToggle.enable" resname="overview.modelToggle.enable">
+                <source>Enable model %s</source>
+            </trans-unit>
+            <trans-unit id="overview.modelToggle.disable" resname="overview.modelToggle.disable">
+                <source>Disable model %s</source>
+            </trans-unit>
+            <trans-unit id="overview.modelToggle.failed.title" resname="overview.modelToggle.failed.title">
+                <source>Model not changed</source>
+            </trans-unit>
+            <trans-unit id="overview.modelToggle.failed.message" resname="overview.modelToggle.failed.message">
+                <source>The model is still in its previous state. Please try again.</source>
             </trans-unit>
             <trans-unit id="widgets.button.requestLog" resname="widgets.button.requestLog">
                 <source>Open Request Log</source>

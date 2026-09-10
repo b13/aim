@@ -124,7 +124,7 @@ final class RotateApiKeysTest extends FunctionalTestCase
     {
         $tester = $this->runCommandAndReturnTester([]);
         self::assertSame(1, $tester->getStatusCode());
-        self::assertStringContainsString('--old-key is required', $tester->getDisplay());
+        self::assertStringContainsString('No previous encryption key given', $tester->getDisplay());
     }
 
     #[Test]

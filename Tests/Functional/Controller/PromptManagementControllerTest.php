@@ -82,7 +82,9 @@ final class PromptManagementControllerTest extends FunctionalTestCase
         // module has nothing to show this user at all (see
         // hasFragmentReadAccess in the controller), which is a different,
         // coarser permission dimension than tables_modify.
-        $beGroups->insert('be_groups', ['uid' => 61, 'title' => 'Fragment viewers', 'tables_select' => 'tx_aim_prompt_fragment']);
+        // groupMods too: previewAction now requires module access on top of the
+        // table grant, which is what a real fragment viewer would have.
+        $beGroups->insert('be_groups', ['uid' => 61, 'title' => 'Fragment viewers', 'tables_select' => 'tx_aim_prompt_fragment', 'groupMods' => 'aim_prompt_management']);
 
         $beUsers = $this->getConnectionPool()->getConnectionForTable('be_users');
         $beUsers->insert('be_users', ['uid' => 1, 'username' => 'admin', 'admin' => 1]);
@@ -125,7 +127,7 @@ final class PromptManagementControllerTest extends FunctionalTestCase
      * fragment's full content by posting here directly.
      */
     #[Test]
-    public function respondsOkFalseForAUserWithoutTablesSelectRegardlessOfPageAccess(): void
+    public function respondsForbiddenForAUserWithoutTablesSelectRegardlessOfPageAccess(): void
     {
         $beUsers = $this->getConnectionPool()->getConnectionForTable('be_users');
         $beUsers->insert('be_users', ['uid' => 52, 'username' => 'no-fragment-access', 'admin' => 0, 'db_mountpoints' => '10']);
@@ -133,7 +135,8 @@ final class PromptManagementControllerTest extends FunctionalTestCase
 
         $response = $this->preview(['pageId' => '10', 'scope' => 'all']);
 
-        self::assertSame(200, $response->getStatusCode());
+        // Was a 200 carrying ok:false, unlike every sibling endpoint here.
+        self::assertSame(403, $response->getStatusCode());
         $body = json_decode((string)$response->getBody(), true);
         self::assertFalse($body['ok']);
         self::assertNotEmpty($body['message']);
@@ -534,33 +537,63 @@ final class PromptManagementControllerTest extends FunctionalTestCase
      * would follow it straight into an "access denied" dead end.
      *
      * Covers all three cases, not just admin-vs-permissionless: a plain
-     * non-admin user (uid 50, no usergroup at all) is denied, but a
-     * non-admin user whose group explicitly grants `tables_modify` for
-     * tx_aim_prompt_fragment (uid 51) is still granted the link - proving
+     * non-admin user (uid 50, no usergroup at all) is denied
+     * (theFragmentEditLinkIsHiddenFromAUserNotAllowedToModifyFragments()), but
+     * a non-admin user whose group explicitly grants `tables_modify` for
+     * tx_aim_prompt_fragment (uid 51) is still granted the link
+     * (theFragmentEditLinkIsShownToANonAdminGrantedTablesModify()), proving
      * this checks that specific permission rather than merely isAdmin() or
      * the wrong table.
+     *
+     * One backend user per test method: TYPO3 12.4's PageRenderer::reset()
+     * (run at the end of each render) does not clear $bodyContent the way
+     * 13.4 and 14 do, so a second render within one method returns the first
+     * render's markup with its own appended, and the admin's edit link would
+     * still be found in the restricted user's body.
      */
     #[Test]
-    public function theFragmentEditLinkIsShownOnlyToAUserAllowedToModifyFragments(): void
+    public function theFragmentEditLinkIsShownToAnAdmin(): void
     {
-        $fragments = $this->getConnectionPool()->getConnectionForTable('tx_aim_prompt_fragment');
-        $assignments = $this->getConnectionPool()->getConnectionForTable('tx_aim_page_prompt_fragment');
-        $fragments->insert('tx_aim_prompt_fragment', ['pid' => 10, 'title' => 'Mounted fragment', 'prompt' => 'Tone.', 'scope' => 'all']);
-        $fragmentUid = (int)$fragments->lastInsertId();
-        $assignments->insert('tx_aim_page_prompt_fragment', ['pid' => 10, 'parent_page' => 10, 'fragment' => $fragmentUid]);
+        $fragmentUid = $this->insertFragmentOnTheMountedPage();
 
         $this->setUpBackendUser(1);
-        $adminBody = (string)$this->overview(0)->getBody();
-        self::assertMatchesRegularExpression('/edit%5Btx_aim_prompt_fragment%5D%5B' . $fragmentUid . '%5D=edit/', $adminBody);
+
+        $body = (string)$this->overview(0)->getBody();
+
+        self::assertMatchesRegularExpression('/edit%5Btx_aim_prompt_fragment%5D%5B' . $fragmentUid . '%5D=edit/', $body);
+    }
+
+    /**
+     * See theFragmentEditLinkIsShownToAnAdmin(): uid 50 has no usergroup at
+     * all, so the fragment stays listed but carries no edit link.
+     */
+    #[Test]
+    public function theFragmentEditLinkIsHiddenFromAUserNotAllowedToModifyFragments(): void
+    {
+        $fragmentUid = $this->insertFragmentOnTheMountedPage();
 
         $this->setUpBackendUser(50);
-        $restrictedBody = (string)$this->overview(0)->getBody();
-        self::assertStringContainsString('Mounted fragment', $restrictedBody);
-        self::assertDoesNotMatchRegularExpression('/edit%5Btx_aim_prompt_fragment%5D%5B' . $fragmentUid . '%5D=edit/', $restrictedBody);
+
+        $body = (string)$this->overview(0)->getBody();
+
+        self::assertStringContainsString('Mounted fragment', $body);
+        self::assertDoesNotMatchRegularExpression('/edit%5Btx_aim_prompt_fragment%5D%5B' . $fragmentUid . '%5D=edit/', $body);
+    }
+
+    /**
+     * See theFragmentEditLinkIsShownToAnAdmin(): uid 51 is no admin, but its
+     * group grants tables_modify for tx_aim_prompt_fragment.
+     */
+    #[Test]
+    public function theFragmentEditLinkIsShownToANonAdminGrantedTablesModify(): void
+    {
+        $fragmentUid = $this->insertFragmentOnTheMountedPage();
 
         $this->setUpBackendUser(51);
-        $fragmentEditorBody = (string)$this->overview(0)->getBody();
-        self::assertMatchesRegularExpression('/edit%5Btx_aim_prompt_fragment%5D%5B' . $fragmentUid . '%5D=edit/', $fragmentEditorBody);
+
+        $body = (string)$this->overview(0)->getBody();
+
+        self::assertMatchesRegularExpression('/edit%5Btx_aim_prompt_fragment%5D%5B' . $fragmentUid . '%5D=edit/', $body);
     }
 
     /**
@@ -614,6 +647,22 @@ final class PromptManagementControllerTest extends FunctionalTestCase
         $this->setUpBackendUser(1);
         $adminBody = (string)$this->overview(0)->getBody();
         self::assertMatchesRegularExpression('/edit%5Btx_aim_prompt_fragment%5D%5B' . $fragmentUid . '%5D=edit/', $adminBody);
+    }
+
+    /**
+     * "Mounted fragment" on page 10, which grants both PAGE_SHOW and
+     * CONTENT_EDIT, plus its assignment to that page so the Pages listing
+     * actually expands it.
+     */
+    private function insertFragmentOnTheMountedPage(): int
+    {
+        $fragments = $this->getConnectionPool()->getConnectionForTable('tx_aim_prompt_fragment');
+        $assignments = $this->getConnectionPool()->getConnectionForTable('tx_aim_page_prompt_fragment');
+        $fragments->insert('tx_aim_prompt_fragment', ['pid' => 10, 'title' => 'Mounted fragment', 'prompt' => 'Tone.', 'scope' => 'all']);
+        $fragmentUid = (int)$fragments->lastInsertId();
+        $assignments->insert('tx_aim_page_prompt_fragment', ['pid' => 10, 'parent_page' => 10, 'fragment' => $fragmentUid]);
+
+        return $fragmentUid;
     }
 
     /**

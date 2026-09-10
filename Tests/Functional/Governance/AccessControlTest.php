@@ -16,6 +16,7 @@ use B13\Aim\Domain\Model\ProviderConfiguration;
 use B13\Aim\Domain\Repository\RequestLogRepository;
 use B13\Aim\Governance\AccessControlMiddleware;
 use B13\Aim\Governance\BudgetService;
+use B13\Aim\Governance\RateLimitCounter;
 use B13\Aim\Domain\Repository\UsageBudgetRepository;
 use B13\Aim\Middleware\AiMiddlewareHandler;
 use B13\Aim\Provider\AiProviderInterface;
@@ -43,7 +44,7 @@ final class AccessControlTest extends FunctionalTestCase
     {
         return new AccessControlMiddleware(
             new BudgetService($this->get(UsageBudgetRepository::class)),
-            $this->get(RequestLogRepository::class),
+            $this->get(RateLimitCounter::class),
             new NullLogger(),
         );
     }
@@ -250,16 +251,12 @@ final class AccessControlTest extends FunctionalTestCase
     #[Test]
     public function blocksWhenRateLimitExceeded(): void
     {
-        // Insert 10 recent log entries for user 5
-        $logRepo = $this->get(RequestLogRepository::class);
+        // The limiter counts through RateLimitCounter now, not by counting rows
+        // in the request log; that coupling meant privacy_level = none, which
+        // writes no rows at all, silently switched the limiter off.
+        $counter = $this->get(RateLimitCounter::class);
         for ($i = 0; $i < 10; $i++) {
-            $logRepo->log([
-                'user_id' => 5,
-                'crdate' => time(),
-                'request_type' => 'TextGenerationRequest',
-                'provider_identifier' => 'test',
-                'success' => 1,
-            ]);
+            $counter->record(5);
         }
 
         $this->mockUser([

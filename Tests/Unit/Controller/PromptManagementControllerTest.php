@@ -28,6 +28,7 @@ use Psr\Http\Message\ServerRequestInterface;
 use TYPO3\CMS\Backend\Routing\UriBuilder;
 use TYPO3\CMS\Backend\Template\ModuleTemplateFactory;
 use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
+use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Imaging\IconFactory;
 
 /**
@@ -59,20 +60,41 @@ final class PromptManagementControllerTest extends TestCase
      * PromptPreviewService::preview() is never even invoked when denied.
      */
     #[Test]
-    public function respondsOkFalseWhenTablesSelectIsDeniedAndNeverInvokesTheService(): void
+    public function respondsForbiddenWhenModuleAccessIsDeniedAndNeverInvokesTheService(): void
+    {
+        $previewService = $this->createMock(PromptPreviewService::class);
+        $previewService->expects(self::never())->method('preview');
+
+        // A tables_select grant on the fragment table used to be the whole gate,
+        // even though the composed preview reaches system_prompt_addition on the
+        // adminOnly configuration table.
+        $backendUser = $this->createMock(BackendUserAuthentication::class);
+        $backendUser->expects(self::once())->method('check')->with('modules', 'aim_prompt_management')->willReturn(false);
+
+        $response = $this->preview($previewService, $this->createStub(ProviderConfigurationRepository::class), ['pageId' => '', 'scope' => 'text'], $backendUser);
+
+        self::assertSame(403, $response->getStatusCode(), 'Every sibling endpoint answers a denial with a real 403.');
+        $body = json_decode((string)$response->getBody(), true);
+        self::assertFalse($body['ok']);
+        self::assertNotEmpty($body['message']);
+    }
+
+    #[Test]
+    public function respondsForbiddenWhenTablesSelectIsDeniedAndNeverInvokesTheService(): void
     {
         $previewService = $this->createMock(PromptPreviewService::class);
         $previewService->expects(self::never())->method('preview');
 
         $backendUser = $this->createMock(BackendUserAuthentication::class);
-        $backendUser->expects(self::once())->method('check')->with('tables_select', 'tx_aim_prompt_fragment')->willReturn(false);
+        $backendUser->method('check')->willReturnMap([
+            ['modules', 'aim_prompt_management', false, true],
+            ['tables_select', 'tx_aim_prompt_fragment', false, false],
+        ]);
 
         $response = $this->preview($previewService, $this->createStub(ProviderConfigurationRepository::class), ['pageId' => '', 'scope' => 'text'], $backendUser);
 
-        self::assertSame(200, $response->getStatusCode());
-        $body = json_decode((string)$response->getBody(), true);
-        self::assertFalse($body['ok']);
-        self::assertNotEmpty($body['message']);
+        self::assertSame(403, $response->getStatusCode());
+        self::assertFalse(json_decode((string)$response->getBody(), true)['ok']);
     }
 
     #[Test]
@@ -201,11 +223,10 @@ final class PromptManagementControllerTest extends TestCase
         // covered here (pageId empty or 0).
         $moduleTemplateFactory = (new \ReflectionClass(ModuleTemplateFactory::class))->newInstanceWithoutConstructor();
         $pagePromptFragmentRepository = $this->createStub(PagePromptFragmentRepository::class);
-        // PageTreeResolver is `final` with no constructor deps of its own,
-        // so it's simplest to just construct it directly rather than double
-        // it: none of these test cases exercise its non-null-pageId branch
-        // anyway (see the class docblock above).
-        $pageTreeResolver = new PageTreeResolver();
+        // PageTreeResolver is `final`, so it's constructed with a stubbed
+        // pool rather than doubled: none of these test cases exercise its
+        // non-null-pageId branch anyway (see the class docblock above).
+        $pageTreeResolver = new PageTreeResolver($this->createStub(ConnectionPool::class));
         $sortUrlBuilder = (new \ReflectionClass(SortUrlBuilder::class))->newInstanceWithoutConstructor();
         $uriBuilder = (new \ReflectionClass(UriBuilder::class))->newInstanceWithoutConstructor();
         $iconFactory = (new \ReflectionClass(IconFactory::class))->newInstanceWithoutConstructor();

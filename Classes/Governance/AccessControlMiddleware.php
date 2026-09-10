@@ -14,9 +14,9 @@ namespace B13\Aim\Governance;
 
 use B13\Aim\Attribute\AsAiMiddleware;
 use B13\Aim\Domain\Model\ProviderConfiguration;
-use B13\Aim\Domain\Repository\RequestLogRepository;
 use B13\Aim\Middleware\AiMiddlewareHandler;
 use B13\Aim\Middleware\AiMiddlewareInterface;
+use B13\Aim\Middleware\RequestContext;
 use B13\Aim\Provider\AiProviderInterface;
 use B13\Aim\Request\AiRequestInterface;
 use B13\Aim\Request\ConversationRequest;
@@ -28,6 +28,8 @@ use B13\Aim\Request\VisionRequest;
 use B13\Aim\Response\TextResponse;
 use Psr\Log\LoggerInterface;
 use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
+use TYPO3\CMS\Core\Authentication\CommandLineUserAuthentication;
+use TYPO3\CMS\Core\Utility\GeneralUtility;
 
 /**
  * Enforces access control, budgets, and rate limits for AI requests.
@@ -37,11 +39,13 @@ use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
  * provider interaction.
  *
  * Checks in order:
- * 1. No user context (CLI/frontend — pass through)
+ * 1. No authenticated user (frontend, plain CLI): pass through
  * 2. Provider group restriction (be_groups on configuration) — admins skip
  * 3. Capability permission (customPermOptions) — admins skip
  * 4. Budget limit (TSconfig aim.budget.*) — applies to ALL users including admins
- * 5. Rate limit (TSconfig aim.rateLimit.*) — applies to ALL users including admins
+ * 5. Rate limit (TSconfig aim.rateLimit.*) applies to ALL users including
+ *    admins, but not in CLI, where a scheduler task authenticates as the _cli_
+ *    admin and bulk work legitimately exceeds an interactive limit
  *
  * Budgets and rate limits apply to admins as a safety net against
  * accidental cost overruns. Admins can configure their own limits
@@ -50,6 +54,12 @@ use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
 #[AsAiMiddleware(priority: 90)]
 final class AccessControlMiddleware implements AiMiddlewareInterface
 {
+    /**
+     * Requests per minute per backend user when no aim.rateLimit TSconfig is
+     * set. Set `aim.rateLimit.requestsPerMinute = 0` to turn the limiter off.
+     */
+    private const DEFAULT_REQUESTS_PER_MINUTE = 60;
+
     /**
      * Maps request types to custom permission option keys.
      */
@@ -64,7 +74,7 @@ final class AccessControlMiddleware implements AiMiddlewareInterface
 
     public function __construct(
         private readonly BudgetService $budgetService,
-        private readonly RequestLogRepository $logRepository,
+        private readonly RateLimitCounter $rateLimitCounter,
         private readonly LoggerInterface $logger,
     ) {}
 
@@ -76,8 +86,8 @@ final class AccessControlMiddleware implements AiMiddlewareInterface
     ): TextResponse {
         $user = $this->getBackendUser();
 
-        // No user context (CLI, frontend, etc.) — pass through
-        if ($user === null) {
+        // No user context (frontend, plain CLI).
+        if ($user === null || (int)($user->user['uid'] ?? 0) <= 0) {
             return $next->handle($request, $provider, $configuration);
         }
 
@@ -88,13 +98,13 @@ final class AccessControlMiddleware implements AiMiddlewareInterface
             // 1. Provider group restriction
             $denied = $this->checkProviderAccess($configuration, $user);
             if ($denied !== null) {
-                return $denied;
+                return $this->deny($denied, $next);
             }
 
             // 2. Capability permission
             $denied = $this->checkCapabilityPermission($request, $user);
             if ($denied !== null) {
-                return $denied;
+                return $this->deny($denied, $next);
             }
         }
 
@@ -102,16 +112,28 @@ final class AccessControlMiddleware implements AiMiddlewareInterface
         // 3. Budget limit
         $denied = $this->checkBudget($user);
         if ($denied !== null) {
-            return $denied;
+            return $this->deny($denied, $next);
         }
 
         // 4. Rate limit
-        $denied = $this->checkRateLimit($user);
+        $denied = $this->checkRateLimit($user, $next->context);
         if ($denied !== null) {
-            return $denied;
+            return $this->deny($denied, $next);
         }
 
         return $next->handle($request, $provider, $configuration);
+    }
+
+    /**
+     * Marks the refusal as ours, so RetryWithFallbackMiddleware returns it
+     * instead of retrying every remaining configuration against a rule that
+     * would refuse each of them too.
+     */
+    private function deny(TextResponse $denied, AiMiddlewareHandler $next): TextResponse
+    {
+        $next->context->governanceDenied = true;
+
+        return $denied;
     }
 
     private function checkProviderAccess(ProviderConfiguration $configuration, BackendUserAuthentication $user): ?TextResponse
@@ -142,10 +164,17 @@ final class AccessControlMiddleware implements AiMiddlewareInterface
 
     private function checkCapabilityPermission(AiRequestInterface $request, BackendUserAuthentication $user): ?TextResponse
     {
-        // Only enforce if the user's groups have any aim permissions configured.
-        // If no aim permissions are set at all, all capabilities are allowed (permissive default).
-        $customOptions = $user->groupData['custom_options'] ?? '';
-        if (!str_contains($customOptions, 'aim:')) {
+        // Only enforce if this user's groups have any aim permissions configured.
+        // If no aim permissions are set at all, all capabilities are allowed.
+        $customOptions = GeneralUtility::trimExplode(',', (string)($user->groupData['custom_options'] ?? ''), true);
+        $hasAimPermissions = false;
+        foreach ($customOptions as $option) {
+            if (str_starts_with($option, 'aim:')) {
+                $hasAimPermissions = true;
+                break;
+            }
+        }
+        if (!$hasAimPermissions) {
             return null;
         }
 
@@ -207,22 +236,43 @@ final class AccessControlMiddleware implements AiMiddlewareInterface
         return null;
     }
 
-    private function checkRateLimit(BackendUserAuthentication $user): ?TextResponse
+    private function checkRateLimit(BackendUserAuthentication $user, RequestContext $context): ?TextResponse
     {
         $userId = (int)($user->user['uid'] ?? 0);
         if ($userId <= 0) {
             return null;
         }
 
-        $limit = (int)($user->getTSConfig()['aim.']['rateLimit.']['requestsPerMinute'] ?? 0);
+        if ($context->rateLimitCounted) {
+            return null;
+        }
+
+        if ($user instanceof CommandLineUserAuthentication) {
+            return null;
+        }
+
+        // A value that is not a number falls back to the default rather than
+        // casting to 0: `= 0` is the documented way to turn the limiter off,
+        // and a typo would otherwise turn it off silently and look identical.
+        $configured = $user->getTSConfig()['aim.']['rateLimit.']['requestsPerMinute'] ?? null;
+        if ($configured !== null && !is_numeric(trim((string)$configured))) {
+            $this->logger->warning(sprintf(
+                'aim.rateLimit.requestsPerMinute is "%s", which is not a number. Using the default of %d; set it to 0 to turn the limit off.',
+                (string)$configured,
+                self::DEFAULT_REQUESTS_PER_MINUTE,
+            ));
+            $configured = null;
+        }
+
+        $limit = $configured === null ? self::DEFAULT_REQUESTS_PER_MINUTE : (int)$configured;
         if ($limit <= 0) {
             return null;
         }
 
-        $oneMinuteAgo = time() - 60;
-        $recentCount = $this->logRepository->countRecentRequestsByUser($userId, $oneMinuteAgo);
+        $recentCount = $this->rateLimitCounter->record($userId);
+        $context->rateLimitCounted = true;
 
-        if ($recentCount >= $limit) {
+        if ($recentCount > $limit) {
             $this->logger->warning(sprintf(
                 'Rate limit exceeded for user %d: %d requests in the last minute (limit: %d).',
                 $userId,

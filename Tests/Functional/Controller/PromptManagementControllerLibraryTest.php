@@ -88,7 +88,7 @@ final class PromptManagementControllerLibraryTest extends FunctionalTestCase
         $beGroups = $this->getConnectionPool()->getConnectionForTable('be_groups');
         $beGroups->insert('be_groups', ['uid' => 60, 'title' => 'Fragment editors', 'tables_modify' => 'tx_aim_prompt_fragment']);
         // Browse-only: tables_select but not tables_modify - the "sees but
-        // can't edit" role these tests exercise (see anEditLinkIsShownOnlyToAUserAllowedToModifyFragments).
+        // can't edit" role these tests exercise (see anEditLinkIsHiddenFromAUserNotAllowedToModifyFragments).
         // Without this grant, the module has nothing to show this user at
         // all (see hasFragmentReadAccess in the controller), which is a
         // different, coarser permission dimension than tables_modify.
@@ -116,8 +116,7 @@ final class PromptManagementControllerLibraryTest extends FunctionalTestCase
     /**
      * Regression test: the "New fragment" doc-header button was never
      * covered by any test, unlike every other permission gate this view
-     * adds (see e.g. anEditLinkIsShownOnlyToAUserAllowedToModifyFragments
-     * below).
+     * adds (see e.g. anEditLinkIsShownToAnAdmin below).
      *
      * Deliberately its own test method, not paired with the admin-absence
      * check below in one method: DocHeaderComponent is
@@ -189,7 +188,7 @@ final class PromptManagementControllerLibraryTest extends FunctionalTestCase
      * fragment-editor's own webmounts (so it's a real, reachable
      * selection), but perms_everybody there only grants PAGE_SHOW (see
      * setUp()), the same "sees but can't edit" distinction
-     * anEditLinkIsShownOnlyToAUserAllowedToModifyFragments() already covers
+     * anEditLinkIsHiddenFromAUserNotAllowedToModifyFragments() already covers
      * for an existing row.
      */
     #[Test]
@@ -229,21 +228,44 @@ final class PromptManagementControllerLibraryTest extends FunctionalTestCase
      * DataHandler::deleteRecord()'s VirtualRecord::RootPage branch), so
      * reusing {fragment.canEdit} for all three actions is not a
      * simplification of a stricter server-side rule, it's the exact same
-     * rule. A user without tables_modify must see none of the three.
+     * rule. A user without tables_modify must see none of the three, which
+     * hideUnhideAndDeleteActionsAreHiddenFromAUserNotAllowedToModifyFragments()
+     * asserts.
+     *
+     * One backend user per test method, on top of the reason
+     * theNewFragmentButtonIsShownToAnAdmin() gives: TYPO3 12.4's
+     * PageRenderer::reset() (run at the end of each render) does not clear
+     * $bodyContent the way 13.4 and 14 do, so a second render within one
+     * method returns the first render's markup with its own appended, and the
+     * admin's actions would still be found in the restricted user's body.
      */
     #[Test]
-    public function hideUnhideAndDeleteActionsAreShownOnlyToAUserAllowedToModifyFragments(): void
+    public function hideUnhideAndDeleteActionsAreShownToAUserAllowedToModifyFragments(): void
     {
         $this->setUpBackendUser(1);
-        $adminBody = (string)$this->library()->getBody();
-        self::assertMatchesRegularExpression('/data%5Btx_aim_prompt_fragment%5D%5B' . $this->reusedFragmentUid . '%5D%5Bhidden%5D=1/', $adminBody);
-        self::assertMatchesRegularExpression('/cmd%5Btx_aim_prompt_fragment%5D%5B' . $this->reusedFragmentUid . '%5D%5Bdelete%5D=1/', $adminBody);
 
+        $body = (string)$this->library()->getBody();
+
+        self::assertMatchesRegularExpression('/data%5Btx_aim_prompt_fragment%5D%5B' . $this->reusedFragmentUid . '%5D%5Bhidden%5D=1/', $body);
+        self::assertMatchesRegularExpression('/cmd%5Btx_aim_prompt_fragment%5D%5B' . $this->reusedFragmentUid . '%5D%5Bdelete%5D=1/', $body);
+    }
+
+    /**
+     * The restricted half of
+     * hideUnhideAndDeleteActionsAreShownToAUserAllowedToModifyFragments(): the
+     * fragment itself stays listed for a user without tables_modify, none of
+     * the three actions on it does.
+     */
+    #[Test]
+    public function hideUnhideAndDeleteActionsAreHiddenFromAUserNotAllowedToModifyFragments(): void
+    {
         $this->setUpBackendUser(50);
-        $restrictedBody = (string)$this->library()->getBody();
-        self::assertStringContainsString('Reused fragment', $restrictedBody);
-        self::assertDoesNotMatchRegularExpression('/tx_aim_prompt_fragment%5D%5B' . $this->reusedFragmentUid . '%5D%5Bhidden%5D/', $restrictedBody);
-        self::assertDoesNotMatchRegularExpression('/tx_aim_prompt_fragment%5D%5B' . $this->reusedFragmentUid . '%5D%5Bdelete%5D/', $restrictedBody);
+
+        $body = (string)$this->library()->getBody();
+
+        self::assertStringContainsString('Reused fragment', $body);
+        self::assertDoesNotMatchRegularExpression('/tx_aim_prompt_fragment%5D%5B' . $this->reusedFragmentUid . '%5D%5Bhidden%5D/', $body);
+        self::assertDoesNotMatchRegularExpression('/tx_aim_prompt_fragment%5D%5B' . $this->reusedFragmentUid . '%5D%5Bdelete%5D/', $body);
     }
 
     /**
@@ -518,28 +540,57 @@ final class PromptManagementControllerLibraryTest extends FunctionalTestCase
      * would follow it straight into an "access denied" dead end.
      *
      * Covers all three cases, not just admin-vs-permissionless: a plain
-     * non-admin user (uid 50, no usergroup at all) is denied, but a
+     * non-admin user (uid 50, no usergroup at all) is denied
+     * (anEditLinkIsHiddenFromAUserNotAllowedToModifyFragments()), but a
      * non-admin user whose group explicitly grants `tables_modify` for
      * tx_aim_prompt_fragment (uid 51, mounted on page 20) is granted the
-     * link for the sysfolder-stored fragment they can also see - proving
+     * link for the sysfolder-stored fragment they can also see
+     * (anEditLinkIsShownToANonAdminGrantedTablesModify()), proving
      * this checks that specific permission rather than merely isAdmin() or
      * the wrong table.
+     *
+     * One backend user per test method, for the reason
+     * hideUnhideAndDeleteActionsAreShownToAUserAllowedToModifyFragments()
+     * gives.
      */
     #[Test]
-    public function anEditLinkIsShownOnlyToAUserAllowedToModifyFragments(): void
+    public function anEditLinkIsShownToAnAdmin(): void
     {
         $this->setUpBackendUser(1);
-        $adminBody = (string)$this->library()->getBody();
-        self::assertMatchesRegularExpression('/edit%5Btx_aim_prompt_fragment%5D%5B' . $this->reusedFragmentUid . '%5D=edit/', $adminBody);
 
+        $body = (string)$this->library()->getBody();
+
+        self::assertMatchesRegularExpression('/edit%5Btx_aim_prompt_fragment%5D%5B' . $this->reusedFragmentUid . '%5D=edit/', $body);
+    }
+
+    /**
+     * See anEditLinkIsShownToAnAdmin(): uid 50 has no usergroup at all, so the
+     * fragment stays listed but carries no edit link.
+     */
+    #[Test]
+    public function anEditLinkIsHiddenFromAUserNotAllowedToModifyFragments(): void
+    {
         $this->setUpBackendUser(50);
-        $restrictedBody = (string)$this->library()->getBody();
-        self::assertStringContainsString('Reused fragment', $restrictedBody);
-        self::assertDoesNotMatchRegularExpression('/edit%5Btx_aim_prompt_fragment%5D%5B' . $this->reusedFragmentUid . '%5D=edit/', $restrictedBody);
 
+        $body = (string)$this->library()->getBody();
+
+        self::assertStringContainsString('Reused fragment', $body);
+        self::assertDoesNotMatchRegularExpression('/edit%5Btx_aim_prompt_fragment%5D%5B' . $this->reusedFragmentUid . '%5D=edit/', $body);
+    }
+
+    /**
+     * See anEditLinkIsShownToAnAdmin(): uid 51 is no admin, but its group
+     * grants tables_modify for tx_aim_prompt_fragment, and page 20 grants
+     * CONTENT_EDIT, so the fragment stored there does carry an edit link.
+     */
+    #[Test]
+    public function anEditLinkIsShownToANonAdminGrantedTablesModify(): void
+    {
         $this->setUpBackendUser(51);
-        $fragmentEditorBody = (string)$this->library()->getBody();
-        self::assertMatchesRegularExpression('/edit%5Btx_aim_prompt_fragment%5D%5B' . $this->sysfolderFragmentUid . '%5D=edit/', $fragmentEditorBody);
+
+        $body = (string)$this->library()->getBody();
+
+        self::assertMatchesRegularExpression('/edit%5Btx_aim_prompt_fragment%5D%5B' . $this->sysfolderFragmentUid . '%5D=edit/', $body);
     }
 
     /**
@@ -670,6 +721,39 @@ final class PromptManagementControllerLibraryTest extends FunctionalTestCase
         $request = $request->withAttribute('moduleData', new ModuleData('aim_prompt_management', ['view' => $queryParams['view']]));
 
         return $controller->overviewAction($request);
+    }
+
+    /**
+     * The confirmation used to pass its warning through `data-bs-content`
+     * only. v14's modal trigger reads `dataset.content` and explicitly
+     * refuses the legacy attribute (see initializeMarkupTrigger in core's
+     * modal.js), so deleting a fragment there asked "Are you sure?" with an
+     * "OK" button and a console error, naming nothing. v12.4 and v13.4 read
+     * the bs attribute first, so both spellings have to stay.
+     */
+    #[Test]
+    public function theDeleteConfirmationNamesTheFragmentOnEveryTypo3Version(): void
+    {
+        $this->setUpBackendUser(1);
+
+        $body = (string)$this->library()->getBody();
+        $pattern = '/<a[^>]*cmd%5Btx_aim_prompt_fragment%5D%5B' . $this->reusedFragmentUid . '%5D%5Bdelete%5D[^>]*>/';
+        self::assertSame(1, preg_match($pattern, $body, $matches), 'There is no delete confirmation trigger for this fragment.');
+        $trigger = $matches[0];
+
+        foreach (['data-content', 'data-bs-content'] as $attribute) {
+            self::assertMatchesRegularExpression(
+                '/\s' . $attribute . '="[^"]*Reused fragment[^"]*"/',
+                $trigger,
+                sprintf('%s does not name the record being deleted.', $attribute),
+            );
+        }
+        self::assertMatchesRegularExpression(
+            '/\sdata-button-ok-text="[^"]+"/',
+            $trigger,
+            'Without an explicit label the confirming button just says "OK".',
+        );
+        self::assertStringNotContainsString('LLL:', $trigger, 'An unresolved label key reached the markup.');
     }
 
     /**

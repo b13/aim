@@ -41,7 +41,7 @@ return [
     'palettes' => [
         'config' => [
             'label' => 'LLL:EXT:aim/Resources/Private/Language/locallang_tca.xlf:tx_aim_configuration.palette.config.label',
-            'showitem' => 'ai_provider, --linebreak--, title, description, --linebreak--, api_key, model, --linebreak--, default, system_prompt_addition',
+            'showitem' => 'ai_provider, --linebreak--, title, description, --linebreak--, endpoint, api_key, --linebreak--, model, default, --linebreak--, system_prompt_addition',
         ],
         'tokenCosts' => [
             'label' => 'LLL:EXT:aim/Resources/Private/Language/locallang_tca.xlf:tx_aim_configuration.palette.tokenCosts.label',
@@ -53,7 +53,7 @@ return [
         ],
         'governance' => [
             'label' => 'LLL:EXT:aim/Resources/Private/Language/locallang_tca.xlf:tx_aim_configuration.palette.governance.label',
-            'showitem' => 'be_groups, --linebreak--, privacy_level, --linebreak--, rerouting_allowed, auto_model_switch',
+            'showitem' => 'be_groups, --linebreak--, privacy_level, --linebreak--, rerouting_allowed, --linebreak--, accepts_rerouted_requests, --linebreak--, auto_model_switch',
         ],
         'access' => [
             'label' => 'LLL:EXT:frontend/Resources/Private/Language/locallang_tca.xlf:pages.palettes.access',
@@ -67,6 +67,7 @@ return [
     'columns' => [
         'ai_provider' => [
             'label' => 'LLL:EXT:aim/Resources/Private/Language/locallang_tca.xlf:tx_aim_configuration.columns.ai_provider.label',
+            'description' => 'LLL:EXT:aim/Resources/Private/Language/locallang_tca.xlf:tx_aim_configuration.columns.ai_provider.description',
             'onChange' => 'reload',
             'config' => [
                 'type' => 'select',
@@ -96,9 +97,21 @@ return [
         ],
         'default' => [
             'label' => 'LLL:EXT:aim/Resources/Private/Language/locallang_tca.xlf:tx_aim_configuration.columns.default.label',
+            'description' => 'LLL:EXT:aim/Resources/Private/Language/locallang_tca.xlf:tx_aim_configuration.columns.default.description',
             'config' => [
                 'type' => 'check',
                 'default' => 0,
+            ],
+        ],
+        'endpoint' => [
+            'label' => 'LLL:EXT:aim/Resources/Private/Language/locallang_tca.xlf:tx_aim_configuration.columns.endpoint.label',
+            'description' => 'LLL:EXT:aim/Resources/Private/Language/locallang_tca.xlf:tx_aim_configuration.columns.endpoint.description',
+            'onChange' => 'reload',
+            'config' => [
+                'type' => 'input',
+                'size' => 40,
+                'eval' => 'trim',
+                'max' => 2048,
             ],
         ],
         'api_key' => [
@@ -106,16 +119,28 @@ return [
             'description' => 'LLL:EXT:aim/Resources/Private/Language/locallang_tca.xlf:tx_aim_configuration.columns.api_key.description',
             'onChange' => 'reload',
             'config' => [
-                'type' => 'input',
+                'type' => 'password',
+                // MUST stay false: the default hashes the value and destroys it!
+                'hashed' => false,
                 'size' => 30,
+                'fieldControl' => [
+                    'aimClearApiKey' => [
+                        'renderType' => 'aimClearApiKey',
+                    ],
+                ],
             ],
         ],
         'model' => [
             'label' => 'LLL:EXT:aim/Resources/Private/Language/locallang_tca.xlf:tx_aim_configuration.columns.model.label',
+            'description' => 'LLL:EXT:aim/Resources/Private/Language/locallang_tca.xlf:tx_aim_configuration.columns.model.description',
             'config' => [
                 'type' => 'select',
                 'renderType' => 'selectSingle',
-                'required' => true,
+                // Deliberately not required: a self-hosted provider that wants a
+                // credential for its model list cannot be enumerated until the
+                // record exists. A configuration with no model is treated as
+                // disabled instead, see ProviderConfiguration.
+                'required' => false,
                 'items' => [
                     ['label' => '', 'value' => ''],
                 ],
@@ -124,6 +149,7 @@ return [
         ],
         'max_tokens' => [
             'label' => 'LLL:EXT:aim/Resources/Private/Language/locallang_tca.xlf:tx_aim_configuration.columns.max_tokens.label',
+            'description' => 'LLL:EXT:aim/Resources/Private/Language/locallang_tca.xlf:tx_aim_configuration.columns.max_tokens.description',
             'config' => [
                 'type' => 'number',
                 'default' => 150,
@@ -147,6 +173,7 @@ return [
         ],
         'total_cost' => [
             'label' => 'LLL:EXT:aim/Resources/Private/Language/locallang_tca.xlf:tx_aim_configuration.columns.total_cost.label',
+            'description' => 'LLL:EXT:aim/Resources/Private/Language/locallang_tca.xlf:tx_aim_configuration.columns.total_cost.description',
             'config' => [
                 'type' => 'number',
                 'format' => 'decimal',
@@ -163,6 +190,7 @@ return [
         ],
         'be_groups' => [
             'label' => 'LLL:EXT:aim/Resources/Private/Language/locallang_tca.xlf:tx_aim_configuration.columns.be_groups.label',
+            'description' => 'LLL:EXT:aim/Resources/Private/Language/locallang_tca.xlf:tx_aim_configuration.columns.be_groups.description',
             'config' => [
                 'type' => 'select',
                 'renderType' => 'selectMultipleSideBySide',
@@ -183,6 +211,15 @@ return [
                     ['label' => 'LLL:EXT:aim/Resources/Private/Language/locallang_tca.xlf:tx_aim_configuration.columns.privacy_level.none', 'value' => 'none'],
                 ],
                 'default' => 'standard',
+            ],
+        ],
+        'accepts_rerouted_requests' => [
+            'label' => 'LLL:EXT:aim/Resources/Private/Language/locallang_tca.xlf:tx_aim_configuration.columns.accepts_rerouted_requests.label',
+            'description' => 'LLL:EXT:aim/Resources/Private/Language/locallang_tca.xlf:tx_aim_configuration.columns.accepts_rerouted_requests.description',
+            'config' => [
+                'type' => 'check',
+                'renderType' => 'checkboxToggle',
+                'default' => 1,
             ],
         ],
         'rerouting_allowed' => [

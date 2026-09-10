@@ -15,14 +15,18 @@ namespace B13\Aim\Domain\Repository;
 use B13\Aim\Crypto\ApiKeyEncryption;
 use B13\Aim\Domain\Model\ProviderConfiguration;
 use B13\Aim\Domain\Model\ProviderConfigurationFactory;
+use Psr\Log\LoggerAwareInterface;
+use Psr\Log\LoggerAwareTrait;
 use TYPO3\CMS\Core\Database\Connection;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Database\Query\QueryBuilder;
 use TYPO3\CMS\Core\Database\Query\Restriction\DeletedRestriction;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 
-class ProviderConfigurationRepository
+class ProviderConfigurationRepository implements LoggerAwareInterface
 {
+    use LoggerAwareTrait;
+
     private const TABLE = 'tx_aim_configuration';
 
     public function __construct(
@@ -96,7 +100,7 @@ class ProviderConfigurationRepository
 
     public function countByDemand(ProviderConfigurationDemand $demand): int
     {
-        return (int)$this->getQueryBuilderForDemand($demand)
+        return (int)$this->getQueryBuilderForDemand($demand, false)
             ->count('*')
             ->executeQuery()
             ->fetchOne();
@@ -105,6 +109,10 @@ class ProviderConfigurationRepository
     public function findAllRawSorted(bool $enabledOnly = false): array
     {
         $qb = $this->getQueryBuilder();
+        // Explicit columns rather than the whole row: this feeds the Prompt
+        // Management module, which is access => 'user', and select('*') put
+        // api_key into every one of those view models.
+        $qb->select('uid', 'title', 'ai_provider', 'model');
         if ($enabledOnly) {
             $qb->andWhere($qb->expr()->eq('disabled', $qb->createNamedParameter(0, Connection::PARAM_INT)));
         }
@@ -143,16 +151,18 @@ class ProviderConfigurationRepository
         return $affectedRows > 0;
     }
 
-    protected function getQueryBuilderForDemand(ProviderConfigurationDemand $demand): QueryBuilder
+    protected function getQueryBuilderForDemand(ProviderConfigurationDemand $demand, bool $withOrdering = true): QueryBuilder
     {
         $qb = $this->getQueryBuilder(false, false);
-        $qb->orderBy(
-            $demand->getOrderField(),
-            $demand->getOrderDirection()
-        );
-        // Ensure deterministic ordering.
-        if ($demand->getOrderField() !== 'uid') {
-            $qb->addOrderBy('uid', 'asc');
+        if ($withOrdering) {
+            $qb->orderBy(
+                $demand->getOrderField(),
+                $demand->getOrderDirection()
+            );
+            // Ensure deterministic ordering.
+            if ($demand->getOrderField() !== 'uid') {
+                $qb->addOrderBy('uid', 'asc');
+            }
         }
 
         $constraints = [];
@@ -191,7 +201,22 @@ class ProviderConfigurationRepository
     protected function mapSingleRow(array $row): ProviderConfiguration
     {
         if (isset($row['api_key']) && $row['api_key'] !== '') {
-            $row['api_key'] = $this->encryption->decrypt((string)$row['api_key']);
+            // A value that cannot be decrypted, after a SYS/encryptionKey
+            // rotation without aim:rotateApiKeys or from a pasted aim:enc:
+            // string, would otherwise throw out of every listing and leave the
+            // module at a 500 that only a database edit clears. The
+            // configuration is unusable either way, so it is handed on without
+            // its credential and the provider reports the rejection.
+            try {
+                $row['api_key'] = $this->encryption->decrypt((string)$row['api_key']);
+            } catch (\Throwable $e) {
+                $this->logger?->warning(sprintf(
+                    'The credential of AiM configuration %d cannot be decrypted, treating it as unset: %s',
+                    (int)($row['uid'] ?? 0),
+                    $e->getMessage(),
+                ));
+                $row['api_key'] = '';
+            }
         }
         return ProviderConfigurationFactory::fromRow($row);
     }
