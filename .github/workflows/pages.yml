@@ -23,14 +23,19 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  deploy:
+  # Build and deploy are separate on purpose. The artifact is named
+  # "github-pages" by the action and cannot be renamed, and an artifact from a
+  # previous attempt stays attached to the run. With both steps in one job,
+  # "Re-run all jobs" uploads a second artifact with the same name and the
+  # deployment fails with "Multiple artifacts named github-pages were
+  # unexpectedly found". Split, the recovery is "Re-run failed jobs": only
+  # deploy runs again, nothing is uploaded twice, and it picks up the artifact
+  # the build job already produced.
+  build:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -53,6 +58,13 @@ jobs:
         with:
           path: _site
 
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
       - name: Deploy
         id: deploy
         uses: actions/deploy-pages@v4
