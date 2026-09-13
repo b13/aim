@@ -69,6 +69,22 @@ final class ProviderConfigurationFactory
     }
 
     /**
+     * The same configuration, marked as the destination of a smart-routing
+     * downgrade, so the request log records it as a reroute with its reason.
+     */
+    public static function markedAsDowngrade(
+        ProviderConfiguration $config,
+        string $fromModel,
+        string $reason,
+    ): ProviderConfiguration {
+        return new ProviderConfiguration(array_merge($config->row, [
+            '_auto_model_switch' => true,
+            '_auto_model_switch_from' => $fromModel,
+            '_auto_model_switch_reason' => $reason,
+        ]));
+    }
+
+    /**
      * Create a configuration from TYPO3 Site Settings.
      *
      * This serves as a fallback when no DB-managed configuration exists,

@@ -21,7 +21,28 @@ Classification is logged per request (`complexity_score`, `complexity_label`, `c
 
 The gate is a one-way veto, not a tie-breaker. The cheapest cost-and-success-eligible model is still the one picked; a poor average grade simply removes a candidate. Crucially, **too few graded requests means "no signal", not "bad"**: a model with fewer than 10 graded samples is judged on cost and success rate exactly as before, so installs without grading enabled see no change in routing behavior.
 
-The downgrade decision is logged with the candidate's graded quality, e.g. `... (avg grade: 0.82 over 14 graded)` or `... (ungraded)`.
+### Latency gate
+
+Cheaper is not free if the editor waits for it. A candidate is skipped when its average duration for
+that request type is more than **twice** the current model's (`MAX_DURATION_FACTOR`). As with the
+quality gate, no history means no veto: while the current model has no recorded duration, the gate
+does not apply.
+
+### What the downgrade records
+
+The downgrade is written to the request log as a reroute, so the Request Log module answers "why did
+this run on another model?" without digging through the system log. The row carries
+`reroute_type = model_switch`, keeps the originally requested model in `model_requested`, and states
+the numbers the decision was made on:
+
+```
+smart routing: simple prompt (0.20), cost 0.010000 -> 0.000100, duration 1000 -> 900 ms,
+~100 tokens, avg grade: 0.82 over 14 graded
+```
+
+Those are measured values from your own request log, in your configured currency. Note what is *not*
+in there: AiM measures money, duration and tokens. It does not measure energy, and a smaller model
+using less of it is an assumption, not something this extension can show you.
 
 ### Extending complexity signals
 

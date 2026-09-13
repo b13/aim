@@ -22,6 +22,7 @@ use B13\Aim\Request\TextGenerationRequest;
 use B13\Aim\Response\TextResponse;
 use PHPUnit\Framework\Attributes\Test;
 use Psr\Container\ContainerInterface;
+use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\TestingFramework\Core\Functional\FunctionalTestCase;
 
 /**
@@ -71,6 +72,60 @@ final class SmartRoutingDispatchTest extends FunctionalTestCase
 
         self::assertSame([$cheap], $this->provider->seen, 'Smart routing did not downgrade to the cheaper configuration.');
         self::assertNotSame([$expensive], $this->provider->seen);
+    }
+
+    /**
+     * Cheaper is not free if the editor waits twice as long for it. The profile
+     * carries avg_duration_ms; before this it was loaded and ignored.
+     */
+    #[Test]
+    public function aCheaperButMuchSlowerModelIsNotRoutedTo(): void
+    {
+        $expensive = $this->createConfiguration(self::EXPENSIVE_MODEL, ['default' => 1]);
+        $this->createConfiguration(self::CHEAP_MODEL);
+        $this->seedHistory(self::EXPENSIVE_MODEL, 0.01, 1000);
+        $this->seedHistory(self::CHEAP_MODEL, 0.0001, 2500);
+
+        $this->dispatch('Hi');
+
+        self::assertSame([$expensive], $this->provider->seen, 'A model 2.5x slower was routed to anyway.');
+    }
+
+    #[Test]
+    public function aCheaperAndOnlySlightlySlowerModelIsStillRoutedTo(): void
+    {
+        $this->createConfiguration(self::EXPENSIVE_MODEL, ['default' => 1]);
+        $cheap = $this->createConfiguration(self::CHEAP_MODEL);
+        $this->seedHistory(self::EXPENSIVE_MODEL, 0.01, 1000);
+        $this->seedHistory(self::CHEAP_MODEL, 0.0001, 1900);
+
+        $this->dispatch('Hi');
+
+        self::assertSame([$cheap], $this->provider->seen, 'The latency gate is too strict.');
+    }
+
+    /**
+     * The downgrade used to be visible only in the system log: the request log
+     * recorded a plain request against the cheaper model.
+     */
+    #[Test]
+    public function theDowngradeIsRecordedAsARerouteWithItsNumbers(): void
+    {
+        $this->createConfiguration(self::EXPENSIVE_MODEL, ['default' => 1]);
+        $this->createConfiguration(self::CHEAP_MODEL);
+        $this->seedHistory(self::EXPENSIVE_MODEL, 0.01, 1000);
+        $this->seedHistory(self::CHEAP_MODEL, 0.0001, 900);
+
+        $this->dispatch('Hi');
+
+        $row = $this->latestLogRow();
+        self::assertSame(1, (int)$row['rerouted'], 'The downgrade was not recorded as a reroute.');
+        self::assertSame('model_switch', $row['reroute_type']);
+        self::assertSame(self::EXPENSIVE_MODEL, $row['model_requested'], 'The original model was not kept.');
+        self::assertStringContainsString('smart routing', $row['reroute_reason']);
+        self::assertStringContainsString('cost 0.010000 -> 0.000100', $row['reroute_reason']);
+        self::assertStringContainsString('duration 1000 -> 900 ms', $row['reroute_reason']);
+        self::assertStringContainsString('tokens', $row['reroute_reason']);
     }
 
     #[Test]
@@ -148,7 +203,18 @@ final class SmartRoutingDispatchTest extends FunctionalTestCase
         );
     }
 
-    private function seedHistory(string $model, float $cost): void
+    /**
+     * @return array<string, mixed>
+     */
+    private function latestLogRow(): array
+    {
+        $connection = $this->get(ConnectionPool::class)->getConnectionForTable('tx_aim_request_log');
+        $rows = $connection->select(['*'], 'tx_aim_request_log', [], [], ['uid' => 'DESC'], 1)->fetchAllAssociative();
+        self::assertNotEmpty($rows, 'No request was logged at all.');
+        return $rows[0];
+    }
+
+    private function seedHistory(string $model, float $cost, int $durationMs = 1000): void
     {
         $logRepository = $this->get(RequestLogRepository::class);
         for ($i = 0; $i < 12; $i++) {
@@ -159,6 +225,7 @@ final class SmartRoutingDispatchTest extends FunctionalTestCase
                 'model_used' => $model,
                 'success' => 1,
                 'cost' => $cost,
+                'duration_ms' => $durationMs,
                 'total_tokens' => 100,
             ]);
         }

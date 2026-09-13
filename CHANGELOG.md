@@ -1,5 +1,20 @@
 # Changelog
 
+## Unreleased
+
+- **Feature "Routing latency"**: A cheaper model is only chosen if it is also fast enough. Smart
+routing already read each model's average duration from the request log and then ignored it; a
+candidate that takes more than twice as long as the current model is now skipped, because waiting is
+a cost too. As with the quality gate, no recorded duration means no veto.
+
+
+- **Bugfix "Downgrade visibility"**: A smart-routing downgrade is recorded in the request log as a
+reroute. It was written only to the system log, so the Request Log showed an ordinary request against
+the cheaper model, with no reroute flag and the substituted model in the requested-model column. The
+row now carries `reroute_type = model_switch`, keeps the model the caller actually asked for, and
+states what the decision was made on: both costs, both durations, the average token count and the
+grade.
+
 ## 0.5.0
 
 **Security** and governance release. Requests reach the provider they were sent to, a pinned configuration stays pinned,

@@ -82,7 +82,7 @@ A few lines to add AI to any TYPO3 extension. No API keys in your code, no provi
 - Auto-discovery of installed bridges (OpenAI, Anthropic, Gemini, Mistral, Ollama, etc.)
 - Capability-based routing with model-level awareness
 - Auto model switch: one config covers all capabilities
-- Smart routing: routes simple prompts to cheaper models based on historical cost, reliability, and (with grading) quality data
+- Smart routing: routes simple prompts to cheaper models based on historical cost, reliability, duration, and (with grading) quality data, and records the decision with its numbers
 - Fallback chains: automatic retry with alternative providers on failure
 - 11-stage middleware pipeline
 

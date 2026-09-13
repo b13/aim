@@ -19,6 +19,7 @@ use B13\Aim\Capability\ToolCallingCapableInterface;
 use B13\Aim\Capability\TranslationCapableInterface;
 use B13\Aim\Capability\VisionCapableInterface;
 use B13\Aim\Domain\Model\ProviderConfiguration;
+use B13\Aim\Domain\Model\ProviderConfigurationFactory;
 use B13\Aim\Domain\Repository\RequestLogRepository;
 use B13\Aim\Governance\ConfigurationAccess;
 use B13\Aim\Governance\PrivacyLevel;
@@ -78,6 +79,13 @@ final class SmartRoutingMiddleware implements AiMiddlewareInterface
      */
     private const MIN_GRADE_SCORE = 0.65;
 
+    /**
+     * How much slower a cheaper model may be, as a factor of the current
+     * model's average duration. Cheaper is not free if the editor waits
+     * twice as long for it.
+     */
+    private const MAX_DURATION_FACTOR = 2.0;
+
     public function __construct(
         private readonly RequestLogRepository $logRepository,
         private readonly ProviderResolver $providerResolver,
@@ -128,25 +136,41 @@ final class SmartRoutingMiddleware implements AiMiddlewareInterface
                 $gradeNote = $cheaperResult['graded_count'] > 0
                     ? sprintf('avg grade: %.2f over %d graded', $cheaperResult['avg_grade_score'], $cheaperResult['graded_count'])
                     : 'ungraded';
+                // What the decision was actually made on, in the numbers it was
+                // made on, so the Request Log can answer "why this model?".
+                $measured = sprintf(
+                    'cost %.6f -> %.6f, duration %d -> %d ms, ~%d tokens, %s',
+                    $cheaperResult['from_cost'],
+                    $cheaperResult['avg_cost'],
+                    $cheaperResult['from_duration_ms'],
+                    $cheaperResult['avg_duration_ms'],
+                    $cheaperResult['avg_tokens'],
+                    $gradeNote,
+                );
                 $this->logger->info(sprintf(
                     'Smart routing: downgrading from "%s" to cheaper model "%s" for simple prompt (score: %.2f, reason: %s, %s)',
                     $configuration->model,
                     $cheaperResult['configuration']->model,
                     $classification['score'],
                     $classification['reason'],
-                    $gradeNote,
+                    $measured,
                 ));
+
+                // Marked as a reroute: without this the downgrade is invisible in
+                // the request log, which records it as a plain request against the
+                // cheaper model.
+                $target = ProviderConfigurationFactory::markedAsDowngrade(
+                    $cheaperResult['configuration'],
+                    $configuration->model,
+                    sprintf('smart routing: simple prompt (%.2f), %s', $classification['score'], $measured),
+                );
 
                 // The privacy level is read from the configuration of the attempt that gets logged,
                 // so the level the caller actually asked for has to travel with the request.
                 $sourceLevel = PrivacyLevel::fromString($configuration->privacyLevel);
                 $next->context->privacyFloor = $next->context->privacyFloor?->strictest($sourceLevel) ?? $sourceLevel;
 
-                return $next->handle(
-                    $request,
-                    $cheaperResult['provider'],
-                    $cheaperResult['configuration'],
-                );
+                return $next->handle($request, $cheaperResult['provider'], $target);
             }
         }
 
@@ -290,7 +314,9 @@ final class SmartRoutingMiddleware implements AiMiddlewareInterface
      * Queries historical performance data from the request log to find
      * models with lower cost but high success rates for the same request type.
      *
-     * @return array{provider: AiProviderInterface, configuration: ProviderConfiguration, avg_grade_score: float, graded_count: int}|null
+     * @return array{provider: AiProviderInterface, configuration: ProviderConfiguration,
+     *     avg_grade_score: float, graded_count: int, avg_cost: float, avg_duration_ms: int,
+     *     avg_tokens: int, from_cost: float, from_duration_ms: int}|null
      */
     private function findCheaperModel(AiRequestInterface $request, ProviderConfiguration $currentConfig): ?array
     {
@@ -306,11 +332,13 @@ final class SmartRoutingMiddleware implements AiMiddlewareInterface
             return null;
         }
 
-        // Find current model's average cost
+        // Find the current model's own averages to compare against
         $currentCost = null;
+        $currentDuration = null;
         foreach ($profiles as $profile) {
             if ($profile['model_used'] === $currentConfig->model) {
                 $currentCost = $profile['avg_cost'];
+                $currentDuration = $profile['avg_duration_ms'];
                 break;
             }
         }
@@ -339,6 +367,13 @@ final class SmartRoutingMiddleware implements AiMiddlewareInterface
                 continue;
             }
             if ($profile['avg_cost'] >= $currentCost) {
+                continue;
+            }
+            // Latency gate: a cheaper model that keeps the editor waiting is a
+            // bad trade. Skipped while the current model has no duration history.
+            if ($currentDuration > 0
+                && $profile['avg_duration_ms'] > $currentDuration * self::MAX_DURATION_FACTOR
+            ) {
                 continue;
             }
 
@@ -370,6 +405,11 @@ final class SmartRoutingMiddleware implements AiMiddlewareInterface
                         'configuration' => $resolved->configuration,
                         'avg_grade_score' => $bestCandidate['avg_grade_score'],
                         'graded_count' => $bestCandidate['graded_count'],
+                        'avg_cost' => $bestCandidate['avg_cost'],
+                        'avg_duration_ms' => $bestCandidate['avg_duration_ms'],
+                        'avg_tokens' => $bestCandidate['avg_tokens'],
+                        'from_cost' => $currentCost,
+                        'from_duration_ms' => $currentDuration ?? 0,
                     ];
                 }
             }

@@ -121,6 +121,11 @@ Every extension using AiM now has AI capabilities. No further configuration need
 
 AiM analyzes each prompt's complexity before sending it to an AI provider. A simple "What is PHP?" doesn't need GPT-4.1. A smaller, cheaper model handles it just fine. AiM learns from your request history which models work well for which types of questions and automatically routes to the most cost-effective option.
 
+A downgrade also has to be fast enough: a cheaper model that takes more than twice as long as the
+current one is left alone, because waiting is a cost too. And when a downgrade happens, the Request
+Log records it as a reroute together with the numbers behind it, so nobody has to guess why an
+answer came from another model.
+
 If you also enable [response quality grading](#response-quality-grading), routing gets smarter still: a cheaper model is only chosen if its past answers were actually graded as good. Not just "didn't error". A model that runs cheaply but produces weak responses is left out of the downgrade. Until enough graded requests exist for a model, routing falls back to cost and reliability alone, so nothing changes for setups that don't use grading.
 
 This happens transparently. Your extensions don't need to change anything.
