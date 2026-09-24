@@ -21,9 +21,16 @@ use B13\Aim\Response\ToolCall;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
+use Symfony\AI\Platform\Exception\BadRequestException;
 use Symfony\AI\Platform\Message\AssistantMessage as SymfonyAssistantMessage;
+use Symfony\AI\Platform\Message\Message;
 use Symfony\AI\Platform\Message\MessageBag;
 use Symfony\AI\Platform\Message\ToolCallMessage;
+use Symfony\AI\Platform\ProviderInterface;
+use Symfony\AI\Platform\Result\DeferredResult;
+use Symfony\AI\Platform\Result\InMemoryRawResult;
+use Symfony\AI\Platform\Result\TextResult;
+use Symfony\AI\Platform\ResultConverterInterface;
 
 final class SymfonyAiPlatformAdapterTest extends TestCase
 {
@@ -64,6 +71,72 @@ final class SymfonyAiPlatformAdapterTest extends TestCase
     public function resolveMaxTokensKeyMapsBridgeToCorrectOptionName(string $factoryClass, string $expectedKey): void
     {
         self::assertSame($expectedKey, SymfonyAiPlatformAdapter::resolveMaxTokensKey($factoryClass));
+    }
+
+    #[Test]
+    public function buildOptionsSendsTemperatureOnlyWhenTheCallerSetOne(): void
+    {
+        $adapter = new SymfonyAiPlatformAdapter('Symfony\\AI\\Platform\\Bridge\\Anthropic\\PlatformFactory');
+        $buildOptions = new \ReflectionMethod($adapter, 'buildOptions');
+
+        self::assertSame(['max_tokens' => 1000], $buildOptions->invoke($adapter, 1000, null));
+        self::assertSame(['max_tokens' => 1000, 'temperature' => 0.0], $buildOptions->invoke($adapter, 1000, 0.0));
+    }
+
+    #[Test]
+    public function invokeRetriesWithoutTemperatureWhenTheModelRejectsIt(): void
+    {
+        $adapter = new SymfonyAiPlatformAdapter('Symfony\\AI\\Platform\\Bridge\\Anthropic\\PlatformFactory');
+        $sentOptions = [];
+        $platform = $this->createPlatform(static function (array $options) use (&$sentOptions): TextResult {
+            $sentOptions[] = $options;
+            if (array_key_exists('temperature', $options)) {
+                throw new BadRequestException('`temperature` is deprecated for this model.');
+            }
+            return new TextResult('ok');
+        });
+
+        $result = (new \ReflectionMethod($adapter, 'invoke'))
+            ->invoke($adapter, $platform, 'claude-sonnet-5', new MessageBag(Message::ofUser('Hi')), ['max_tokens' => 10, 'temperature' => 0.7]);
+
+        self::assertSame('ok', $result->asText());
+        self::assertCount(2, $sentOptions);
+        self::assertSame(['max_tokens' => 10], $sentOptions[1]);
+    }
+
+    #[Test]
+    public function invokeDoesNotRetryOtherBadRequests(): void
+    {
+        $adapter = new SymfonyAiPlatformAdapter('Symfony\\AI\\Platform\\Bridge\\Anthropic\\PlatformFactory');
+        $calls = 0;
+        $platform = $this->createPlatform(static function () use (&$calls): TextResult {
+            $calls++;
+            throw new BadRequestException('max_tokens: must be greater than 0');
+        });
+
+        try {
+            (new \ReflectionMethod($adapter, 'invoke'))
+                ->invoke($adapter, $platform, 'acme-model', new MessageBag(Message::ofUser('Hi')), ['max_tokens' => 0, 'temperature' => 0.7]);
+            self::fail('BadRequestException expected');
+        } catch (BadRequestException) {
+        }
+        self::assertSame(1, $calls);
+    }
+
+    /**
+     * @param \Closure(array<string, mixed>): TextResult $convert
+     */
+    private function createPlatform(\Closure $convert): ProviderInterface
+    {
+        $converter = $this->createMock(ResultConverterInterface::class);
+        $converter->method('convert')->willReturnCallback(
+            static fn(InMemoryRawResult $raw, array $options): TextResult => $convert($options),
+        );
+        $platform = $this->createMock(ProviderInterface::class);
+        $platform->method('invoke')->willReturnCallback(
+            static fn(string $model, MessageBag $input, array $options): DeferredResult => new DeferredResult($converter, new InMemoryRawResult(), $options),
+        );
+        return $platform;
     }
 
     #[Test]

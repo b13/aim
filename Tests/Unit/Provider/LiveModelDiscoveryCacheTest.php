@@ -38,8 +38,11 @@ final class LiveModelDiscoveryCacheTest extends TestCase
     {
         $subject = $this->subject('{"data":[{"id":"llama3.2"}]}');
 
-        self::assertSame(['llama3.2'], $subject->fetchModelNames('http://localhost:11434'));
-        self::assertSame(['llama3.2'], $subject->fetchModelNames('http://localhost:11434'));
+        $first = $subject->fetchModelNames('http://localhost:11434');
+        $second = $subject->fetchModelNames('http://localhost:11434');
+
+        self::assertSame(['llama3.2'], $first);
+        self::assertSame(['llama3.2'], $second);
         self::assertSame(1, $this->requests, 'The endpoint was queried twice.');
     }
 

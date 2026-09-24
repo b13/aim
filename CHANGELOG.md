@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- **Bugfix "Temperature on current models"**: Requests to Claude Opus 4.7 and later, Sonnet 5 and other
+models that no longer accept sampling parameters failed with "`temperature` is deprecated for this
+model", because every request carried a temperature whether the caller had asked for one or not.
+Temperature is now opt-in: the request classes, the `Ai` proxy methods and `AiRequestBuilder` default
+to `null`, and the provider's own default applies. A temperature, `top_p` or `top_k` a caller does set
+and the model rejects is dropped and the request retried once; any other rejected option still fails.
+Callers that relied on the former defaults (0.2 to 0.7) get the provider default instead, which is
+less deterministic on models that still honour it; pass the value explicitly to keep the old output.
+
 - **Feature "Routing latency"**: A cheaper model is only chosen if it is also fast enough. Smart
 routing already read each model's average duration from the request log and then ignored it; a
 candidate that takes more than twice as long as the current model is now skipped, because waiting is

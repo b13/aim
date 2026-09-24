@@ -39,7 +39,7 @@ final class ConversationRequest implements AiRequestInterface, SupportsSystemPro
         public readonly array $systemPromptOverride = [],
         public readonly ?ResponseFormat $responseFormat = null,
         public readonly int $maxTokens = 1000,
-        public readonly float $temperature = 0.7,
+        public readonly ?float $temperature = null,
         public readonly string $user = '',
         public readonly array $metadata = [],
         public readonly bool $stream = false,

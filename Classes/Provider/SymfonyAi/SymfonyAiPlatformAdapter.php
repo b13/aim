@@ -43,11 +43,13 @@ use B13\Aim\Response\StreamChunkIterator;
 use B13\Aim\Response\TextResponse;
 use B13\Aim\Response\ToolCall;
 use B13\Aim\Response\ToolCallingResponse;
+use Symfony\AI\Platform\Exception\BadRequestException;
 use Symfony\AI\Platform\Message\Content\Image;
 use Symfony\AI\Platform\Message\Message;
 use Symfony\AI\Platform\Message\MessageBag;
 use Symfony\AI\Platform\ProviderInterface;
 use Symfony\AI\Platform\Result\BinaryResult;
+use Symfony\AI\Platform\Result\DeferredResult;
 use Symfony\AI\Platform\Result\MultiPartResult;
 use Symfony\AI\Platform\Result\ToolCall as SymfonyToolCall;
 use Symfony\AI\Platform\TokenUsage\TokenUsageInterface;
@@ -78,6 +80,13 @@ class SymfonyAiPlatformAdapter implements
     EmbeddingCapableInterface,
     ImageGenerationCapableInterface
 {
+    /**
+     * Sampling options that only tune the output. A model that rejects one
+     * still answers the request, so these are dropped and retried rather than
+     * failing the request. Anything else a model rejects fails as usual.
+     */
+    private const SAMPLING_HINTS = ['temperature', 'top_p', 'top_k'];
+
     /** @var array<string, ProviderInterface> Providers cached by configuration key */
     private array $platforms = [];
 
@@ -150,8 +159,8 @@ class SymfonyAiPlatformAdapter implements
 
         try {
             $platform = $this->getPlatform($request->configuration);
-            $options = $this->buildOptions($request->configuration->model, $request->maxTokens, $request->temperature);
-            $result = $platform->invoke($request->configuration->model, $messages, $options);
+            $options = $this->buildOptions($request->maxTokens, $request->temperature);
+            $result = $this->invoke($platform, $request->configuration->model, $messages, $options);
             return $this->toTextResponse($result, $request->configuration);
         } catch (\Throwable $e) {
             return new TextResponse('', errors: [$this->describeError($e, $request->configuration)]);
@@ -169,11 +178,11 @@ class SymfonyAiPlatformAdapter implements
         if ($request->responseFormat !== null) {
             $extra['response_format'] = $request->responseFormat->toArray();
         }
-        $options = $this->buildOptions($request->configuration->model, $request->maxTokens, $request->temperature, $extra);
+        $options = $this->buildOptions($request->maxTokens, $request->temperature, $extra);
 
         try {
             $platform = $this->getPlatform($request->configuration);
-            $result = $platform->invoke($request->configuration->model, $messages, $options);
+            $result = $this->invoke($platform, $request->configuration->model, $messages, $options);
             return $this->toTextResponse($result, $request->configuration);
         } catch (\Throwable $e) {
             return new TextResponse('', errors: [$this->describeError($e, $request->configuration)]);
@@ -197,8 +206,8 @@ class SymfonyAiPlatformAdapter implements
 
         try {
             $platform = $this->getPlatform($request->configuration);
-            $options = $this->buildOptions($request->configuration->model, $request->maxTokens, $request->temperature);
-            $result = $platform->invoke($request->configuration->model, $messages, $options);
+            $options = $this->buildOptions($request->maxTokens, $request->temperature);
+            $result = $this->invoke($platform, $request->configuration->model, $messages, $options);
             return $this->toTextResponse($result, $request->configuration);
         } catch (\Throwable $e) {
             return new TextResponse('', errors: [$this->describeError($e, $request->configuration)]);
@@ -217,11 +226,11 @@ class SymfonyAiPlatformAdapter implements
         if ($stream) {
             $extra['stream'] = true;
         }
-        $options = $this->buildOptions($request->configuration->model, $request->maxTokens, $request->temperature, $extra);
+        $options = $this->buildOptions($request->maxTokens, $request->temperature, $extra);
 
         try {
             $platform = $this->getPlatform($request->configuration);
-            $result = $platform->invoke($request->configuration->model, $messages, $options);
+            $result = $this->invoke($platform, $request->configuration->model, $messages, $options);
 
             if ($stream) {
                 $streamIterator = new StreamChunkIterator(
@@ -261,11 +270,11 @@ class SymfonyAiPlatformAdapter implements
         if ($request->stream) {
             $extra['stream'] = true;
         }
-        $options = $this->buildOptions($request->configuration->model, $request->maxTokens, $request->temperature, $extra);
+        $options = $this->buildOptions($request->maxTokens, $request->temperature, $extra);
 
         try {
             $platform = $this->getPlatform($request->configuration);
-            $result = $platform->invoke($request->configuration->model, $messages, $options);
+            $result = $this->invoke($platform, $request->configuration->model, $messages, $options);
 
             if ($request->stream) {
                 $streamIterator = new StreamChunkIterator(
@@ -685,17 +694,41 @@ class SymfonyAiPlatformAdapter implements
     }
 
     /**
-     * Build the options array for platform->invoke(), omitting temperature
-     * for models that don't support it.
+     * Invoke the platform and force the deferred result, so a request the API
+     * rejects fails here rather than later while reading the result.
      *
-     * @todo This uses a hardcoded list of model prefixes which is OpenAI-specific.
-     *       A provider-agnostic solution (e.g. model catalog metadata or automatic
-     *       retry on rejection) should replace this in a future version.
+     * Newer models (Claude Opus 4.7+, Sonnet 5, OpenAI reasoning models, etc.)
+     * reject sampling options with a 400. When the error names one of the
+     * SAMPLING_HINTS the request carries, it is retried once without them.
      */
-    private function buildOptions(string $model, int $maxTokens, float $temperature, array $extra = []): array
+    private function invoke(ProviderInterface $platform, string $model, MessageBag $messages, array $options): DeferredResult
+    {
+        try {
+            $result = $platform->invoke($model, $messages, $options);
+            $result->getResult();
+            return $result;
+        } catch (BadRequestException $e) {
+            $rejected = array_filter(
+                self::SAMPLING_HINTS,
+                static fn(string $hint): bool => array_key_exists($hint, $options) && str_contains($e->getMessage(), $hint),
+            );
+            if ($rejected === []) {
+                throw $e;
+            }
+            $result = $platform->invoke($model, $messages, array_diff_key($options, array_flip($rejected)));
+            $result->getResult();
+            return $result;
+        }
+    }
+
+    /**
+     * Build the options array for platform->invoke(). Temperature is only
+     * sent when the caller set one; otherwise the provider default applies.
+     */
+    private function buildOptions(int $maxTokens, ?float $temperature, array $extra = []): array
     {
         $options = [$this->maxTokensKey => $maxTokens] + $extra;
-        if (!$this->isReasoningModel($model)) {
+        if ($temperature !== null) {
             $options['temperature'] = $temperature;
         }
         return $options;
@@ -720,20 +753,5 @@ class SymfonyAiPlatformAdapter implements
             return 'max_output_tokens';
         }
         return 'max_tokens';
-    }
-
-    /**
-     * Check if a model is a reasoning model that doesn't support temperature.
-     *
-     * @todo Replace with provider-agnostic detection once model catalogs expose this.
-     */
-    private function isReasoningModel(string $model): bool
-    {
-        foreach (['o1', 'o1-mini', 'o3', 'o3-mini', 'o4-mini'] as $prefix) {
-            if ($model === $prefix || str_starts_with($model, $prefix . '-')) {
-                return true;
-            }
-        }
-        return false;
     }
 }

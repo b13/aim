@@ -50,7 +50,7 @@ final class AiRequestBuilder
     private bool $disableSystemPromptComposition = false;
     private array $systemPromptOverride = [];
     private int $maxTokens = 150;
-    private float $temperature = 0.2;
+    private ?float $temperature = null;
     private string $extensionKey = '';
     private string $user = '';
     private string $providerNotation = '';
