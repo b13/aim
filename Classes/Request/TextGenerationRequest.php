@@ -35,7 +35,7 @@ final class TextGenerationRequest implements AiRequestInterface, SupportsSystemP
         public readonly array $systemPromptOverride = [],
         public readonly ?ResponseFormat $responseFormat = null,
         public readonly int $maxTokens = 150,
-        public readonly float $temperature = 0.2,
+        public readonly ?float $temperature = null,
         public readonly string $user = '',
         public readonly array $metadata = [],
         public readonly ?PrivacyLevel $privacyLevelOverride = null,

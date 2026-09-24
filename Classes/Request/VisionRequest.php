@@ -36,7 +36,7 @@ final class VisionRequest implements AiRequestInterface, SupportsSystemPromptInt
         public readonly bool $disableAutomaticSystemPrompt = false,
         public readonly array $systemPromptOverride = [],
         public readonly int $maxTokens = 150,
-        public readonly float $temperature = 0.2,
+        public readonly ?float $temperature = null,
         public readonly string $user = '',
         public readonly array $metadata = [],
         public readonly ?PrivacyLevel $privacyLevelOverride = null,
