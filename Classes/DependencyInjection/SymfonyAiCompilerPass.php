@@ -221,44 +221,44 @@ final class SymfonyAiCompilerPass implements CompilerPassInterface
         // Detect factory auth parameter via reflection
         $factoryParam = $this->detectFactoryParam($factoryClass);
 
-        // Read models + capabilities from ModelCatalog.
-        //
-        // Some bridges (Ollama, LM Studio, …) ship a ModelCatalog that requires
-        // runtime context (an HTTP client pointing at the user's endpoint) and
-        // queries the live server for the model list. We can't do that at
-        // container-compile time as the endpoint URL lives in a TCA record we
-        // don't have access to here. For those bridges we register the provider
-        // with an empty model list.
+        // Symfony AI builds no provider without a ModelCatalog, so a package
+        // carrying the bridge package type and nothing beside its Factory is
+        // not a bridge and has nothing to offer AiM.
         $catalogClass = $namespace . '\\ModelCatalog';
+        if (!class_exists($catalogClass)) {
+            return null;
+        }
+
+        // Read models + capabilities from the catalog, when it has any to give.
+        //
+        // An empty model list is a normal state, not a reason to skip the
+        // bridge. Some bridges (Ollama, LM Studio, etc.) ship a ModelCatalog
+        // that requires runtime context (an HTTP client pointing at the user's
+        // endpoint) and queries the live server for the model list. Others
+        // (Open Responses) ship a catalog that is built without arguments and
+        // starts out empty, because the models of a self-hosted endpoint are
+        // only known once someone names that endpoint. Either way the URL lives
+        // in a TCA record this pass has no access to, so those bridges are
+        // registered with an empty model list and the form asks the configured
+        // endpoint for its models later.
         $models = [];
         $modelCapabilities = [];
         $features = ['supportsStreaming' => true];
-        $catalogIsDynamic = false;
 
-        if (class_exists($catalogClass)) {
-            $constructor = (new \ReflectionClass($catalogClass))->getConstructor();
-            if ($constructor === null || $constructor->getNumberOfRequiredParameters() === 0) {
-                try {
-                    $catalog = new $catalogClass();
-                    if (method_exists($catalog, 'getModels')) {
-                        [$models, $modelCapabilities, $features] = $this->extractModelsFromCatalog(
-                            $catalog->getModels(),
-                            $features,
-                        );
-                    }
-                } catch (\Throwable) {
-                    // Catalog instantiation failed for an unexpected reason —
-                    // fall through with empty models.
+        $constructor = (new \ReflectionClass($catalogClass))->getConstructor();
+        if ($constructor === null || $constructor->getNumberOfRequiredParameters() === 0) {
+            try {
+                $catalog = new $catalogClass();
+                if (method_exists($catalog, 'getModels')) {
+                    [$models, $modelCapabilities, $features] = $this->extractModelsFromCatalog(
+                        $catalog->getModels(),
+                        $features,
+                    );
                 }
-            } else {
-                $catalogIsDynamic = true;
+            } catch (\Throwable) {
+                // Why the catalog could not be built says nothing about whether
+                // the package is a bridge, so it is registered without models.
             }
-        }
-
-        // Skip bridges that have neither a static catalog nor a dynamic one
-        // (the package matches the naming pattern but isn't a real bridge).
-        if ($models === [] && !$catalogIsDynamic) {
-            return null;
         }
 
         return [
