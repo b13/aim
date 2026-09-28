@@ -143,7 +143,7 @@ class RequestLogController
             $languageService->sL('LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.show.title')
         );
 
-        $returnUrl = GeneralUtility::sanitizeLocalUrl((string)($request->getQueryParams()['returnUrl'] ?? ''))
+        $returnUrl = GeneralUtility::sanitizeLocalUrl((string)($request->getQueryParams()['returnUrl'] ?? ''), $request)
             ?: (string)$this->uriBuilder->buildUriFromRoute('aim_request_log');
         $backButton = GeneralUtility::makeInstance(LinkButton::class)
             ->setHref($returnUrl)
