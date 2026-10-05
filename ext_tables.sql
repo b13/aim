@@ -1,5 +1,6 @@
 CREATE TABLE pages (
-    tx_aim_disable_inherited_fragments tinyint(1) unsigned DEFAULT '0' NOT NULL
+    tx_aim_disable_inherited_fragments tinyint(1) unsigned DEFAULT '0' NOT NULL,
+    tx_aim_prompt_fragments int(11) unsigned DEFAULT '0' NOT NULL
 );
 
 CREATE TABLE tx_aim_prompt_fragment (
