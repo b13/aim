@@ -13,6 +13,7 @@ declare(strict_types=1);
 namespace B13\Aim\Domain\Model;
 
 use B13\Aim\Provider\EndpointCredential;
+use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 /**
  * Represents a provider configuration record from tx_aim_configuration.
@@ -45,6 +46,7 @@ final class ProviderConfiguration
     public readonly int $judgeConfigurationUid;
     public readonly string $gradingRubric;
     public readonly string $systemPromptAddition;
+    public ?HttpClientInterface $httpClient = null;
 
     public function __construct(
         public readonly array $row,

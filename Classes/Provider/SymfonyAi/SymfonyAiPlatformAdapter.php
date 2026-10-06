@@ -104,7 +104,7 @@ class SymfonyAiPlatformAdapter implements
     public function __construct(
         private readonly string $factoryClass,
         private readonly string $factoryParam = 'apiKey',
-        private readonly CredentialRedactor $redactor = new CredentialRedactor(),
+        private readonly CredentialRedactor $redactor = new CredentialRedactor()
     ) {
         $this->maxTokensKey = self::resolveMaxTokensKey($factoryClass);
         $parameters = self::resolveFactoryParameterNames($factoryClass);
@@ -401,6 +401,8 @@ class SymfonyAiPlatformAdapter implements
     private function buildFactoryArguments(ProviderConfiguration $config): array
     {
         $arguments = [];
+        $arguments['httpClient'] = $config->httpClient;
+
         if ($this->factoryAcceptsEndpoint && $config->endpoint !== '') {
             $arguments[$this->endpointParam] = $config->getRequestEndpoint();
         }
