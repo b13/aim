@@ -55,6 +55,7 @@ use Symfony\AI\Platform\Result\ToolCall as SymfonyToolCall;
 use Symfony\AI\Platform\TokenUsage\TokenUsageInterface;
 use Symfony\AI\Platform\Tool\ExecutionReference;
 use Symfony\AI\Platform\Tool\Tool as SymfonyTool;
+use Symfony\Contracts\HttpClient\HttpClientInterface;
 use TYPO3\CMS\Core\Log\LogManager;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 
@@ -104,7 +105,7 @@ class SymfonyAiPlatformAdapter implements
     public function __construct(
         private readonly string $factoryClass,
         private readonly string $factoryParam = 'apiKey',
-        private readonly CredentialRedactor $redactor = new CredentialRedactor(),
+        private readonly CredentialRedactor $redactor = new CredentialRedactor()
     ) {
         $this->maxTokensKey = self::resolveMaxTokensKey($factoryClass);
         $parameters = self::resolveFactoryParameterNames($factoryClass);
@@ -401,6 +402,10 @@ class SymfonyAiPlatformAdapter implements
     private function buildFactoryArguments(ProviderConfiguration $config): array
     {
         $arguments = [];
+        if ($config->httpClient instanceof HttpClientInterface) {
+            $arguments['httpClient'] = $config->httpClient;
+        }
+
         if ($this->factoryAcceptsEndpoint && $config->endpoint !== '') {
             $arguments[$this->endpointParam] = $config->getRequestEndpoint();
         }
