@@ -177,7 +177,7 @@ final class FallbackDispatchTest extends FunctionalTestCase
     #[Test]
     public function aGovernanceDenialIsNotRetriedAgainstTheWholeChain(): void
     {
-        $primary = $this->createConfiguration('primary', ['default' => 1, 'be_groups' => '99']);
+        $this->createConfiguration('primary', ['default' => 1, 'be_groups' => '99']);
         $this->createConfiguration('second');
         $this->createConfiguration('third');
         $this->createBackendUser();

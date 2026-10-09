@@ -157,8 +157,10 @@ final class ProviderResolver
         }
 
         $manifest = $this->registry->getProvider($providerIdentifier);
-        $checkModel = $model !== '*' ? $model : '';
-        if (!$manifest->hasModelCapability($checkModel, $capabilityFqcn)) {
+        $supported = $model === '*'
+            ? $manifest->hasCapability($capabilityFqcn)
+            : $manifest->hasModelCapability($model, $capabilityFqcn);
+        if (!$supported) {
             throw new \RuntimeException(sprintf(
                 'Provider "%s" with model "%s" does not support capability "%s".',
                 $providerIdentifier,
@@ -169,16 +171,17 @@ final class ProviderResolver
 
         $configs = $this->configurationRepository->findByProviderIdentifier($providerIdentifier);
 
-        // Wildcard model: "openai:*" — use the first enabled config as-is
+        // Wildcard model "provider:*": the first enabled config whose model supports the capability
         if ($model === '*') {
             foreach ($configs as $config) {
-                if (!$config->disabled) {
+                if (!$config->disabled && $manifest->hasModelCapability($config->model, $capabilityFqcn)) {
                     return new ResolvedProvider($manifest, $config);
                 }
             }
             throw new ProviderNotFoundException(sprintf(
-                'No enabled configuration found for provider "%s".',
+                'No enabled configuration found for provider "%s" with a model supporting capability "%s".',
                 $providerIdentifier,
+                $capabilityFqcn,
             ), 1773874275);
         }
 

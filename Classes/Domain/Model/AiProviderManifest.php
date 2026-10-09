@@ -58,26 +58,29 @@ final class AiProviderManifest
     /**
      * Check if a specific model supports a capability.
      *
-     * If the model is listed in modelCapabilities, only those capabilities apply.
-     * Otherwise the model inherits all provider-level capabilities.
+     * A model listed in modelCapabilities has exactly the capabilities listed
+     * for it, possibly none. An unlisted model never gets image generation and
+     * otherwise inherits the provider-level capabilities, minus those only
+     * specialized catalog models offer.
      *
      * @param class-string<AiCapabilityInterface> $capabilityFqcn
      */
     public function hasModelCapability(string $model, string $capabilityFqcn): bool
     {
-        // No model-level overrides. All models inherit provider capabilities.
-        // Exception: image generation needs a genuinely different request contract
-        // (a dedicated image endpoint, not a chat/messages payload) than every other
-        // capability here, so it's never safe to assume an unlisted model supports it
-        // (e.g. a dynamic-catalog bridge like Ollama, which has no image endpoint at all).
-        // It's only granted when a static ModelCatalog explicitly lists it per model.
-        if ($this->modelCapabilities === []) {
-            return $capabilityFqcn !== ImageGenerationCapableInterface::class
-                && $this->hasCapability($capabilityFqcn);
-        }
-        // Model explicitly listed — use only its declared capabilities
+        // Model explicitly listed: use only its declared capabilities
         if (isset($this->modelCapabilities[$model])) {
             return in_array($capabilityFqcn, $this->modelCapabilities[$model], true);
+        }
+        // Image generation needs a different request contract (a dedicated image
+        // endpoint, not a chat/messages payload), so an unlisted model is never
+        // assumed to support it, whether the catalog is discovered at runtime or
+        // static (e.g. an unknown model on a bridge whose chat model outputs images).
+        if ($capabilityFqcn === ImageGenerationCapableInterface::class) {
+            return false;
+        }
+        // No model-level data: all models inherit provider capabilities
+        if ($this->modelCapabilities === []) {
+            return $this->hasCapability($capabilityFqcn);
         }
         // Model not listed but modelCapabilities is populated:
         // Inherit all provider capabilities EXCEPT those that are exclusive

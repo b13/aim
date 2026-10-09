@@ -14,6 +14,10 @@ namespace B13\Aim\Tests\Unit\Domain\Model;
 
 use B13\Aim\Capability\ConversationCapableInterface;
 use B13\Aim\Capability\ImageGenerationCapableInterface;
+use B13\Aim\Capability\TextGenerationCapableInterface;
+use B13\Aim\Capability\ToolCallingCapableInterface;
+use B13\Aim\Capability\TranslationCapableInterface;
+use B13\Aim\Capability\VisionCapableInterface;
 use B13\Aim\Domain\Model\AiProviderManifest;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
@@ -67,5 +71,56 @@ final class AiProviderManifestTest extends TestCase
         );
 
         self::assertTrue($manifest->hasModelCapability('gpt-image-1', ImageGenerationCapableInterface::class));
+    }
+
+    #[Test]
+    public function staticCatalogModelListedWithoutCapabilitiesHasNone(): void
+    {
+        $manifest = $this->manifest(
+            [ConversationCapableInterface::class, TextGenerationCapableInterface::class],
+            [
+                'chat-model' => [ConversationCapableInterface::class, TextGenerationCapableInterface::class],
+                'speech-to-text-model' => [],
+            ],
+        );
+
+        self::assertFalse($manifest->hasModelCapability('speech-to-text-model', ConversationCapableInterface::class));
+    }
+
+    /**
+     * A chat model listing image output at the top capability count made image
+     * generation look like a capability every unlisted model shares.
+     */
+    #[Test]
+    public function unlistedModelOfStaticCatalogNeverInheritsImageGeneration(): void
+    {
+        $manifest = $this->manifestWithImageOutputOnChatModel();
+
+        self::assertFalse($manifest->hasModelCapability('unlisted-model', ImageGenerationCapableInterface::class));
+    }
+
+    #[Test]
+    public function unlistedModelOfStaticCatalogStillInheritsConversation(): void
+    {
+        $manifest = $this->manifestWithImageOutputOnChatModel();
+
+        self::assertTrue($manifest->hasModelCapability('unlisted-model', ConversationCapableInterface::class));
+    }
+
+    private function manifestWithImageOutputOnChatModel(): AiProviderManifest
+    {
+        $chat = [
+            VisionCapableInterface::class,
+            ConversationCapableInterface::class,
+            TextGenerationCapableInterface::class,
+            ToolCallingCapableInterface::class,
+            ImageGenerationCapableInterface::class,
+            TranslationCapableInterface::class,
+        ];
+
+        return $this->manifest($chat, [
+            'chat-model' => $chat,
+            'image-model' => [ImageGenerationCapableInterface::class],
+        ]);
     }
 }

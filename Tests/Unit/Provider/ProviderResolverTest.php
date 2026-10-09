@@ -18,6 +18,7 @@ use B13\Aim\Domain\Model\AiProviderManifest;
 use B13\Aim\Domain\Model\ProviderConfiguration;
 use B13\Aim\Domain\Repository\ProviderConfigurationRepository;
 use B13\Aim\Domain\Repository\RequestLogRepository;
+use B13\Aim\Exception\ProviderNotFoundException;
 use B13\Aim\Governance\ConfigurationAccess;
 use B13\Aim\Provider\ProviderResolver;
 use B13\Aim\Registry\AiProviderRegistry;
@@ -128,5 +129,72 @@ final class ProviderResolverTest extends TestCase
         $resolved = $resolver->resolveWithFallback(ConversationCapableInterface::class, ['unknown-provider:some-model', 1]);
 
         self::assertSame('anthropic', $resolved->configuration->providerIdentifier);
+    }
+
+    /**
+     * "provider:*" used to return the first enabled configuration whatever its
+     * model, so an image request could end up on a chat model.
+     */
+    #[Test]
+    public function wildcardNotationPicksTheFirstConfigurationWhoseModelSupportsTheCapability(): void
+    {
+        $resolver = $this->wildcardResolver([
+            ['uid' => 1, 'ai_provider' => 'acme', 'model' => 'chat-model', 'disabled' => 0],
+            ['uid' => 2, 'ai_provider' => 'acme', 'model' => 'image-model', 'disabled' => 0],
+        ]);
+
+        self::assertSame('image-model', $resolver->resolveByString('acme:*', ImageGenerationCapableInterface::class)->configuration->model);
+        self::assertSame('chat-model', $resolver->resolveByString('acme:*', ConversationCapableInterface::class)->configuration->model);
+    }
+
+    #[Test]
+    public function wildcardNotationFailsWhenNoConfiguredModelSupportsTheCapability(): void
+    {
+        $resolver = $this->wildcardResolver([
+            ['uid' => 1, 'ai_provider' => 'acme', 'model' => 'chat-model', 'disabled' => 0],
+        ]);
+
+        $this->expectException(ProviderNotFoundException::class);
+        $this->expectExceptionCode(1773874275);
+
+        $resolver->resolveByString('acme:*', ImageGenerationCapableInterface::class);
+    }
+
+    /**
+     * @param list<array<string, mixed>> $rows
+     */
+    private function wildcardResolver(array $rows): ProviderResolver
+    {
+        $manifest = new AiProviderManifest(
+            identifier: 'acme',
+            name: 'Acme',
+            description: '',
+            iconIdentifier: '',
+            supportedModels: [],
+            capabilities: [ConversationCapableInterface::class, ImageGenerationCapableInterface::class],
+            serviceName: 'aim.symfony_ai.acme',
+            container: $this->createStub(ContainerInterface::class),
+            modelCapabilities: [
+                'chat-model' => [ConversationCapableInterface::class],
+                'image-model' => [ImageGenerationCapableInterface::class],
+            ],
+        );
+
+        $registry = $this->createStub(AiProviderRegistry::class);
+        $registry->method('hasProvider')->willReturn(true);
+        $registry->method('getProvider')->willReturn($manifest);
+
+        $configurationRepository = $this->createStub(ProviderConfigurationRepository::class);
+        $configurationRepository->method('findByProviderIdentifier')->willReturn(
+            array_map(static fn(array $row): ProviderConfiguration => new ProviderConfiguration($row), $rows),
+        );
+
+        return new ProviderResolver(
+            $registry,
+            $configurationRepository,
+            $this->createStub(DisabledModelRegistry::class),
+            $this->createStub(RequestLogRepository::class),
+            new ConfigurationAccess(),
+        );
     }
 }
