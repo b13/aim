@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- **Bugfix "Capabilities of static catalogs"**: A Symfony AI bridge with a static model catalog
+advertises only the capabilities its models have (#41). Every bridge was granted all of them, so a
+bridge without a single image model was listed with image generation. Catalog models that map to no
+AiM capability (e.g. text-to-speech or speech-to-text models) are no longer treated as chat, vision or
+image models, a model the catalog does not list never inherits image generation, and `provider:*`
+picks the first enabled configuration whose model supports the requested capability instead of the
+first enabled one. A configuration using such a model is skipped when resolving by capability, and
+fails explicit resolution and the connection test, instead of failing at the remote API. Flush the
+caches after updating, so the DI container is rebuilt.
+
 - **Bugfix "Temperature on current models"**: Requests to Claude Opus 4.7 and later, Sonnet 5 and other
 models that no longer accept sampling parameters failed with "`temperature` is deprecated for this
 model", because every request carried a temperature whether the caller had asked for one or not.

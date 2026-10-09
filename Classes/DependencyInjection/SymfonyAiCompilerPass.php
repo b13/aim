@@ -67,12 +67,14 @@ final class SymfonyAiCompilerPass implements CompilerPassInterface
     ];
 
     /**
-     * All AiM capability interfaces — used as the provider-level default
-     * when a bridge has no ModelCatalog to read from.
+     * All AiM capability interfaces, used as the provider-level capabilities
+     * when the bridge's ModelCatalog yields no models to derive them from
+     * (dynamic or initially empty catalogs). A static catalog narrows the
+     * provider to the union of its models' capabilities instead.
      *
-     * Note: ImageGenerationCapableInterface is included here (provider-level "this
-     * bridge family can do it") but AiProviderManifest::hasModelCapability() special-cases
-     * it so unlisted/dynamic-catalog models don't silently inherit it, see there for why.
+     * ImageGenerationCapableInterface is included, but
+     * AiProviderManifest::hasModelCapability() never grants it to a model the
+     * catalog does not list, see there for why.
      */
     private const ALL_CAPABILITIES = [
         VisionCapableInterface::class,
@@ -125,7 +127,7 @@ final class SymfonyAiCompilerPass implements CompilerPassInterface
                 $bridge['description'],
                 'tx-aim',
                 $bridge['models'],
-                self::ALL_CAPABILITIES,
+                $bridge['capabilities'],
                 $serviceId,
                 new Reference(ContainerInterface::class),
                 $featuresDefinition,
@@ -194,7 +196,7 @@ final class SymfonyAiCompilerPass implements CompilerPassInterface
     /**
      * Build a complete bridge definition from a discovered package.
      *
-     * @return array{identifier: string, name: string, description: string, factoryClass: string, factoryParam: string, models: array<string, string>, modelCapabilities: array<string, list<string>>, features: array<string, mixed>}|null
+     * @return array{identifier: string, name: string, description: string, factoryClass: string, factoryParam: string, models: array<string, string>, capabilities: list<string>, modelCapabilities: array<string, list<string>>, features: array<string, mixed>}|null
      */
     private function buildBridgeDefinition(array $package): ?array
     {
@@ -261,6 +263,11 @@ final class SymfonyAiCompilerPass implements CompilerPassInterface
             }
         }
 
+        $capabilities = self::ALL_CAPABILITIES;
+        if ($modelCapabilities !== []) {
+            $capabilities = array_values(array_unique(array_merge(...array_values($modelCapabilities))));
+        }
+
         return [
             'identifier' => $identifier,
             'name' => $name,
@@ -268,6 +275,7 @@ final class SymfonyAiCompilerPass implements CompilerPassInterface
             'factoryClass' => $factoryClass,
             'factoryParam' => $factoryParam,
             'models' => $models,
+            'capabilities' => $capabilities,
             'modelCapabilities' => $modelCapabilities,
             'features' => $features,
         ];
@@ -296,11 +304,9 @@ final class SymfonyAiCompilerPass implements CompilerPassInterface
             // Build display label from model ID
             $models[$safeModelId] = $this->buildModelLabel($safeModelId, $modelConfig['capabilities'] ?? []);
 
-            // Map Symfony AI capabilities to AiM interfaces
-            $aiCapabilities = $this->mapCapabilities($modelConfig['capabilities'] ?? []);
-            if ($aiCapabilities !== []) {
-                $modelCapabilities[$safeModelId] = $aiCapabilities;
-            }
+            // Listed even when nothing maps (e.g. text-to-speech), so the model
+            // is not treated as unlisted and does not inherit provider capabilities.
+            $modelCapabilities[$safeModelId] = $this->mapCapabilities($modelConfig['capabilities'] ?? []);
 
             // Detect features from capabilities
             foreach ($modelConfig['capabilities'] ?? [] as $cap) {
