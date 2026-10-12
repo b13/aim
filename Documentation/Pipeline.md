@@ -239,3 +239,4 @@ The middleware pipeline is intentionally the only logging extension point: it gi
 | `BeforeAiRequestEvent` | Before provider call | Modify request, add logging, enforce policies |
 | `AfterAiResponseEvent` | After provider response | Post-processing, notifications, analytics |
 | `AiRequestReroutedEvent` | When capability gate reroutes | Monitor misconfigurations, track rerouting patterns |
+| `HttpClientPlatformAdapterFactoryEvent` | When the Provider is configured | Allows to inject a pre-configured HTTP-Client into the provider factory if it accepts an HTTP-Client as an argument. The Argument **must** be named `httpClient` and **must** implement `\Symfony\Contracts\HttpClient\HttpClientInterface`. The Event is only dispatched if such an argument is present |
