@@ -124,7 +124,7 @@ class SymfonyAiPlatformAdapter implements
      * Which arguments Factory::createProvider() declares, and under which name
      * (endpoint, hostUrl or baseUrl).
      *
-     * @return array{endpoint?: string, apiKey?: string}
+     * @return array{endpoint?: string, apiKey?: string, httpClient?: 'httpClient'}
      */
     private static function resolveFactoryParameterNames(string $factoryClass): array
     {
@@ -432,11 +432,13 @@ class SymfonyAiPlatformAdapter implements
         // Sadly, \Symfony\Contracts\HttpClient\HttpClientInterface
         // does *NOT* inherit from \Psr\Http\Client\ClientInterface
         if ($this->factoryAcceptsHttpClient) {
-            $httpClientEvent = new HttpClientPlatformAdapterFactoryEvent($config);
-            GeneralUtility::makeInstance(EventDispatcherInterface::class)->dispatch($httpClientEvent);
-            if ($httpClientEvent->getHttpClient() !== null) {
-                $arguments['httpClient'] = $httpClientEvent->getHttpClient();
-            }
+            try {
+                $httpClientEvent = new HttpClientPlatformAdapterFactoryEvent( $config );
+                GeneralUtility::makeInstance( EventDispatcherInterface::class )->dispatch( $httpClientEvent );
+                if ( $httpClientEvent->getHttpClient() !== null ) {
+                    $arguments['httpClient'] = $httpClientEvent->getHttpClient();
+                }
+            } catch (\Throwable) {} // in case the Interface is not available
         }
 
         if ($arguments === []) {
