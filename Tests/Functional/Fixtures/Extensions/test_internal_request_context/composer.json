@@ -1,0 +1,11 @@
+{
+    "name": "b13/aim-test-internal-request-context",
+    "type": "typo3-cms-extension",
+    "description": "Fixture: adds the testing context to frontend requests not built by the testing framework.",
+    "license": "GPL-2.0-or-later",
+    "extra": {
+        "typo3/cms": {
+            "extension-key": "test_internal_request_context"
+        }
+    }
+}

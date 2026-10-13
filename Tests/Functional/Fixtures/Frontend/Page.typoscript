@@ -1,0 +1,4 @@
+page = PAGE
+page.10 = TEXT
+page.10.field = title
+page.10.noTrimWrap = |Rendered by the frontend: ||
