@@ -22,6 +22,7 @@ use TYPO3\CMS\Core\Core\Environment;
 use TYPO3\CMS\Core\Site\SiteFinder;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Frontend\Http\Application;
+use TYPO3\TestingFramework\Core\Functional\Framework\Frontend\InternalRequest;
 use TYPO3\TestingFramework\Core\Functional\FunctionalTestCase;
 
 final class FrontendPageRendererTest extends FunctionalTestCase
@@ -78,18 +79,42 @@ final class FrontendPageRendererTest extends FunctionalTestCase
     #[Test]
     public function rendersThePageWithoutStoringItInThePageCache(): void
     {
-        $renderer = new FrontendPageRenderer(
+        $html = $this->createRenderer()->renderPageHtml(1);
+
+        self::assertNotNull($html);
+        self::assertStringContainsString('Rendered by the frontend: Home', $html);
+        self::assertSame([], $this->getPageCacheBackend()->findIdentifiersByTag('pageId_1'));
+    }
+
+    #[Test]
+    public function rendersThePageWithoutReadingItFromThePageCache(): void
+    {
+        $this->executeFrontendSubRequest(new InternalRequest('https://example.com/'));
+        self::assertNotSame([], $this->getPageCacheBackend()->findIdentifiersByTag('pageId_1'));
+        // Changing the record directly leaves the cached page stale
+        $this->getConnectionPool()->getConnectionForTable('pages')->update('pages', ['title' => 'Renamed'], ['uid' => 1]);
+        // The frontend uses its own CacheManager instance, whose runtime cache still holds the record
+        GeneralUtility::makeInstance(CacheManager::class)->getCache('runtime')->flush();
+
+        $html = $this->createRenderer()->renderPageHtml(1);
+
+        self::assertNotNull($html);
+        self::assertStringContainsString('Rendered by the frontend: Renamed', $html);
+    }
+
+    private function createRenderer(): FrontendPageRenderer
+    {
+        return new FrontendPageRenderer(
             $this->get(Application::class),
             $this->get(SiteFinder::class),
             new NullLogger(),
         );
+    }
 
-        $html = $renderer->renderPageHtml(1);
-
-        self::assertNotNull($html);
-        self::assertStringContainsString('Rendered by the frontend', $html);
+    private function getPageCacheBackend(): TaggableBackendInterface
+    {
         $pageCacheBackend = $this->get(CacheManager::class)->getCache('pages')->getBackend();
         self::assertInstanceOf(TaggableBackendInterface::class, $pageCacheBackend);
-        self::assertSame([], $pageCacheBackend->findIdentifiersByTag('pageId_1'));
+        return $pageCacheBackend;
     }
 }

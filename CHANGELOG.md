@@ -3,7 +3,7 @@
 ## Unreleased
 
 - **Bugfix "Page cache after a frontend render"**: Rendering a page for content extraction
-(`FrontendPageRenderer`, used by `PageContentExtractor`) stored its output in the regular page cache,
+(`FrontendPageRenderer`, used by `PageContentExtractor`) stored its output in the regular page cache (#43),
 which then went to every visitor. From a backend request that output has file URLs prefixed twice
 (`//fileadmin/...`), because the backend and the frontend `PublicUrlPrefixer` are both registered,
 so visitors got pages with every image broken; from CLI the URLs came out relative. The render now

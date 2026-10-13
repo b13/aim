@@ -101,14 +101,7 @@ final class FrontendPageRenderer
     }
 
     /**
-     * The render runs inside whatever request called it, usually a backend
-     * request. Its output is not what a visitor would get: in a backend
-     * request TYPO3 has already registered the backend PublicUrlPrefixer,
-     * the frontend RequestHandler adds its own, and both prefix file URLs,
-     * so they come out as "//fileadmin/...". From CLI the site path is empty
-     * and they come out relative. The request carries no cookies, so TYPO3
-     * would store that page in the regular page cache and serve it to every
-     * visitor. Rendering uncached keeps it out of there.
+     * In-process output differs from what visitors get and must neither reach nor come from the page cache.
      */
     private function withPageCacheDisabled(ServerRequestInterface $request): ServerRequestInterface
     {
