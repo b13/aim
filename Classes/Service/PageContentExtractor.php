@@ -22,9 +22,8 @@ use TYPO3\CMS\Core\Schema\TcaSchemaFactory;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 
 /**
- * Gets a page's real body copy for feeding into VoiceCalibrationService as
- * an example-text source an editor doesn't have to hand-copy from the
- * frontend.
+ * Public API: a page's visible text, safe to call from backend requests and CLI.
+ * Renders the live default-language page, uncached.
  *
  * Tries an actual frontend render first (FrontendPageRenderer, the only
  * way to see content a plugin renders dynamically, e.g. news teasers, form

@@ -32,6 +32,8 @@ use TYPO3\CMS\Frontend\Http\Application;
  * should treat as "just fall back to something else". No site configured
  * for the page (a common state for a brand-new page), a redirect/error
  * response, or any exception during rendering.
+ *
+ * @internal Use PageContentExtractor.
  */
 final class FrontendPageRenderer
 {
