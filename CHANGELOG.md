@@ -1,6 +1,9 @@
 # Changelog
 
-## Unreleased
+## 0.5.1
+
+Bugfix release: pages rendered for content extraction no longer reach the page cache, bridge capabilities follow
+the model catalog, and current Claude models accept requests again. `PageContentExtractor` is now public API.
 
 - **Task "PageContentExtractor is public API"**: Extensions can use `PageContentExtractor` to get the text
 a visitor sees on a page, see "Page content" in `Documentation/Usage.md`. `FrontendPageRenderer` is
@@ -45,6 +48,17 @@ the cheaper model, with no reroute flag and the substituted model in the request
 row now carries `reroute_type = model_switch`, keeps the model the caller actually asked for, and
 states what the decision was made on: both costs, both durations, the average token count and the
 grade.
+
+- **Bugfix "Bridges with an empty catalog"**: A Symfony AI bridge whose model catalog starts empty, such as
+`symfony/ai-open-responses-platform`, is registered as a provider (#35). It was dropped, so a self-hosted
+OpenAI-compatible endpoint could not be configured.
+
+- **Bugfix "Prompt fragments column on TYPO3 12.4"**: `ext_tables.sql` defines the `pages` column
+`tx_aim_prompt_fragments` (#38). TYPO3 12.4 does not create it from TCA, so the column was missing there. Run
+"Analyze Database Structure" after updating.
+
+- **Bugfix "Request log return URL"**: The request log detail view passes the request to
+`GeneralUtility::sanitizeLocalUrl()`, which TYPO3 14 deprecates calling without it.
 
 ## 0.5.0
 
