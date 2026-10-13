@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- **Bugfix "Page cache after a frontend render"**: Rendering a page for content extraction
+(`FrontendPageRenderer`, used by `PageContentExtractor`) stored its output in the regular page cache,
+which then went to every visitor. From a backend request that output has file URLs prefixed twice
+(`//fileadmin/...`), because the backend and the frontend `PublicUrlPrefixer` are both registered,
+so visitors got pages with every image broken; from CLI the URLs came out relative. The render now
+runs with the page cache disabled. Pages already cached with such URLs stay broken until the page
+cache is flushed.
+
 - **Bugfix "Capabilities of static catalogs"**: A Symfony AI bridge with a static model catalog
 advertises only the capabilities its models have (#41). Every bridge was granted all of them, so a
 bridge without a single image model was listed with image generation. Catalog models that map to no

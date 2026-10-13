@@ -22,6 +22,7 @@ use TYPO3\CMS\Core\Page\AssetCollector;
 use TYPO3\CMS\Core\Page\PageRenderer;
 use TYPO3\CMS\Core\Site\SiteFinder;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
+use TYPO3\CMS\Frontend\Cache\CacheInstruction;
 use TYPO3\CMS\Frontend\Http\Application;
 
 /**
@@ -91,12 +92,33 @@ final class FrontendPageRenderer
             'HTTPS' => $uri->getScheme() === 'https' ? 'on' : 'off',
         ];
 
-        $request = new ServerRequest($uri, 'GET', 'php://input', ['Host' => [$httpHost]], $serverParams);
-
-        return $request
+        $request = (new ServerRequest($uri, 'GET', 'php://input', ['Host' => [$httpHost]], $serverParams))
             ->withAttribute('site', $site)
             ->withAttribute('language', $site->getDefaultLanguage())
             ->withAttribute('normalizedParams', NormalizedParams::createFromServerParams($serverParams));
+
+        return $this->withPageCacheDisabled($request);
+    }
+
+    /**
+     * The render runs inside whatever request called it, usually a backend
+     * request. Its output is not what a visitor would get: in a backend
+     * request TYPO3 has already registered the backend PublicUrlPrefixer,
+     * the frontend RequestHandler adds its own, and both prefix file URLs,
+     * so they come out as "//fileadmin/...". From CLI the site path is empty
+     * and they come out relative. The request carries no cookies, so TYPO3
+     * would store that page in the regular page cache and serve it to every
+     * visitor. Rendering uncached keeps it out of there.
+     */
+    private function withPageCacheDisabled(ServerRequestInterface $request): ServerRequestInterface
+    {
+        if (!class_exists(CacheInstruction::class)) {
+            // TYPO3 12.4: the frontend middlewares read the "noCache" attribute
+            return $request->withAttribute('noCache', true);
+        }
+        $cacheInstruction = new CacheInstruction();
+        $cacheInstruction->disableCache('EXT:aim: In-process render for content extraction');
+        return $request->withAttribute('frontend.cache.instruction', $cacheInstruction);
     }
 
     /**

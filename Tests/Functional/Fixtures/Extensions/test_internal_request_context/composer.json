@@ -1,0 +1,11 @@
+{
+    "name": "b13/aim-test-internal-request-context",
+    "type": "typo3-cms-extension",
+    "description": "Fixture: gives frontend requests that were not built by the testing framework an empty internal request context, so its json_response middlewares let them through. Used by FrontendPageRendererTest, whose renderer builds its own request.",
+    "license": "GPL-2.0-or-later",
+    "extra": {
+        "typo3/cms": {
+            "extension-key": "test_internal_request_context"
+        }
+    }
+}
