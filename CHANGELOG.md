@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- **Task "PageContentExtractor is public API"**: Extensions can use `PageContentExtractor` to get the text
+a visitor sees on a page, see "Page content" in `Documentation/Usage.md`. `FrontendPageRenderer` is
+internal.
+
 - **Bugfix "Page cache after a frontend render"**: Rendering a page for content extraction
 (`FrontendPageRenderer`, used by `PageContentExtractor`) stored its output in the regular page cache (#43),
 which then went to every visitor. From a backend request that output has file URLs prefixed twice
