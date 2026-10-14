@@ -22,6 +22,7 @@ use TYPO3\CMS\Core\Page\AssetCollector;
 use TYPO3\CMS\Core\Page\PageRenderer;
 use TYPO3\CMS\Core\Site\SiteFinder;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
+use TYPO3\CMS\Frontend\Cache\CacheInstruction;
 use TYPO3\CMS\Frontend\Http\Application;
 
 /**
@@ -31,6 +32,8 @@ use TYPO3\CMS\Frontend\Http\Application;
  * should treat as "just fall back to something else". No site configured
  * for the page (a common state for a brand-new page), a redirect/error
  * response, or any exception during rendering.
+ *
+ * @internal Use PageContentExtractor.
  */
 final class FrontendPageRenderer
 {
@@ -91,12 +94,26 @@ final class FrontendPageRenderer
             'HTTPS' => $uri->getScheme() === 'https' ? 'on' : 'off',
         ];
 
-        $request = new ServerRequest($uri, 'GET', 'php://input', ['Host' => [$httpHost]], $serverParams);
-
-        return $request
+        $request = (new ServerRequest($uri, 'GET', 'php://input', ['Host' => [$httpHost]], $serverParams))
             ->withAttribute('site', $site)
             ->withAttribute('language', $site->getDefaultLanguage())
             ->withAttribute('normalizedParams', NormalizedParams::createFromServerParams($serverParams));
+
+        return $this->withPageCacheDisabled($request);
+    }
+
+    /**
+     * In-process output differs from what visitors get and must neither reach nor come from the page cache.
+     */
+    private function withPageCacheDisabled(ServerRequestInterface $request): ServerRequestInterface
+    {
+        if (!class_exists(CacheInstruction::class)) {
+            // TYPO3 12.4: the frontend middlewares read the "noCache" attribute
+            return $request->withAttribute('noCache', true);
+        }
+        $cacheInstruction = new CacheInstruction();
+        $cacheInstruction->disableCache('EXT:aim: In-process render for content extraction');
+        return $request->withAttribute('frontend.cache.instruction', $cacheInstruction);
     }
 
     /**

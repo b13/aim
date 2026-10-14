@@ -327,6 +327,22 @@ $response = $this->pipeline->dispatch($followUp, $resolvedProvider);
 
 Keep looping (execute tool calls → send `toolResults` → check `requiresToolExecution()` again) until the model returns plain content. Always cap the number of rounds: nothing in AiM stops a model from calling tools indefinitely.
 
+## Page content
+
+`PageContentExtractor` returns the text a visitor sees on a page, for use as prompt context:
+
+```php
+public function __construct(
+    private readonly \B13\Aim\Service\PageContentExtractor $pageContentExtractor,
+) {}
+
+$result = $this->pageContentExtractor->extractTextWithSources([$pageId]);
+$result['text'];             // "--- Page title ---\n…", one section per page
+$result['sources'][$pageId]; // 'rendered', 'fallback' or 'none'
+```
+
+It renders the page in-process, uncached, so it is safe to call from backend requests and CLI. Without a renderable page (no site, error response) it falls back to the text fields of the page's content elements (`fallback`), or to nothing (`none`). The render always shows the live page in the default language. `extractText()` returns the text alone.
+
 ## Capabilities
 
 Each provider implements one or more capability interfaces:
