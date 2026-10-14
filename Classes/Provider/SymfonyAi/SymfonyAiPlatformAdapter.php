@@ -20,7 +20,7 @@ use B13\Aim\Capability\ToolCallingCapableInterface;
 use B13\Aim\Capability\TranslationCapableInterface;
 use B13\Aim\Capability\VisionCapableInterface;
 use B13\Aim\Domain\Model\ProviderConfiguration;
-use B13\Aim\Event\ModifySymfonyAiHttpClientEvent;
+use B13\Aim\Provider\SymfonyAi\Event\ModifySymfonyAiHttpClientEvent;
 use B13\Aim\Provider\AiProviderInterface;
 use B13\Aim\Provider\CredentialRedactor;
 use B13\Aim\Request\ConversationRequest;
