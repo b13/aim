@@ -34,6 +34,16 @@ row now carries `reroute_type = model_switch`, keeps the model the caller actual
 states what the decision was made on: both costs, both durations, the average token count and the
 grade.
 
+
+- **Feature "HTTP client for Symfony AI bridges"**: A pre-configured HTTP client can be injected into
+the factory of a Symfony AI bridge (#33), e.g. to add a proxy, custom headers or timeouts. When a
+bridge factory accepts an argument named `httpClient` that implements
+`Symfony\Contracts\HttpClient\HttpClientInterface`, the new `ModifySymfonyAiHttpClientEvent` is
+dispatched with the provider configuration, and the client set by a listener is passed to the factory.
+The event is only dispatched for factories with such an argument, and once per provider, as the
+result is cached. Flush the caches after updating, so the DI
+container is rebuilt.
+
 ## 0.5.0
 
 **Security** and governance release. Requests reach the provider they were sent to, a pinned configuration stays pinned,
