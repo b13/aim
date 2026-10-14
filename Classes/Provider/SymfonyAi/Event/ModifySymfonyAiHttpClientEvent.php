@@ -10,7 +10,7 @@ declare(strict_types=1);
  * of the License, or any later version.
  */
 
-namespace B13\Aim\Event;
+namespace B13\Aim\Provider\SymfonyAi\Event;
 
 use B13\Aim\Domain\Model\ProviderConfiguration;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
