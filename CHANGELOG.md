@@ -1,6 +1,21 @@
 # Changelog
 
-## Unreleased
+## 0.5.1
+
+Bugfix release: pages rendered for content extraction no longer reach the page cache, bridge capabilities follow
+the model catalog, and current Claude models accept requests again. `PageContentExtractor` is now public API.
+
+- **Task "PageContentExtractor is public API"**: Extensions can use `PageContentExtractor` to get the text
+a visitor sees on a page, see "Page content" in `Documentation/Usage.md`. `FrontendPageRenderer` is
+internal.
+
+- **Bugfix "Page cache after a frontend render"**: Rendering a page for content extraction
+(`FrontendPageRenderer`, used by `PageContentExtractor`) stored its output in the regular page cache (#43),
+which then went to every visitor. From a backend request that output has file URLs prefixed twice
+(`//fileadmin/...`), because the backend and the frontend `PublicUrlPrefixer` are both registered,
+so visitors got pages with every image broken; from CLI the URLs came out relative. The render now
+runs with the page cache disabled. Pages already cached with such URLs stay broken until the page
+cache is flushed.
 
 - **Bugfix "Capabilities of static catalogs"**: A Symfony AI bridge with a static model catalog
 advertises only the capabilities its models have (#41). Every bridge was granted all of them, so a
@@ -34,6 +49,16 @@ row now carries `reroute_type = model_switch`, keeps the model the caller actual
 states what the decision was made on: both costs, both durations, the average token count and the
 grade.
 
+- **Bugfix "Bridges with an empty catalog"**: A Symfony AI bridge whose model catalog starts empty, such as
+`symfony/ai-open-responses-platform`, is registered as a provider (#35). It was dropped, so a self-hosted
+OpenAI-compatible endpoint could not be configured.
+
+- **Bugfix "Prompt fragments column on TYPO3 12.4"**: `ext_tables.sql` defines the `pages` column
+`tx_aim_prompt_fragments` (#38). TYPO3 12.4 does not create it from TCA, so the column was missing there. Run
+"Analyze Database Structure" after updating.
+
+- **Bugfix "Request log return URL"**: The request log detail view passes the request to
+`GeneralUtility::sanitizeLocalUrl()`, which TYPO3 14 deprecates calling without it.
 
 - **Feature "HTTP client for Symfony AI bridges"**: A pre-configured HTTP client can be injected into
 the factory of a Symfony AI bridge (#33), e.g. to add a proxy, custom headers or timeouts. When a
