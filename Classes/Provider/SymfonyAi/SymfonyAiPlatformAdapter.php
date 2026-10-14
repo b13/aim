@@ -20,7 +20,7 @@ use B13\Aim\Capability\ToolCallingCapableInterface;
 use B13\Aim\Capability\TranslationCapableInterface;
 use B13\Aim\Capability\VisionCapableInterface;
 use B13\Aim\Domain\Model\ProviderConfiguration;
-use B13\Aim\Event\HttpClientPlatformAdapterFactoryEvent;
+use B13\Aim\Event\ModifySymfonyAiHttpClientEvent;
 use B13\Aim\Provider\AiProviderInterface;
 use B13\Aim\Provider\CredentialRedactor;
 use B13\Aim\Request\ConversationRequest;
@@ -430,7 +430,7 @@ class SymfonyAiPlatformAdapter implements
         // does *NOT* inherit from \Psr\Http\Client\ClientInterface
         if ($this->factoryAcceptsHttpClient) {
             try {
-                $httpClientEvent = new HttpClientPlatformAdapterFactoryEvent($config);
+                $httpClientEvent = new ModifySymfonyAiHttpClientEvent($config);
                 GeneralUtility::makeInstance(EventDispatcherInterface::class)->dispatch($httpClientEvent);
                 if ($httpClientEvent->getHttpClient() !== null) {
                     $arguments['httpClient'] = $httpClientEvent->getHttpClient();

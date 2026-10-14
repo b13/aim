@@ -15,7 +15,7 @@ namespace B13\Aim\Event;
 use B13\Aim\Domain\Model\ProviderConfiguration;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
-final class HttpClientPlatformAdapterFactoryEvent
+final class ModifySymfonyAiHttpClientEvent
 {
     private ?HttpClientInterface $httpClient = null;
     public function __construct(
