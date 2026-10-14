@@ -22,6 +22,7 @@ use B13\Aim\Capability\VisionCapableInterface;
 use B13\Aim\Domain\Model\ProviderConfiguration;
 use B13\Aim\Provider\AiProviderInterface;
 use B13\Aim\Provider\CredentialRedactor;
+use B13\Aim\Provider\SymfonyAi\Event\ModifySymfonyAiHttpClientEvent;
 use B13\Aim\Request\ConversationRequest;
 use B13\Aim\Request\EmbeddingRequest;
 use B13\Aim\Request\ImageGenerationRequest;
@@ -43,6 +44,7 @@ use B13\Aim\Response\StreamChunkIterator;
 use B13\Aim\Response\TextResponse;
 use B13\Aim\Response\ToolCall;
 use B13\Aim\Response\ToolCallingResponse;
+use Psr\EventDispatcher\EventDispatcherInterface;
 use Symfony\AI\Platform\Exception\BadRequestException;
 use Symfony\AI\Platform\Message\Content\Image;
 use Symfony\AI\Platform\Message\Message;
@@ -94,6 +96,7 @@ class SymfonyAiPlatformAdapter implements
     private readonly string $endpointParam;
     private readonly bool $factoryAcceptsEndpoint;
     private readonly bool $factoryAcceptsApiKey;
+    private readonly bool $factoryAcceptsHttpClient;
 
     /**
      * @param string $factoryClass Fully-qualified class name of the bridge's Factory
@@ -111,13 +114,14 @@ class SymfonyAiPlatformAdapter implements
         $this->endpointParam = $parameters['endpoint'] ?? 'endpoint';
         $this->factoryAcceptsEndpoint = isset($parameters['endpoint']);
         $this->factoryAcceptsApiKey = isset($parameters['apiKey']);
+        $this->factoryAcceptsHttpClient = isset($parameters['httpClient']);
     }
 
     /**
      * Which arguments Factory::createProvider() declares, and under which name
      * (endpoint, hostUrl or baseUrl).
      *
-     * @return array{endpoint?: string, apiKey?: string}
+     * @return array{endpoint?: string, apiKey?: string, httpClient?: 'httpClient'}
      */
     private static function resolveFactoryParameterNames(string $factoryClass): array
     {
@@ -130,6 +134,9 @@ class SymfonyAiPlatformAdapter implements
                 }
                 if ($name === 'apiKey') {
                     $names['apiKey'] = $name;
+                }
+                if ($name === 'httpClient') {
+                    $names['httpClient'] = $name;
                 }
             }
         } catch (\ReflectionException) {
@@ -412,6 +419,21 @@ class SymfonyAiPlatformAdapter implements
             && !$config->expectsCredentialInUrl()
         ) {
             $arguments['apiKey'] = $config->apiKey;
+        }
+
+        // The Interface is not tested here to not create a dependency in the composer.json
+        // to symfony/http-contracts. But if someone is actually using the event, there it
+        // needs to be Symfony's \Symfony\Contracts\HttpClient\HttpClientInterface.
+        // In all practice this will not be a problem as the most likely scenario will be
+        // the use of the Symfony Bridges, which will require the package.
+        // Sadly, \Symfony\Contracts\HttpClient\HttpClientInterface
+        // does *NOT* inherit from \Psr\Http\Client\ClientInterface
+        if ($this->factoryAcceptsHttpClient) {
+            $httpClientEvent = new ModifySymfonyAiHttpClientEvent($config);
+            GeneralUtility::makeInstance(EventDispatcherInterface::class)->dispatch($httpClientEvent);
+            if ($httpClientEvent->getHttpClient() !== null) {
+                $arguments['httpClient'] = $httpClientEvent->getHttpClient();
+            }
         }
 
         if ($arguments === []) {
