@@ -3,14 +3,11 @@
 declare(strict_types=1);
 
 /*
- * This file is part of the TYPO3 project.
- * (c) 2025 B-Factor GmbH / Sudhaus7
+ * This file is part of TYPO3 CMS-based extension "aim" by b13.
  *
- * For the full copyright and license information, please view
- * the LICENSE file that was distributed with this source code.
- * The TYPO3 project - inspiring people to share!
- *
- * @copyright 2025 B-Factor GmbH / Sudhaus7
+ * It is free software; you can redistribute it and/or modify it under
+ * the terms of the GNU General Public License, either version 2
+ * of the License, or any later version.
  */
 
 namespace B13\Aim\Event;
