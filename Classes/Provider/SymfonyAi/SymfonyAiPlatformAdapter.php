@@ -429,13 +429,10 @@ class SymfonyAiPlatformAdapter implements
         // Sadly, \Symfony\Contracts\HttpClient\HttpClientInterface
         // does *NOT* inherit from \Psr\Http\Client\ClientInterface
         if ($this->factoryAcceptsHttpClient) {
-            try {
-                $httpClientEvent = new ModifySymfonyAiHttpClientEvent($config);
-                GeneralUtility::makeInstance(EventDispatcherInterface::class)->dispatch($httpClientEvent);
-                if ($httpClientEvent->getHttpClient() !== null) {
-                    $arguments['httpClient'] = $httpClientEvent->getHttpClient();
-                }
-            } catch (\Throwable) { // in case the Interface is not available
+            $httpClientEvent = new ModifySymfonyAiHttpClientEvent($config);
+            GeneralUtility::makeInstance(EventDispatcherInterface::class)->dispatch($httpClientEvent);
+            if ($httpClientEvent->getHttpClient() !== null) {
+                $arguments['httpClient'] = $httpClientEvent->getHttpClient();
             }
         }
 
