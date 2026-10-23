@@ -22,6 +22,7 @@ use B13\Aim\Capability\VisionCapableInterface;
 use B13\Aim\Domain\Model\ProviderConfiguration;
 use B13\Aim\Provider\AiProviderInterface;
 use B13\Aim\Provider\CredentialRedactor;
+use B13\Aim\Provider\SymfonyAi\Event\ModifySymfonyAiHttpClientEvent;
 use B13\Aim\Request\ConversationRequest;
 use B13\Aim\Request\EmbeddingRequest;
 use B13\Aim\Request\ImageGenerationRequest;
@@ -43,6 +44,7 @@ use B13\Aim\Response\StreamChunkIterator;
 use B13\Aim\Response\TextResponse;
 use B13\Aim\Response\ToolCall;
 use B13\Aim\Response\ToolCallingResponse;
+use Psr\EventDispatcher\EventDispatcherInterface;
 use Symfony\AI\Platform\Exception\BadRequestException;
 use Symfony\AI\Platform\Message\Content\Image;
 use Symfony\AI\Platform\Message\Message;
@@ -94,6 +96,7 @@ class SymfonyAiPlatformAdapter implements
     private readonly string $endpointParam;
     private readonly bool $factoryAcceptsEndpoint;
     private readonly bool $factoryAcceptsApiKey;
+    private readonly bool $factoryAcceptsHttpClient;
 
     /**
      * @param string $factoryClass Fully-qualified class name of the bridge's Factory
@@ -111,13 +114,14 @@ class SymfonyAiPlatformAdapter implements
         $this->endpointParam = $parameters['endpoint'] ?? 'endpoint';
         $this->factoryAcceptsEndpoint = isset($parameters['endpoint']);
         $this->factoryAcceptsApiKey = isset($parameters['apiKey']);
+        $this->factoryAcceptsHttpClient = isset($parameters['httpClient']);
     }
 
     /**
      * Which arguments Factory::createProvider() declares, and under which name
      * (endpoint, hostUrl or baseUrl).
      *
-     * @return array{endpoint?: string, apiKey?: string}
+     * @return array{endpoint?: string, apiKey?: string, httpClient?: 'httpClient'}
      */
     private static function resolveFactoryParameterNames(string $factoryClass): array
     {
@@ -130,6 +134,9 @@ class SymfonyAiPlatformAdapter implements
                 }
                 if ($name === 'apiKey') {
                     $names['apiKey'] = $name;
+                }
+                if ($name === 'httpClient') {
+                    $names['httpClient'] = $name;
                 }
             }
         } catch (\ReflectionException) {
@@ -396,7 +403,7 @@ class SymfonyAiPlatformAdapter implements
      * their endpoint in api_key, so the credential is dropped when it would
      * only repeat the endpoint.
      *
-     * @return array<string, string>
+     * @return array<string, mixed>
      */
     private function buildFactoryArguments(ProviderConfiguration $config): array
     {
@@ -420,6 +427,16 @@ class SymfonyAiPlatformAdapter implements
             $arguments = $this->factoryParam === 'endpoint'
                 ? [$this->endpointParam => $config->endpoint ?: $config->apiKey]
                 : ['apiKey' => $config->apiKey];
+        }
+
+        // Dispatched after the fallback, so a client never stands in for the
+        // argument the factory requires.
+        if ($this->factoryAcceptsHttpClient) {
+            $event = new ModifySymfonyAiHttpClientEvent($config);
+            GeneralUtility::makeInstance(EventDispatcherInterface::class)->dispatch($event);
+            if ($event->getHttpClient() !== null) {
+                $arguments['httpClient'] = $event->getHttpClient();
+            }
         }
 
         return $arguments;
