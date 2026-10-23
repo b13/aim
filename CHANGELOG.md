@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+- **Feature "HTTP client for Symfony AI bridges"**: A pre-configured HTTP client can be passed to the
+factory of a Symfony AI bridge (#33), e.g. to add a proxy, custom headers or timeouts. When a bridge
+factory declares an argument named `httpClient`, the new
+`B13\Aim\Provider\SymfonyAi\Event\ModifySymfonyAiHttpClientEvent` is dispatched with the provider
+configuration, and the client a listener sets, which must implement
+`Symfony\Contracts\HttpClient\HttpClientInterface`, is passed to the factory. The event is dispatched
+when the provider for a configuration is created, which happens once per configuration and process,
+so a listener cannot vary the client per request.
+
 ## 0.5.1
 
 Bugfix release: pages rendered for content extraction no longer reach the page cache, bridge capabilities follow

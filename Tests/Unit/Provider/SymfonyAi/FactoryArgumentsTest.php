@@ -82,6 +82,7 @@ final class FactoryArgumentsTest extends TestCase
         $this->set($adapter, 'endpointParam', $factory['endpoint'] ?? 'endpoint');
         $this->set($adapter, 'factoryAcceptsEndpoint', $factory['endpoint'] !== null);
         $this->set($adapter, 'factoryAcceptsApiKey', $factory['apiKey'] !== null);
+        $this->set($adapter, 'factoryAcceptsHttpClient', false);
         $this->set($adapter, 'factoryParam', $factory['endpoint'] !== null ? 'endpoint' : 'apiKey');
 
         $method = new \ReflectionMethod(SymfonyAiPlatformAdapter::class, 'buildFactoryArguments');
