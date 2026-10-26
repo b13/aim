@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- **Bugfix "Max tokens of 0"**: A request with a max tokens of 0, which a provider configuration's
+*Max Tokens* field passes on when it is set to 0, sent that 0 to the provider, and OpenAI rejected the
+request ("Invalid 'max_output_tokens' … got 0"). 0 now means no limit: the option is left out and the
+provider's default applies (the Anthropic bridge then sends 1000).
+
 - **Feature "HTTP client for Symfony AI bridges"**: A pre-configured HTTP client can be passed to the
 factory of a Symfony AI bridge (#33), e.g. to add a proxy, custom headers or timeouts. When a bridge
 factory declares an argument named `httpClient`, the new

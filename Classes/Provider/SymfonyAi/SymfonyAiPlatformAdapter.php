@@ -739,12 +739,16 @@ class SymfonyAiPlatformAdapter implements
     }
 
     /**
-     * Build the options array for platform->invoke(). Temperature is only
-     * sent when the caller set one; otherwise the provider default applies.
+     * Build the options array for platform->invoke(). A max tokens of 0 means
+     * no limit, and temperature is only sent when the caller set one; in both
+     * cases the provider default applies.
      */
     private function buildOptions(int $maxTokens, ?float $temperature, array $extra = []): array
     {
-        $options = [$this->maxTokensKey => $maxTokens] + $extra;
+        $options = $extra;
+        if ($maxTokens > 0) {
+            $options = [$this->maxTokensKey => $maxTokens] + $options;
+        }
         if ($temperature !== null) {
             $options['temperature'] = $temperature;
         }

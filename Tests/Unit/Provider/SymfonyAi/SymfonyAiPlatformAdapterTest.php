@@ -74,6 +74,18 @@ final class SymfonyAiPlatformAdapterTest extends TestCase
     }
 
     #[Test]
+    public function buildOptionsSendsNoMaxTokensForZero(): void
+    {
+        // OpenAI rejects max_output_tokens below 16; 0 means no limit
+        $adapter = new SymfonyAiPlatformAdapter('Symfony\\AI\\Platform\\Bridge\\OpenAi\\PlatformFactory');
+        $buildOptions = new \ReflectionMethod($adapter, 'buildOptions');
+
+        self::assertSame([], $buildOptions->invoke($adapter, 0, null));
+        self::assertSame(['tools' => []], $buildOptions->invoke($adapter, 0, null, ['tools' => []]));
+        self::assertSame(['max_output_tokens' => 150], $buildOptions->invoke($adapter, 150, null));
+    }
+
+    #[Test]
     public function buildOptionsSendsTemperatureOnlyWhenTheCallerSetOne(): void
     {
         $adapter = new SymfonyAiPlatformAdapter('Symfony\\AI\\Platform\\Bridge\\Anthropic\\PlatformFactory');
