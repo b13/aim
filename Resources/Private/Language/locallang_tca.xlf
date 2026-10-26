@@ -142,7 +142,7 @@ reroute TO this one is controlled separately, by "Accept rerouted requests".
                 <source>Max Tokens</source>
             </trans-unit>
             <trans-unit id="tx_aim_configuration.columns.max_tokens.description" resname="tx_aim_configuration.columns.max_tokens.description">
-                <source>Upper limit on the length of every response from this configuration, in tokens. The default of 150 is roughly two sentences, which is deliberately small: raise it for anything longer, and raise it well above the answer length you expect for a reasoning model, since its internal reasoning counts against the same limit.</source>
+                <source>Upper limit on the length of every response from this configuration, in tokens. The default of 150 is roughly two sentences, which is deliberately small: raise it for anything longer, and raise it well above the answer length you expect for a reasoning model, since its internal reasoning counts against the same limit. 0 sends no limit, so the provider's own default applies.</source>
             </trans-unit>
             <trans-unit id="tx_aim_configuration.columns.input_token_cost.label" resname="tx_aim_configuration.columns.input_token_cost.label">
                 <source>Input Token Cost (per 1M)</source>
