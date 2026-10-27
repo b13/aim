@@ -9,8 +9,11 @@ TYPO3 14.3.8 removes the option from workspace aware tables and logs a TCA migra
 tables, which made test suites with `failOnDeprecation` fail as soon as aim was loaded. The option is gone; on
 TYPO3 12.4, 13.4 and 14.0 to 14.3.7 a fragment or an assignment edited in a workspace is now versioned like on
 14.3.8 and later. The tone of voice resolved within a workspace now also follows an assignment activated,
-deactivated or created in that workspace, and the Prompt Management listings, the assignment counts and
-`aim:calibrateVoice` read live records only instead of mixing in workspace versions.
+deactivated or created in that workspace. The Prompt Management module and `PromptManagementApi` show the
+fragments and assignments of the backend user's workspace instead of mixing live records and workspace versions;
+the paginated Pages and Library listings filter, sort and count live records plus the ones created in that
+workspace, like the core Records module. `aim:calibrateVoice` and `PromptManagementApi::saveAutoDetectedFragment()`
+still write live and read live records only.
 
 - **Bugfix "Smart routing with dated model names"**: Smart routing never downgraded a request to OpenAI
 or Anthropic. The request log stores the model name a provider reports, a dated snapshot

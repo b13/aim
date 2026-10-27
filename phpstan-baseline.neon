@@ -79,24 +79,6 @@ parameters:
 			path: Classes/Domain/Repository/PagePromptFragmentDemand.php
 
 		-
-			rawMessage: 'Method B13\Aim\Domain\Repository\PagePromptFragmentRepository::findAssignmentsForPage() should return list<array{uid: int, inherit_to_subpages: int, title: string, scope: string, hidden: int}> but returns list<array<string, mixed>>.'
-			identifier: return.type
-			count: 1
-			path: Classes/Domain/Repository/PagePromptFragmentRepository.php
-
-		-
-			rawMessage: 'Method B13\Aim\Domain\Repository\PagePromptFragmentRepository::findAutoDetectedFragmentForRootPage() should return array{uid: int, title: string, prompt: string, examples: string, auto_generated_source: string, hidden: int}|null but returns array<string, mixed>|null.'
-			identifier: return.type
-			count: 1
-			path: Classes/Domain/Repository/PagePromptFragmentRepository.php
-
-		-
-			rawMessage: 'Method B13\Aim\Domain\Repository\PagePromptFragmentRepository::findUsagePagesForFragment() should return list<array{uid: int, pid: int, title: string, hidden: bool, doktype: int, is_siteroot: bool}> but returns list<array{uid: int, pid: int, title: string, hidden: bool, doktype: int, is_siteroot: bool, starttime: int, endtime: int, ...}>.'
-			identifier: return.type
-			count: 1
-			path: Classes/Domain/Repository/PagePromptFragmentRepository.php
-
-		-
 			rawMessage: 'Method TYPO3\CMS\Core\Database\Connection::lastInsertId() invoked with 1 parameter, 0 required.'
 			identifier: arguments.count
 			count: 2
