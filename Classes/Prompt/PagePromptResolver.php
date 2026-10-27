@@ -234,7 +234,7 @@ class PagePromptResolver
         $assignmentQueryBuilder->getRestrictions()
             ->removeByType(HiddenRestriction::class)
             ->add(GeneralUtility::makeInstance(WorkspaceRestriction::class, $this->getWorkspaceId()));
-        $assignmentRows = $assignmentQueryBuilder->select('uid', 'pid', 't3ver_wsid', 't3ver_oid', 't3ver_state', 'hidden', 'parent_page', 'fragment', 'inherit_to_subpages')
+        $assignmentRows = $assignmentQueryBuilder->select('uid', 'pid', 't3ver_wsid', 't3ver_oid', 't3ver_state', 'hidden', 'sorting', 'parent_page', 'fragment', 'inherit_to_subpages')
             ->from(self::ASSIGNMENT_TABLE)
             ->where(
                 $assignmentQueryBuilder->expr()->in('parent_page', $assignmentQueryBuilder->createNamedParameter($pageIds, Connection::PARAM_INT_ARRAY)),
@@ -253,6 +253,8 @@ class PagePromptResolver
                 $liveAssignments[] = $row;
             }
         }
+        // The query sorted live rows; a workspace can reorder them.
+        usort($liveAssignments, static fn(array $a, array $b): int => [(int)$a['sorting'], (int)$a['uid']] <=> [(int)$b['sorting'], (int)$b['uid']]);
 
         $fragmentUids = array_values(array_unique(array_map(
             static fn(array $row): int => (int)$row['fragment'],

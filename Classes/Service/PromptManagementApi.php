@@ -116,6 +116,11 @@ final class PromptManagementApi
      * is saved. Pass $hidden = false only where a human has already approved
      * the text. Re-running never re-hides an assignment somebody activated.
      *
+     * The fragment is written live, also when the backend user works in a
+     * workspace, while findToneOfVoice() reads that workspace. A workspace
+     * version of the fragment therefore still shows its own text there, and
+     * publishing it replaces what was saved here.
+     *
      * @param list<string> $scope
      */
     public function saveAutoDetectedFragment(

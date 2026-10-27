@@ -277,7 +277,9 @@ class PagePromptFragmentRepository
      * so it always reflects whichever caller produced the CURRENT content,
      * not just whoever created the row first.
      *
-     * Bypasses DataHandler deliberately.
+     * Bypasses DataHandler deliberately, and so writes live in any workspace.
+     * Where an editor has a workspace version of the fragment, publishing
+     * that version replaces what this wrote: the editor's pending edit wins.
      */
     public function upsertAutoDetectedFragment(
         int $pageId,
@@ -429,19 +431,18 @@ class PagePromptFragmentRepository
     private function isFragmentSharedWithAnotherAssignment(int $fragmentUid, int $excludeAssignmentUid): bool
     {
         $qb = $this->connectionPool->getQueryBuilderForTable(self::ASSIGNMENT_TABLE);
-        // Live rows only, like the upsert this guards: a workspace-only
-        // assignment reusing $fragmentUid has no live counterpart yet and
-        // must not count as "shared".
-        $qb->getRestrictions()->add(GeneralUtility::makeInstance(WorkspaceRestriction::class, 0));
-        // An inactive assignment is a pending reuse, which is the case this
-        // guard most needs to see: missing it means a re-run rewrites the
-        // shared fragment and silently replaces content awaiting review.
-        $qb->getRestrictions()->removeByType(HiddenRestriction::class);
+        // An inactive assignment and one created or edited in any workspace
+        // are pending reuses, which is the case this guard most needs to see:
+        // missing one means a re-run rewrites the shared fragment and the
+        // content awaiting review or publishing silently changes. A workspace
+        // version of the excluded assignment itself is not another one.
+        $qb->getRestrictions()->removeAll()->add(GeneralUtility::makeInstance(DeletedRestriction::class));
         $count = $qb->count('uid')
             ->from(self::ASSIGNMENT_TABLE)
             ->where(
                 $qb->expr()->eq('fragment', $qb->createNamedParameter($fragmentUid, Connection::PARAM_INT)),
                 $qb->expr()->neq('uid', $qb->createNamedParameter($excludeAssignmentUid, Connection::PARAM_INT)),
+                $qb->expr()->neq('t3ver_oid', $qb->createNamedParameter($excludeAssignmentUid, Connection::PARAM_INT)),
             )
             ->executeQuery()
             ->fetchOne();
@@ -689,7 +690,9 @@ class PagePromptFragmentRepository
             ->removeAll()
             ->add(GeneralUtility::makeInstance(DeletedRestriction::class))
             ->add(GeneralUtility::makeInstance(WorkspaceRestriction::class, $this->getWorkspaceId()));
-        $qb->from(self::FRAGMENT_TABLE);
+        // A move pointer would be counted next to its live row, which the overlay already moves.
+        $qb->from(self::FRAGMENT_TABLE)
+            ->where($qb->expr()->eq('t3ver_oid', $qb->createNamedParameter(0, Connection::PARAM_INT)));
 
         if ($demand->hasScope() && $demand->getScope() !== PromptFragmentScope::All) {
             $qb->andWhere($qb->expr()->or(

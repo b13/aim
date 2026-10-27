@@ -357,6 +357,35 @@ final class PagePromptResolverTest extends FunctionalTestCase
         self::assertSame('Workspace-new tone.', $this->get(PagePromptResolver::class)->resolve(22, PromptFragmentScope::All));
     }
 
+    #[Test]
+    public function assignmentsReorderedInAWorkspaceAreComposedInThatWorkspacesOrder(): void
+    {
+        $firstUid = $this->insertWorkspaceTestPage(23, 'First tone.');
+        $secondUid = $this->insertFragment(
+            $this->getConnectionPool()->getConnectionForTable('tx_aim_prompt_fragment'),
+            'Second fragment',
+            'Second tone.',
+            '',
+            PromptFragmentScope::All->value,
+        );
+        $assignments = $this->getConnectionPool()->getConnectionForTable('tx_aim_page_prompt_fragment');
+        $assignments->insert('tx_aim_page_prompt_fragment', ['pid' => 23, 'parent_page' => 23, 'fragment' => $firstUid, 'sorting' => 1]);
+        $firstAssignmentUid = (int)$assignments->lastInsertId();
+        $assignments->insert('tx_aim_page_prompt_fragment', ['pid' => 23, 'parent_page' => 23, 'fragment' => $secondUid, 'sorting' => 2]);
+        $assignments->insert('tx_aim_page_prompt_fragment', [
+            'pid' => 23,
+            'parent_page' => 23,
+            'fragment' => $firstUid,
+            'sorting' => 3,
+            't3ver_wsid' => 1,
+            't3ver_oid' => $firstAssignmentUid,
+        ]);
+
+        self::assertSame("First tone.\n\nSecond tone.", $this->get(PagePromptResolver::class)->resolve(23, PromptFragmentScope::All));
+        $this->get(Context::class)->setAspect('workspace', new WorkspaceAspect(1));
+        self::assertSame("Second tone.\n\nFirst tone.", $this->get(PagePromptResolver::class)->resolve(23, PromptFragmentScope::All));
+    }
+
     private function insertWorkspaceTestPage(int $pageId, string $prompt): int
     {
         $this->getConnectionPool()->getConnectionForTable('pages')
