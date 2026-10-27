@@ -79,7 +79,7 @@ class RequestLogController
         $buttonBar->addButton($shortcutButton, ButtonBar::BUTTON_POSITION_RIGHT, 3);
 
         $demand = RequestLogDemand::fromRequest($request);
-        $logEntries = $this->logRepository->findByDemand($demand);
+        $logEntries = array_map($this->withModelRequestedDiffers(...), $this->logRepository->findByDemand($demand));
         $totalCount = $this->logRepository->countByDemand($demand);
 
         $paginator = new DemandedArrayPaginator(
@@ -177,6 +177,7 @@ class RequestLogController
         if ($entry === null) {
             return ['entry' => null];
         }
+        $entry = $this->withModelRequestedDiffers($entry);
 
         $configurationUid = (int)($entry['configuration_uid'] ?? 0);
         $entry['configuration_edit_url'] = $configurationUid > 0
@@ -203,7 +204,7 @@ class RequestLogController
         }
 
         $demand = RequestLogDemand::fromRequest($request);
-        $logEntries = $this->logRepository->findByDemand($demand);
+        $logEntries = array_map($this->withModelRequestedDiffers(...), $this->logRepository->findByDemand($demand));
         $totalCount = $this->logRepository->countByDemand($demand);
         $statistics = $this->logRepository->getStatistics();
 
@@ -249,6 +250,7 @@ class RequestLogController
                     : '',
                 'model_used' => $entry['model_used'] ?: ($entry['model_requested'] ?? ''),
                 'model_requested' => $entry['model_requested'] ?? '',
+                'model_requested_differs' => $entry['model_requested_differs'],
                 'total_tokens' => (int)($entry['total_tokens'] ?? 0),
                 'prompt_tokens' => (int)($entry['prompt_tokens'] ?? 0),
                 'completion_tokens' => (int)($entry['completion_tokens'] ?? 0),
@@ -280,6 +282,23 @@ class RequestLogController
             'rows' => $rows,
             'totalCount' => $totalCount,
         ]);
+    }
+
+    /**
+     * Whether the entry ran on another model than the one requested. Compared
+     * with the configured model, since the name a provider reports for it is
+     * often a dated snapshot or the target of an alias.
+     *
+     * @param array<string, mixed> $entry
+     * @return array<string, mixed>
+     */
+    private function withModelRequestedDiffers(array $entry): array
+    {
+        // Entries logged before model_configured existed only have the name the provider reported
+        $ran = (string)($entry['model_configured'] ?? '') ?: (string)($entry['model_used'] ?? '');
+        $requested = (string)($entry['model_requested'] ?? '');
+        $entry['model_requested_differs'] = $ran !== '' && $requested !== '' && $requested !== $ran;
+        return $entry;
     }
 
     /**

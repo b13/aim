@@ -233,6 +233,8 @@ class RequestLogRepository
      * Performance profile per model for a given request type.
      * Used by smart routing middleware.
      *
+     * "model_used" is the model as the configuration names it (model_configured).
+     *
      * @return list<array{model_used: string, request_count: int, avg_cost: float, avg_duration_ms: int, success_rate: float, avg_tokens: int, graded_count: int, avg_grade_score: float}>
      */
     public function getModelPerformanceProfile(string $requestType = ''): array
@@ -241,21 +243,39 @@ class RequestLogRepository
             ->executeQuery()
             ->fetchAllAssociative();
 
+        $merged = [];
+        foreach ($rows as $row) {
+            // model_used is what the provider reported, often a dated snapshot
+            // (gpt-4o-mini-2024-07-18) or an alias target no configuration names.
+            // Entries logged before model_configured existed keep that name.
+            $model = (string)$row['model_configured'] ?: (string)$row['model_used'];
+            if (!isset($merged[$model])) {
+                $merged[$model] = ['model_used' => $model, 'request_count' => 0, 'cost_sum' => 0.0, 'duration_sum' => 0, 'tokens_sum' => 0, 'successful_requests' => 0, 'grade_score_sum' => 0.0, 'graded_count' => 0];
+            }
+            $merged[$model]['request_count'] += (int)$row['request_count'];
+            $merged[$model]['cost_sum'] += (float)$row['cost_sum'];
+            $merged[$model]['duration_sum'] += (int)$row['duration_sum'];
+            $merged[$model]['tokens_sum'] += (int)$row['tokens_sum'];
+            $merged[$model]['successful_requests'] += (int)$row['successful_requests'];
+            $merged[$model]['grade_score_sum'] += (float)$row['grade_score_sum'];
+            $merged[$model]['graded_count'] += (int)$row['graded_count'];
+        }
+        usort($merged, static fn(array $a, array $b): int => $b['request_count'] <=> $a['request_count']);
+
         return array_map(static function (array $row): array {
-            $count = (int)$row['request_count'];
-            $successful = (int)$row['successful_requests'];
-            $gradedCount = (int)$row['graded_count'];
+            $count = $row['request_count'];
+            $gradedCount = $row['graded_count'];
             return [
                 'model_used' => $row['model_used'],
                 'request_count' => $count,
-                'avg_cost' => round((float)$row['avg_cost'], 6),
-                'avg_duration_ms' => (int)$row['avg_duration_ms'],
-                'success_rate' => $count > 0 ? round($successful / $count * 100, 1) : 0,
-                'avg_tokens' => (int)$row['avg_tokens'],
+                'avg_cost' => round($row['cost_sum'] / $count, 6),
+                'avg_duration_ms' => intdiv($row['duration_sum'], $count),
+                'success_rate' => round($row['successful_requests'] / $count * 100, 1),
+                'avg_tokens' => intdiv($row['tokens_sum'], $count),
                 'graded_count' => $gradedCount,
-                'avg_grade_score' => $gradedCount > 0 ? round((float)$row['grade_score_sum'] / $gradedCount, 4) : 0.0,
+                'avg_grade_score' => $gradedCount > 0 ? round($row['grade_score_sum'] / $gradedCount, 4) : 0.0,
             ];
-        }, $rows);
+        }, $merged);
     }
 
     private function buildModelPerformanceQueryBuilder(string $requestType): QueryBuilder
@@ -264,11 +284,12 @@ class RequestLogRepository
         $qb = $this->getQueryBuilder();
         $qb->selectLiteral(
             'model_used',
+            'model_configured',
             $qb->expr()->count('*', 'request_count'),
-            'AVG(cost) AS avg_cost',
-            'AVG(duration_ms) AS avg_duration_ms',
+            'SUM(cost) AS cost_sum',
+            'SUM(duration_ms) AS duration_sum',
             'SUM(success) AS successful_requests',
-            'AVG(total_tokens) AS avg_tokens',
+            'SUM(total_tokens) AS tokens_sum',
             sprintf("SUM(CASE WHEN grade_status = '%s' THEN grade_score ELSE 0 END) AS grade_score_sum", $done),
             sprintf("SUM(CASE WHEN grade_status = '%s' THEN 1 ELSE 0 END) AS graded_count", $done),
         );
@@ -278,9 +299,7 @@ class RequestLogRepository
         } else {
             $qb->where($qb->expr()->neq('model_used', $qb->createNamedParameter('')));
         }
-        return $qb
-            ->groupBy('model_used')
-            ->orderBy('request_count', 'DESC');
+        return $qb->groupBy('model_used', 'model_configured');
     }
 
     public function getDistinctProviders(): array

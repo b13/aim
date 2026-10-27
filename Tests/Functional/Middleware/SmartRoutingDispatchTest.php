@@ -105,6 +105,76 @@ final class SmartRoutingDispatchTest extends FunctionalTestCase
     }
 
     /**
+     * Providers report dated model names (gpt-4o-mini-2024-07-18) where the
+     * configuration says gpt-4o-mini.
+     */
+    #[Test]
+    public function aSimplePromptIsDowngradedWhenTheHistoryHasDatedModelNames(): void
+    {
+        $this->createConfiguration('gpt-4o', ['default' => 1]);
+        $cheap = $this->createConfiguration('gpt-4o-mini');
+        $this->seedHistory('gpt-4o-2024-08-06', 0.01, configured: 'gpt-4o');
+        $this->seedHistory('gpt-4o-mini-2024-07-18', 0.0001, configured: 'gpt-4o-mini');
+
+        $this->dispatch('Hi');
+
+        self::assertSame([$cheap], $this->provider->seen, 'Dated model names in the history kept smart routing from downgrading.');
+    }
+
+    #[Test]
+    public function historyUnderDatedAndUndatedNamesCountsForTheSameModel(): void
+    {
+        $this->createConfiguration('gpt-4o', ['default' => 1]);
+        $cheap = $this->createConfiguration('gpt-4o-mini');
+        $this->seedHistory('gpt-4o', 0.01, configured: 'gpt-4o');
+        // 6 + 6: neither name alone reaches the 10 requests routing needs
+        $this->seedHistory('gpt-4o-mini', 0.0001, 1000, 6, configured: 'gpt-4o-mini');
+        $this->seedHistory('gpt-4o-mini-2024-07-18', 0.0001, 1000, 6, configured: 'gpt-4o-mini');
+
+        $this->dispatch('Hi');
+
+        self::assertSame([$cheap], $this->provider->seen);
+    }
+
+    /**
+     * A downgrade is logged against the model it was routed away from, and
+     * the cheap model reports a name no configuration contains. Counted under
+     * that name, the downgrades formed a profile cheaper than the model's own,
+     * which no configuration could take, and routing stopped downgrading.
+     */
+    #[Test]
+    public function downgradesKeepCountingForTheConfigurationTheyRanOn(): void
+    {
+        $this->createConfiguration('claude-sonnet-4-0', ['default' => 1]);
+        $cheap = $this->createConfiguration('claude-3-5-haiku-latest');
+        $this->seedHistory('claude-sonnet-4-20250514', 0.01, configured: 'claude-sonnet-4-0');
+        $this->seedHistory('claude-3-5-haiku-20241022', 0.0002, configured: 'claude-3-5-haiku-latest');
+        $this->seedHistory('claude-3-5-haiku-20241022', 0.0001, configured: 'claude-3-5-haiku-latest', requested: 'claude-sonnet-4-0', rerouteType: 'model_switch');
+
+        $this->dispatch('Hi');
+
+        self::assertSame([$cheap], $this->provider->seen);
+    }
+
+    /**
+     * Older log entries carry no configured model, so their history can still
+     * end up under a name no configuration contains.
+     */
+    #[Test]
+    public function aCheaperModelWithoutAConfigurationDoesNotStopTheDowngrade(): void
+    {
+        $this->createConfiguration(self::EXPENSIVE_MODEL, ['default' => 1]);
+        $cheap = $this->createConfiguration(self::CHEAP_MODEL);
+        $this->seedHistory(self::EXPENSIVE_MODEL, 0.01);
+        $this->seedHistory(self::CHEAP_MODEL, 0.001);
+        $this->seedHistory('unconfigured-model', 0.0001);
+
+        $this->dispatch('Hi');
+
+        self::assertSame([$cheap], $this->provider->seen);
+    }
+
+    /**
      * The downgrade used to be visible only in the system log: the request log
      * recorded a plain request against the cheaper model.
      */
@@ -122,6 +192,7 @@ final class SmartRoutingDispatchTest extends FunctionalTestCase
         self::assertSame(1, (int)$row['rerouted'], 'The downgrade was not recorded as a reroute.');
         self::assertSame('model_switch', $row['reroute_type']);
         self::assertSame(self::EXPENSIVE_MODEL, $row['model_requested'], 'The original model was not kept.');
+        self::assertSame(self::CHEAP_MODEL, $row['model_configured']);
         self::assertStringContainsString('smart routing', $row['reroute_reason']);
         self::assertStringContainsString('cost 0.010000 -> 0.000100', $row['reroute_reason']);
         self::assertStringContainsString('duration 1000 -> 900 ms', $row['reroute_reason']);
@@ -214,15 +285,26 @@ final class SmartRoutingDispatchTest extends FunctionalTestCase
         return $rows[0];
     }
 
-    private function seedHistory(string $model, float $cost, int $durationMs = 1000): void
+    private function seedHistory(
+        string $model,
+        float $cost,
+        int $durationMs = 1000,
+        int $count = 12,
+        string $requested = '',
+        string $configured = '',
+        string $rerouteType = '',
+    ): void
     {
         $logRepository = $this->get(RequestLogRepository::class);
-        for ($i = 0; $i < 12; $i++) {
+        for ($i = 0; $i < $count; $i++) {
             $logRepository->log([
                 'crdate' => time(),
                 'request_type' => 'TextGenerationRequest',
                 'provider_identifier' => 'testprovider',
+                'model_requested' => $requested,
                 'model_used' => $model,
+                'model_configured' => $configured,
+                'reroute_type' => $rerouteType,
                 'success' => 1,
                 'cost' => $cost,
                 'duration_ms' => $durationMs,

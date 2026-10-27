@@ -181,6 +181,31 @@ final class RequestLogControllerPollTest extends FunctionalTestCase
     }
 
     /**
+     * An alias is reported under a name that shares nothing with it but the
+     * family, so only the configured model tells a reroute apart.
+     */
+    #[Test]
+    public function pollActionFlagsAnAliasedModelOnlyWhenTheRequestWasRerouted(): void
+    {
+        $this->getConnectionPool()->getConnectionForTable('be_users')->insert('be_users', [
+            'uid' => 1,
+            'pid' => 0,
+            'username' => 'admin',
+            'admin' => 1,
+        ]);
+        $this->setUpBackendUser(1);
+        $GLOBALS['LANG'] = $this->get(LanguageServiceFactory::class)->createFromUserPreferences($GLOBALS['BE_USER']);
+
+        $logRepo = $this->get(RequestLogRepository::class);
+        $logRepo->log(['request_type' => 'TextGenerationRequest', 'provider_identifier' => 'test', 'model_requested' => 'claude-sonnet-4-0', 'model_configured' => 'claude-sonnet-4-0', 'model_used' => 'claude-sonnet-4-20250514', 'cost' => 0.1]);
+        $logRepo->log(['request_type' => 'TextGenerationRequest', 'provider_identifier' => 'test', 'model_requested' => 'claude-sonnet-4-0', 'model_configured' => 'claude-3-5-haiku-latest', 'model_used' => 'claude-3-5-haiku-20241022', 'reroute_type' => 'model_switch', 'cost' => 0.2]);
+
+        $rows = $this->rowsOf($this->poll(['orderField' => 'cost', 'orderDirection' => 'asc']));
+
+        self::assertSame([false, true], array_column($rows, 'model_requested_differs'));
+    }
+
+    /**
      * @return array<int, array<string, mixed>>
      */
     private function rowsOf(ResponseInterface $response): array

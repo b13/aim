@@ -347,8 +347,8 @@ final class SmartRoutingMiddleware implements AiMiddlewareInterface
             return null;
         }
 
-        // Find a cheaper model with good success rate
-        $bestCandidate = null;
+        // Find cheaper models with good success rate
+        $candidates = [];
         foreach ($profiles as $profile) {
             if ($profile['model_used'] === $currentConfig->model) {
                 continue;
@@ -377,40 +377,41 @@ final class SmartRoutingMiddleware implements AiMiddlewareInterface
                 continue;
             }
 
-            // Cheaper + reliable — is there a config for this model?
-            if ($bestCandidate === null || $profile['avg_cost'] < $bestCandidate['avg_cost']) {
-                $bestCandidate = $profile;
-            }
+            $candidates[] = $profile;
         }
 
-        if ($bestCandidate === null) {
+        if ($candidates === []) {
             return null;
         }
+        usort($candidates, static fn(array $a, array $b): int => $a['avg_cost'] <=> $b['avg_cost']);
 
-        // Resolve the cheaper model's provider + config
+        // The cheapest candidate a configuration can take; history can name a
+        // model no configuration (any longer) does
         try {
             $capabilityFqcn = $this->resolveCapabilityForRequest($request);
             if ($capabilityFqcn === null) {
                 return null;
             }
             $allProviders = $this->providerResolver->resolveAllForCapability($capabilityFqcn);
-            foreach ($allProviders as $resolved) {
-                if ($resolved->configuration->model === $bestCandidate['model_used']
-                    && !$resolved->configuration->disabled
-                    && $resolved->configuration->acceptsReroutedRequests
-                    && $this->configurationAccess->isAccessibleByCurrentUser($resolved->configuration)
-                ) {
-                    return [
-                        'provider' => $resolved->manifest->getInstance(),
-                        'configuration' => $resolved->configuration,
-                        'avg_grade_score' => $bestCandidate['avg_grade_score'],
-                        'graded_count' => $bestCandidate['graded_count'],
-                        'avg_cost' => $bestCandidate['avg_cost'],
-                        'avg_duration_ms' => $bestCandidate['avg_duration_ms'],
-                        'avg_tokens' => $bestCandidate['avg_tokens'],
-                        'from_cost' => $currentCost,
-                        'from_duration_ms' => $currentDuration ?? 0,
-                    ];
+            foreach ($candidates as $candidate) {
+                foreach ($allProviders as $resolved) {
+                    if ($resolved->configuration->model === $candidate['model_used']
+                        && !$resolved->configuration->disabled
+                        && $resolved->configuration->acceptsReroutedRequests
+                        && $this->configurationAccess->isAccessibleByCurrentUser($resolved->configuration)
+                    ) {
+                        return [
+                            'provider' => $resolved->manifest->getInstance(),
+                            'configuration' => $resolved->configuration,
+                            'avg_grade_score' => $candidate['avg_grade_score'],
+                            'graded_count' => $candidate['graded_count'],
+                            'avg_cost' => $candidate['avg_cost'],
+                            'avg_duration_ms' => $candidate['avg_duration_ms'],
+                            'avg_tokens' => $candidate['avg_tokens'],
+                            'from_cost' => $currentCost,
+                            'from_duration_ms' => $currentDuration ?? 0,
+                        ];
+                    }
                 }
             }
         } catch (\Throwable) {
