@@ -197,6 +197,7 @@ class PagePromptFragmentRepository
     public function findAssignmentsForPage(int $pageId): array
     {
         $qb = $this->connectionPool->getQueryBuilderForTable(self::ASSIGNMENT_TABLE);
+        $qb->getRestrictions()->add(GeneralUtility::makeInstance(WorkspaceRestriction::class, 0));
         // The module reviews and activates hidden assignments, so it has to see them, unlike PagePromptResolver.
         $qb->getRestrictions()->removeByType(HiddenRestriction::class);
         return $qb->select(
@@ -228,6 +229,7 @@ class PagePromptFragmentRepository
     public function findAutoDetectedFragmentForRootPage(int $rootPageId): ?array
     {
         $qb = $this->connectionPool->getQueryBuilderForTable(self::ASSIGNMENT_TABLE);
+        $qb->getRestrictions()->add(GeneralUtility::makeInstance(WorkspaceRestriction::class, 0));
         // A freshly calibrated fragment is hidden, and this is what shows it.
         $qb->getRestrictions()->removeByType(HiddenRestriction::class);
         $row = $qb->select(
@@ -264,11 +266,13 @@ class PagePromptFragmentRepository
     public function countAllAssignments(): array
     {
         $totalQb = $this->connectionPool->getQueryBuilderForTable(self::ASSIGNMENT_TABLE);
+        $totalQb->getRestrictions()->add(GeneralUtility::makeInstance(WorkspaceRestriction::class, 0));
         $totalQb->getRestrictions()->removeByType(HiddenRestriction::class);
         $total = (int)$totalQb->count('uid')->from(self::ASSIGNMENT_TABLE)
             ->executeQuery()->fetchOne();
 
         $inheritedQb = $this->connectionPool->getQueryBuilderForTable(self::ASSIGNMENT_TABLE);
+        $inheritedQb->getRestrictions()->add(GeneralUtility::makeInstance(WorkspaceRestriction::class, 0));
         $inheritedQb->getRestrictions()->removeByType(HiddenRestriction::class);
         $inherited = (int)$inheritedQb->count('uid')->from(self::ASSIGNMENT_TABLE)
             ->where($inheritedQb->expr()->eq('inherit_to_subpages', $inheritedQb->createNamedParameter(1, Connection::PARAM_INT)))
@@ -312,6 +316,9 @@ class PagePromptFragmentRepository
         bool $inheritToSubpages = true,
     ): int {
         $assignmentQb = $this->connectionPool->getQueryBuilderForTable(self::ASSIGNMENT_TABLE);
+        // Live rows only: this write bypasses DataHandler, so it must never
+        // pick up and overwrite a workspace version of the assignment.
+        $assignmentQb->getRestrictions()->add(GeneralUtility::makeInstance(WorkspaceRestriction::class, 0));
         $assignmentQb->getRestrictions()->removeByType(HiddenRestriction::class);
         $existingAssignment = $assignmentQb
             ->select('uid', 'fragment')
@@ -320,6 +327,8 @@ class PagePromptFragmentRepository
                 $assignmentQb->expr()->eq('parent_page', $assignmentQb->createNamedParameter($pageId, Connection::PARAM_INT)),
                 $assignmentQb->expr()->eq('auto_generated', $assignmentQb->createNamedParameter(1, Connection::PARAM_INT)),
             )
+            ->orderBy('uid')
+            ->setMaxResults(1)
             ->executeQuery()
             ->fetchAssociative();
 

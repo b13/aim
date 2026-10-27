@@ -87,7 +87,7 @@ A page can also check **"Disable inherited prompt fragments"** to skip every anc
 
 DB fragment inheritance stops at the nearest `is_siteroot` ancestor: in a nested-site install (one site's page tree living under another site's), a page's own assignments never leak into an unrelated site. Page TSconfig fragments deliberately don't get this treatment; `getPagesTSconfig()` has never respected site boundaries, and that's an established, technical-audience convention this extension doesn't override.
 
-DB fragments respect workspace overlays for edits to *either* the assignment or the library fragment's own content: an edit made in a workspace is visible when resolving within that workspace. A fragment or assignment created entirely new within a workspace (no live counterpart yet) won't appear until published.
+DB fragments respect workspaces for *either* the assignment or the library fragment's own content: an edit, an activation or deactivation, a deletion and a fragment or assignment created new within a workspace are visible when resolving within that workspace, and only there until published.
 
 To have a request resolve against a page, pass `pageId`:
 

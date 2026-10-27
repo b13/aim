@@ -294,6 +294,83 @@ final class PagePromptResolverTest extends FunctionalTestCase
     }
 
     #[Test]
+    public function anAssignmentActivatedInAWorkspaceIsComposedOnlyWithinThatWorkspace(): void
+    {
+        $fragmentUid = $this->insertWorkspaceTestPage(20, 'Activated tone.');
+        $assignments = $this->getConnectionPool()->getConnectionForTable('tx_aim_page_prompt_fragment');
+        $assignments->insert('tx_aim_page_prompt_fragment', ['pid' => 20, 'parent_page' => 20, 'fragment' => $fragmentUid, 'hidden' => 1]);
+        $liveAssignmentUid = (int)$assignments->lastInsertId();
+        $assignments->insert('tx_aim_page_prompt_fragment', [
+            'pid' => 20,
+            'parent_page' => 20,
+            'fragment' => $fragmentUid,
+            'hidden' => 0,
+            't3ver_wsid' => 1,
+            't3ver_oid' => $liveAssignmentUid,
+        ]);
+
+        self::assertNull($this->get(PagePromptResolver::class)->resolve(20, PromptFragmentScope::All));
+        $this->get(Context::class)->setAspect('workspace', new WorkspaceAspect(1));
+        self::assertSame('Activated tone.', $this->get(PagePromptResolver::class)->resolve(20, PromptFragmentScope::All));
+    }
+
+    #[Test]
+    public function anAssignmentDeactivatedInAWorkspaceIsOnlyComposedInLive(): void
+    {
+        $fragmentUid = $this->insertWorkspaceTestPage(21, 'Deactivated tone.');
+        $assignments = $this->getConnectionPool()->getConnectionForTable('tx_aim_page_prompt_fragment');
+        $assignments->insert('tx_aim_page_prompt_fragment', ['pid' => 21, 'parent_page' => 21, 'fragment' => $fragmentUid]);
+        $liveAssignmentUid = (int)$assignments->lastInsertId();
+        $assignments->insert('tx_aim_page_prompt_fragment', [
+            'pid' => 21,
+            'parent_page' => 21,
+            'fragment' => $fragmentUid,
+            'hidden' => 1,
+            't3ver_wsid' => 1,
+            't3ver_oid' => $liveAssignmentUid,
+        ]);
+
+        self::assertSame('Deactivated tone.', $this->get(PagePromptResolver::class)->resolve(21, PromptFragmentScope::All));
+        $this->get(Context::class)->setAspect('workspace', new WorkspaceAspect(1));
+        self::assertNull($this->get(PagePromptResolver::class)->resolve(21, PromptFragmentScope::All));
+    }
+
+    #[Test]
+    public function aFragmentAndAssignmentCreatedInAWorkspaceAreComposedOnlyWithinThatWorkspace(): void
+    {
+        $this->getConnectionPool()->getConnectionForTable('pages')
+            ->insert('pages', ['uid' => 22, 'pid' => 0, 'title' => 'New in workspace siteroot', 'is_siteroot' => 1]);
+        $newInWorkspace = ['t3ver_wsid' => 1, 't3ver_oid' => 0, 't3ver_state' => 1];
+        $fragmentUid = $this->insertFragment(
+            $this->getConnectionPool()->getConnectionForTable('tx_aim_prompt_fragment'),
+            'Workspace-new fragment',
+            'Workspace-new tone.',
+            '',
+            PromptFragmentScope::All->value,
+            $newInWorkspace,
+        );
+        $this->getConnectionPool()->getConnectionForTable('tx_aim_page_prompt_fragment')
+            ->insert('tx_aim_page_prompt_fragment', ['pid' => 22, 'parent_page' => 22, 'fragment' => $fragmentUid, ...$newInWorkspace]);
+
+        self::assertNull($this->get(PagePromptResolver::class)->resolve(22, PromptFragmentScope::All));
+        $this->get(Context::class)->setAspect('workspace', new WorkspaceAspect(1));
+        self::assertSame('Workspace-new tone.', $this->get(PagePromptResolver::class)->resolve(22, PromptFragmentScope::All));
+    }
+
+    private function insertWorkspaceTestPage(int $pageId, string $prompt): int
+    {
+        $this->getConnectionPool()->getConnectionForTable('pages')
+            ->insert('pages', ['uid' => $pageId, 'pid' => 0, 'title' => 'Workspace visibility siteroot', 'is_siteroot' => 1]);
+        return $this->insertFragment(
+            $this->getConnectionPool()->getConnectionForTable('tx_aim_prompt_fragment'),
+            'Workspace visibility fragment',
+            $prompt,
+            '',
+            PromptFragmentScope::All->value,
+        );
+    }
+
+    #[Test]
     public function examplesAreAppendedAfterThatSameFragmentsPromptUnderAnExamplesHeading(): void
     {
         self::assertSame(
