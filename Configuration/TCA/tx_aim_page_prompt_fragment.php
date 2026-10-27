@@ -17,7 +17,6 @@ return [
             'disabled' => 'hidden',
         ],
         'versioningWS' => true,
-        'versioningWS_alwaysAllowLiveEdit' => true,
         'security' => [
             'ignorePageTypeRestriction' => true,
         ],

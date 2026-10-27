@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- **Bugfix "Workspace versioning of prompt fragments"**: `tx_aim_prompt_fragment` and
+`tx_aim_page_prompt_fragment` set `versioningWS_alwaysAllowLiveEdit` next to `versioningWS`, so an edit made in
+a workspace went straight to live, unlike the workspace behaviour `Documentation/ToneOfVoice.md` describes.
+TYPO3 14.3.8 removes the option from workspace aware tables and logs a TCA migration deprecation for both
+tables, which made test suites with `failOnDeprecation` fail as soon as aim was loaded. The option is gone; on
+TYPO3 12.4 and 13.4 a fragment or an assignment edited in a workspace is now versioned like on 14.3.
+
 - **Bugfix "Smart routing with dated model names"**: Smart routing never downgraded a request to OpenAI
 or Anthropic. The request log stores the model name a provider reports, a dated snapshot
 (`gpt-4o-mini-2024-07-18`) or the target of an alias (`claude-sonnet-4-20250514` for `claude-sonnet-4-0`),
