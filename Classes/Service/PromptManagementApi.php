@@ -119,7 +119,8 @@ final class PromptManagementApi
      * The fragment is written live, so this throws within a workspace, where
      * both tables are versioned. A workspace version of the fragment still
      * shows its own text in findToneOfVoice() there, and publishing it
-     * replaces what was saved here.
+     * replaces what was saved here, unless the save detached the assignment
+     * into a new fragment.
      *
      * @param list<string> $scope
      * @throws \LogicException within a workspace

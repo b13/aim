@@ -17,8 +17,8 @@ workspace, like the core Records module, and leave out what is deleted there. `a
 auto-detected fragment into a new one when an assignment created or edited in any workspace reuses it, and a
 pending workspace version of the assignment follows that detach. `saveAutoDetectedFragment()` now throws a
 `LogicException` when called within a workspace, instead of writing live from there. A workspace version of the
-fragment itself still replaces what they wrote once it is published. Within a workspace, the tone of voice follows the assignment order of that
-workspace, and the Library counts a fragment moved there once.
+fragment itself still replaces what they refreshed in place once it is published. Within a workspace, the tone
+of voice follows the assignment order of that workspace, and the Library counts a fragment moved there once.
 
 - **Bugfix "Smart routing with dated model names"**: Smart routing never downgraded a request to OpenAI
 or Anthropic. The request log stores the model name a provider reports, a dated snapshot

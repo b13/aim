@@ -1200,6 +1200,38 @@ final class PagePromptFragmentRepositoryTest extends FunctionalTestCase
     }
 
     #[Test]
+    public function theLibraryUsageFilterLeavesOutAnAssignmentDeletedInTheWorkspace(): void
+    {
+        $this->getConnectionPool()->getConnectionForTable('pages')->insert('pages', ['uid' => 64, 'pid' => 0, 'title' => 'Usage deleted in workspace']);
+        $fragments = $this->getConnectionPool()->getConnectionForTable('tx_aim_prompt_fragment');
+        $fragments->insert('tx_aim_prompt_fragment', ['pid' => 64, 'title' => 'Used on page 64 only', 'prompt' => 'Tone.', 'scope' => 'all']);
+        $fragmentUid = (int)$fragments->lastInsertId();
+        $assignments = $this->getConnectionPool()->getConnectionForTable('tx_aim_page_prompt_fragment');
+        $this->insertAssignment($assignments, 64, $fragmentUid);
+        $assignments->insert('tx_aim_page_prompt_fragment', [
+            'pid' => 64,
+            'parent_page' => 64,
+            'fragment' => $fragmentUid,
+            't3ver_wsid' => 3,
+            't3ver_oid' => (int)$this->assignmentRow(['parent_page' => 64])['uid'],
+            't3ver_state' => 2,
+        ]);
+        $repository = $this->repository();
+        $demand = new PagePromptFragmentDemand();
+        $filteredUids = static fn(): array => array_map(
+            static fn(array $row): int => (int)$row['uid'],
+            $repository->findLibraryByDemand($demand, null, [64]),
+        );
+
+        self::assertContains($fragmentUid, $filteredUids());
+
+        $this->get(Context::class)->setAspect('workspace', new WorkspaceAspect(3));
+
+        self::assertNotContains($fragmentUid, $filteredUids());
+        self::assertSame(count($filteredUids()), $repository->countLibraryByDemand($demand, null, [64]));
+    }
+
+    #[Test]
     public function aFragmentMovedInAWorkspaceIsListedAndCountedOnceInTheLibrary(): void
     {
         $fragments = $this->getConnectionPool()->getConnectionForTable('tx_aim_prompt_fragment');

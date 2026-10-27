@@ -302,7 +302,8 @@ class PagePromptFragmentRepository
      * Bypasses DataHandler deliberately and writes live, so it refuses to run
      * within a workspace, where both tables are versioned. Where an editor
      * has a workspace version of the fragment, publishing that version
-     * replaces what this wrote: the editor's pending edit wins.
+     * replaces what a refresh in place wrote. After a detach the assignment
+     * points at the new fragment, and that version changes the old one only.
      *
      * @throws \LogicException within a workspace
      */
@@ -770,6 +771,7 @@ class PagePromptFragmentRepository
                     'parent_page',
                     $qb->createNamedParameter($usagePageIds, Connection::PARAM_INT_ARRAY),
                 ));
+            $this->excludeDeletedInWorkspace($usageSubQuery, self::ASSIGNMENT_TABLE);
             $qb->andWhere($qb->expr()->or(
                 $qb->expr()->eq('pid', $qb->createNamedParameter(0, Connection::PARAM_INT)),
                 $qb->expr()->in('uid', $usageSubQuery->getSQL()),
@@ -869,11 +871,13 @@ class PagePromptFragmentRepository
         }
         $placeholders = $this->connectionPool->getQueryBuilderForTable($table);
         $placeholders->getRestrictions()->removeAll()->add(GeneralUtility::makeInstance(DeletedRestriction::class));
+        // Integer literals like WorkspaceRestriction's own, so this also
+        // works for a $queryBuilder that is itself used as a subquery.
         $placeholders->select('placeholder.t3ver_oid')
             ->from($table, 'placeholder')
             ->where(
-                $placeholders->expr()->eq('placeholder.t3ver_wsid', $queryBuilder->createNamedParameter($workspaceId, Connection::PARAM_INT)),
-                $placeholders->expr()->eq('placeholder.t3ver_state', $queryBuilder->createNamedParameter(self::DELETE_PLACEHOLDER, Connection::PARAM_INT)),
+                $placeholders->expr()->eq('placeholder.t3ver_wsid', $workspaceId),
+                $placeholders->expr()->eq('placeholder.t3ver_state', self::DELETE_PLACEHOLDER),
             );
         $queryBuilder->andWhere($queryBuilder->expr()->notIn($table . '.uid', $placeholders->getSQL()));
     }
