@@ -255,7 +255,7 @@ class RequestLogPoll {
 
   #renderModel(e) {
     let html = `<span class="badge badge-secondary">${this.#esc(e.model_used)}</span>`;
-    if (e.model_used && e.model_requested && e.model_used !== e.model_requested) {
+    if (e.model_requested_differs) {
       html += `<br><small class="text-body-secondary">requested: ${this.#esc(e.model_requested)}</small>`;
     }
     return html;

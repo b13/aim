@@ -15,6 +15,12 @@ The `SmartRoutingMiddleware` classifies prompt complexity using language-agnosti
 
 Classification is logged per request (`complexity_score`, `complexity_label`, `complexity_reason`). When a cheaper model has proven reliable for simple prompts (based on historical request log data with minimum 10 requests and 90%+ success rate), the middleware automatically downgrades.
 
+The history counts a request for the model of the configuration it ran on (`model_configured` in the request
+log), not for the name the provider reported, which is often a dated snapshot (`gpt-4o-mini-2024-07-18`) or
+the target of an alias (`claude-sonnet-4-20250514` for `claude-sonnet-4-0`). A downgraded request counts for
+the cheaper configuration it was routed to. Entries logged before `model_configured` existed count under the
+reported name. When no configuration takes the cheapest model in the history, the next cheaper one is tried.
+
 ### Quality gate
 
 "Reliable" on its own only means *the API call didn't error*. A cheap model can succeed every time while producing weak answers. When [LLM grading](#llm-grading) is enabled, smart routing also consults the recorded `grade_score`: a cheaper model is only chosen if its graded responses for that request type average at least **0.65** (the "good" boundary) across at least **10 graded requests**.

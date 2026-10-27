@@ -196,6 +196,9 @@ final class RequestLoggingMiddleware implements AiMiddlewareInterface
             'request_prompt' => $prompt,
             'request_system_prompt' => $systemPrompt,
         ];
+        // Routing history counts the request for this model, not for the one
+        // requested (rerouted away from) or the name the provider reports
+        $data['model_configured'] = $configuration->model;
 
         if ($response !== null) {
             $usage = $response->usage;

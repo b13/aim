@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+- **Bugfix "Smart routing with dated model names"**: Smart routing never downgraded a request to OpenAI
+or Anthropic. The request log stores the model name a provider reports, a dated snapshot
+(`gpt-4o-mini-2024-07-18`) or the target of an alias (`claude-sonnet-4-20250514` for `claude-sonnet-4-0`),
+while the routing compared it with the name a configuration gives. The log now also records the model of
+the configuration a request ran on (`model_configured`), and the routing history, the cost ranking of
+the automatic model switch and the *Model Usage* dashboard widget count every request for that model,
+rerouted ones included. Entries logged before the update keep counting under the reported name, so smart
+routing starts downgrading once requests logged after the update reach its minimum history. It also moves
+on to the next cheaper model when no configuration takes the cheapest one, instead of not downgrading at
+all. The request log marks a request as "requested: …" only when it was routed to another configuration,
+not when the provider reported the dated name or the alias target of the model requested. Run "Analyze
+Database Structure" after updating: until the column exists, requests are answered but neither logged nor
+graded, smart routing and the automatic model switch find no history, and the *Model Usage* widget fails.
+
 - **Bugfix "Max tokens of 0"**: A request with a max tokens of 0, which a provider configuration's
 *Max Tokens* field passes on when it is set to 0, sent that 0 to the provider, and OpenAI rejected the
 request ("Invalid 'max_output_tokens' … got 0"). 0 now means no limit: the option is left out and the

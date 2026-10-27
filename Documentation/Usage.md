@@ -376,7 +376,7 @@ Providers can declare per-model capabilities via `modelCapabilities`. Models lis
 When a provider config has `gpt-4o` but an embedding request comes in, AiM automatically switches to the cheapest capable model (e.g. `text-embedding-3-small`) using the same API key. The selection is data-driven: if historical cost data exists in the request log, AiM picks the cheapest model with a good success rate. Otherwise it falls back to the most specialized model.
 
 The switch is:
-- **Logged** with `model_requested`, `model_used`, and reroute reason
+- **Logged** with `model_requested` (the model switched away from), `model_configured` (the model switched to), `model_used` (the name the provider reported), and reroute reason
 - **Controllable** at three levels:
 
 | Level | Setting | Default |
