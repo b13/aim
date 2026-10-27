@@ -12,10 +12,12 @@ TYPO3 12.4, 13.4 and 14.0 to 14.3.7 a fragment or an assignment edited in a work
 deactivated or created in that workspace. The Prompt Management module and `PromptManagementApi` show the
 fragments and assignments of the backend user's workspace instead of mixing live records and workspace versions;
 the paginated Pages and Library listings filter, sort and count live records plus the ones created in that
-workspace, like the core Records module. `aim:calibrateVoice` and `PromptManagementApi::saveAutoDetectedFragment()`
-still write live and read live records only, but detach the auto-detected fragment into a new one when an
-assignment created or edited in any workspace reuses it. A workspace version of the fragment itself still replaces
-what they wrote once it is published. Within a workspace, the tone of voice follows the assignment order of that
+workspace, like the core Records module, and leave out what is deleted there. `aim:calibrateVoice` and
+`PromptManagementApi::saveAutoDetectedFragment()` still write live and read live records only, but detach the
+auto-detected fragment into a new one when an assignment created or edited in any workspace reuses it, and a
+pending workspace version of the assignment follows that detach. `saveAutoDetectedFragment()` now throws a
+`LogicException` when called within a workspace, instead of writing live from there. A workspace version of the
+fragment itself still replaces what they wrote once it is published. Within a workspace, the tone of voice follows the assignment order of that
 workspace, and the Library counts a fragment moved there once.
 
 - **Bugfix "Smart routing with dated model names"**: Smart routing never downgraded a request to OpenAI

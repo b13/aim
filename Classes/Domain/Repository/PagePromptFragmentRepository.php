@@ -34,10 +34,11 @@ use TYPO3\CMS\Core\Utility\GeneralUtility;
  *
  * Reads follow the workspace of the current Context. The paginated listings
  * (findByDemand(), findLibraryByDemand() and their counts) filter, sort and
- * count live records plus the ones created in that workspace, like the core
- * Records module, and overlay the rows they return. Every other read sees
- * edits, moves and deletions as well. upsertAutoDetectedFragment() writes
- * live without DataHandler and therefore reads live records only.
+ * count live records plus the ones created in that workspace, without the
+ * ones deleted there, like the core Records module, and overlay the rows
+ * they return. Every other read sees edits, moves and deletions as well.
+ * upsertAutoDetectedFragment() writes live without DataHandler, so it reads
+ * live records only and refuses to run within a workspace.
  */
 class PagePromptFragmentRepository
 {
@@ -52,6 +53,11 @@ class PagePromptFragmentRepository
     private const MAX_PROMPT_LENGTH = 4000;
     private const MAX_EXAMPLES_LENGTH = 6000;
     private const FRAGMENT_TABLE = 'tx_aim_prompt_fragment';
+
+    /**
+     * VersionState::DELETE_PLACEHOLDER, a class constant on v12 and an enum from v13 on.
+     */
+    private const DELETE_PLACEHOLDER = 2;
 
     public function __construct(
         private readonly ConnectionPool $connectionPool,
@@ -248,11 +254,27 @@ class PagePromptFragmentRepository
      */
     public function countAllAssignments(): array
     {
-        $assignments = $this->findAllInWorkspace(self::ASSIGNMENT_TABLE);
+        if ($this->getWorkspaceId() === 0) {
+            return [
+                'total' => $this->countLiveAssignments(false),
+                'inherited' => $this->countLiveAssignments(true),
+            ];
+        }
+        $assignments = $this->findAllInWorkspace(self::ASSIGNMENT_TABLE, ['inherit_to_subpages']);
         return [
             'total' => count($assignments),
             'inherited' => count(array_filter($assignments, static fn(array $row): bool => (bool)$row['inherit_to_subpages'])),
         ];
+    }
+
+    private function countLiveAssignments(bool $inheritedOnly): int
+    {
+        $queryBuilder = $this->getQueryBuilderInWorkspace(self::ASSIGNMENT_TABLE, false);
+        $queryBuilder->count('uid')->from(self::ASSIGNMENT_TABLE);
+        if ($inheritedOnly) {
+            $queryBuilder->where($queryBuilder->expr()->eq('inherit_to_subpages', $queryBuilder->createNamedParameter(1, Connection::PARAM_INT)));
+        }
+        return (int)$queryBuilder->executeQuery()->fetchOne();
     }
 
     /**
@@ -277,9 +299,12 @@ class PagePromptFragmentRepository
      * so it always reflects whichever caller produced the CURRENT content,
      * not just whoever created the row first.
      *
-     * Bypasses DataHandler deliberately, and so writes live in any workspace.
-     * Where an editor has a workspace version of the fragment, publishing
-     * that version replaces what this wrote: the editor's pending edit wins.
+     * Bypasses DataHandler deliberately and writes live, so it refuses to run
+     * within a workspace, where both tables are versioned. Where an editor
+     * has a workspace version of the fragment, publishing that version
+     * replaces what this wrote: the editor's pending edit wins.
+     *
+     * @throws \LogicException within a workspace
      */
     public function upsertAutoDetectedFragment(
         int $pageId,
@@ -291,6 +316,13 @@ class PagePromptFragmentRepository
         bool $hidden = true,
         bool $inheritToSubpages = true,
     ): int {
+        if ($this->getWorkspaceId() !== 0) {
+            throw new \LogicException(
+                sprintf('The auto-detected prompt fragment of page %d is written live and cannot be saved within workspace %d.', $pageId, $this->getWorkspaceId()),
+                1793117896,
+            );
+        }
+
         $assignmentQb = $this->connectionPool->getQueryBuilderForTable(self::ASSIGNMENT_TABLE);
         // Live rows only: this write bypasses DataHandler, so it must never
         // pick up and overwrite a workspace version of the assignment.
@@ -370,6 +402,13 @@ class PagePromptFragmentRepository
                 self::ASSIGNMENT_TABLE,
                 ['fragment' => $newFragmentUid] + $assignmentValues,
                 ['uid' => $assignmentUid],
+            );
+            // A pending version still pointing at the old fragment would
+            // point the live assignment back at it once published.
+            $assignmentConnection->update(
+                self::ASSIGNMENT_TABLE,
+                ['fragment' => $newFragmentUid],
+                ['t3ver_oid' => $assignmentUid, 'fragment' => $fragmentUid],
             );
             $this->logFragmentWrite($newFragmentUid, $pageId, $source, 'detached into a new fragment');
             return $newFragmentUid;
@@ -499,6 +538,9 @@ class PagePromptFragmentRepository
                 self::FRAGMENT_TABLE,
                 $qb->expr()->eq(self::FRAGMENT_TABLE . '.uid', $qb->quoteIdentifier(self::ASSIGNMENT_TABLE . '.fragment')),
             );
+        $this->excludeDeletedInWorkspace($qb, self::ASSIGNMENT_TABLE);
+        $this->excludeDeletedInWorkspace($qb, self::PAGES_TABLE);
+        $this->excludeDeletedInWorkspace($qb, self::FRAGMENT_TABLE);
 
         if ($demand->hasScope() && $demand->getScope() !== PromptFragmentScope::All) {
             $qb->andWhere($qb->expr()->or(
@@ -693,6 +735,7 @@ class PagePromptFragmentRepository
         // A move pointer would be counted next to its live row, which the overlay already moves.
         $qb->from(self::FRAGMENT_TABLE)
             ->where($qb->expr()->eq('t3ver_oid', $qb->createNamedParameter(0, Connection::PARAM_INT)));
+        $this->excludeDeletedInWorkspace($qb, self::FRAGMENT_TABLE);
 
         if ($demand->hasScope() && $demand->getScope() !== PromptFragmentScope::All) {
             $qb->andWhere($qb->expr()->or(
@@ -796,15 +839,43 @@ class PagePromptFragmentRepository
     }
 
     /**
+     * @param list<string> $fields read next to the ones the overlay needs
      * @return list<array<string, mixed>> ordered by uid
      */
-    private function findAllInWorkspace(string $table): array
+    private function findAllInWorkspace(string $table, array $fields): array
     {
         $queryBuilder = $this->getQueryBuilderInWorkspace($table, false);
         return $this->overlay(
             $table,
-            $queryBuilder->select('*')->from($table)->orderBy('uid')->executeQuery()->fetchAllAssociative(),
+            $queryBuilder->select('uid', 'pid', 't3ver_oid', 't3ver_wsid', 't3ver_state', ...$fields)
+                ->from($table)
+                ->orderBy('uid')
+                ->executeQuery()
+                ->fetchAllAssociative(),
         );
+    }
+
+    /**
+     * Leaves out the live rows of $table deleted in the current workspace.
+     * Their delete placeholder is a version, which the workspace restriction
+     * filters out, so the overlay would drop them only after the query
+     * counted and paginated them.
+     */
+    private function excludeDeletedInWorkspace(QueryBuilder $queryBuilder, string $table): void
+    {
+        $workspaceId = $this->getWorkspaceId();
+        if ($workspaceId === 0) {
+            return;
+        }
+        $placeholders = $this->connectionPool->getQueryBuilderForTable($table);
+        $placeholders->getRestrictions()->removeAll()->add(GeneralUtility::makeInstance(DeletedRestriction::class));
+        $placeholders->select('placeholder.t3ver_oid')
+            ->from($table, 'placeholder')
+            ->where(
+                $placeholders->expr()->eq('placeholder.t3ver_wsid', $queryBuilder->createNamedParameter($workspaceId, Connection::PARAM_INT)),
+                $placeholders->expr()->eq('placeholder.t3ver_state', $queryBuilder->createNamedParameter(self::DELETE_PLACEHOLDER, Connection::PARAM_INT)),
+            );
+        $queryBuilder->andWhere($queryBuilder->expr()->notIn($table . '.uid', $placeholders->getSQL()));
     }
 
     private function getQueryBuilderInWorkspace(string $table, bool $includeVersions): QueryBuilder

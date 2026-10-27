@@ -157,6 +157,8 @@ Requests without a `pageId` (the default) use the `defaultSystemPrompt` Extensio
 
 `saveAutoDetectedFragment()` writes **inactive by default** (`$hidden = true`). What it saves is machine-derived, usually from page copy nobody has vetted, and it would otherwise apply to every AI request in that tree the moment it is written. Pass `$hidden = false` only where a human has already approved the text. A re-run never re-hides an assignment somebody activated. `$source` identifies the calling feature and drives `findToneOfVoice()`'s `isCliCalibrated`; it is not derived from `$title`, which an editor stays free to rename.
 
+`saveAutoDetectedFragment()` writes live, without DataHandler, so it throws a `LogicException` when the backend user works in a workspace. Offer the action in the live workspace only.
+
 ### Robustness notes
 
 - **Unknown scope values normalize to `all` with a logged warning**, across every source (DB, Page/User TSconfig, code-registered): a typo (`imageGeneraton`) makes a fragment apply everywhere rather than silently never firing. Far more noticeable, and thus fixable.
