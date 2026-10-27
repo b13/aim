@@ -139,24 +139,6 @@ parameters:
 			path: Classes/Middleware/RequestLoggingMiddleware.php
 
 		-
-			rawMessage: 'Offset ''configuration_uid'' on array{request_type: mixed, provider_identifier: string, configuration_uid: int, model_requested: string, extension_key: string, duration_ms: int, user_id: int, metadata: ''{}'', ...}|array{request_type: mixed, provider_identifier: string, configuration_uid: int, model_requested: string, extension_key: string, duration_ms: int, user_id: int, metadata: string, ...} on left side of ?? always exists and is not nullable.'
-			identifier: nullCoalesce.offset
-			count: 1
-			path: Classes/Middleware/RequestLoggingMiddleware.php
-
-		-
-			rawMessage: 'Offset ''error_message'' on array{request_type: mixed, provider_identifier: string, configuration_uid: int, model_requested: string, extension_key: string, duration_ms: int, user_id: int, metadata: ''{}'', ...} on left side of ?? always exists and is not nullable.'
-			identifier: nullCoalesce.offset
-			count: 1
-			path: Classes/Middleware/RequestLoggingMiddleware.php
-
-		-
-			rawMessage: 'Offset ''provider_identifier'' on array{request_type: mixed, provider_identifier: string, configuration_uid: int, model_requested: string, extension_key: string, duration_ms: int, user_id: int, metadata: ''{}'', ...}|array{request_type: mixed, provider_identifier: string, configuration_uid: int, model_requested: string, extension_key: string, duration_ms: int, user_id: int, metadata: string, ...} on left side of ?? always exists and is not nullable.'
-			identifier: nullCoalesce.offset
-			count: 1
-			path: Classes/Middleware/RequestLoggingMiddleware.php
-
-		-
 			rawMessage: 'Parameter #4 $parameters of class Symfony\AI\Platform\Tool\Tool constructor expects array{type: ''object'', properties: array<string, array{type: string, description: string, enum?: list<string>, const?: int|list<string>|string, pattern?: string, minLength?: int, maxLength?: int, minimum?: float|int, ...}>, required: list<string>, additionalProperties: false}|null, non-empty-array given.'
 			identifier: argument.type
 			count: 1

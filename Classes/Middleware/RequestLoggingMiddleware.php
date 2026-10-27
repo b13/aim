@@ -241,10 +241,10 @@ final class RequestLoggingMiddleware implements AiMiddlewareInterface
             $data['response_content'] = '';
             $data['metadata'] = '{}';
             $data['raw_usage'] = '';
-            if (($data['error_message'] ?? '') !== '') {
+            if ($data['error_message'] !== '') {
                 $data['error_message'] = self::REDACTED_MESSAGE;
             }
-            if (($data['reroute_reason'] ?? '') !== '') {
+            if ($data['reroute_reason'] !== '') {
                 $data['reroute_reason'] = self::REDACTED_MESSAGE;
             }
         }
@@ -258,9 +258,9 @@ final class RequestLoggingMiddleware implements AiMiddlewareInterface
             // Deliberately without $data: it carries the prompt, system
             // prompt and response, none of which belong in var/log.
             $this->logger->error('AiM request log insert failed: ' . $logError->getMessage(), [
-                'request_type' => $data['request_type'] ?? '',
-                'provider_identifier' => $data['provider_identifier'] ?? '',
-                'configuration_uid' => $data['configuration_uid'] ?? 0,
+                'request_type' => $data['request_type'],
+                'provider_identifier' => $data['provider_identifier'],
+                'configuration_uid' => $data['configuration_uid'],
             ]);
         }
     }
