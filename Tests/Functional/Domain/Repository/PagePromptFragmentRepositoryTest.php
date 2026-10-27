@@ -37,6 +37,10 @@ use TYPO3\TestingFramework\Core\Functional\FunctionalTestCase;
  */
 final class PagePromptFragmentRepositoryTest extends FunctionalTestCase
 {
+    protected array $coreExtensionsToLoad = [
+        'workspaces',
+    ];
+
     protected array $testExtensionsToLoad = [
         'b13/aim',
     ];

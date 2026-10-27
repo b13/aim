@@ -88,7 +88,8 @@ jobs:
         run: |
           composer require --dev --no-progress --no-interaction -W \
             typo3/cms-core:^13.4 typo3/cms-backend:^13.4 \
-            typo3/cms-install:^13.4 typo3/cms-dashboard:^13.4
+            typo3/cms-install:^13.4 typo3/cms-dashboard:^13.4 \
+            typo3/cms-workspaces:^13.4
 
       # Two more constraints than the v13 leg needs. phpunit has to come down
       # with the rest: typo3/cms-install ^12.4 and phpunit ^11 cannot be
@@ -105,7 +106,8 @@ jobs:
           composer config policy.advisories.block false
           composer require --dev --no-progress --no-interaction -W \
             typo3/cms-core:^12.4 typo3/cms-backend:^12.4 typo3/cms-install:^12.4 \
-            typo3/cms-dashboard:^12.4 typo3/testing-framework:^8.0 \
+            typo3/cms-dashboard:^12.4 typo3/cms-workspaces:^12.4 \
+            typo3/testing-framework:^8.0 \
             phpunit/phpunit:^10.5
 
       - name: Lint

@@ -22,7 +22,7 @@ use TYPO3\CMS\Core\Database\Query\QueryBuilder;
 use TYPO3\CMS\Core\Database\Query\Restriction\DeletedRestriction;
 use TYPO3\CMS\Core\Database\Query\Restriction\HiddenRestriction;
 use TYPO3\CMS\Core\Database\Query\Restriction\WorkspaceRestriction;
-use TYPO3\CMS\Core\Domain\Repository\PageRepository;
+use TYPO3\CMS\Core\DataHandling\PlainDataResolver;
 use TYPO3\CMS\Core\SysLog\Action as SystemLogGenericAction;
 use TYPO3\CMS\Core\SysLog\Error as SystemLogErrorClassification;
 use TYPO3\CMS\Core\SysLog\Type as SystemLogType;
@@ -156,7 +156,7 @@ class PagePromptFragmentRepository
         // Counted like the listing, inactive assignments included. A page whose
         // only assignment is inactive would report otherwise "no fragments"
         // while holding one.
-        $assignments = $this->sortAssignments($this->findInWorkspace(self::ASSIGNMENT_TABLE, 'parent_page', $pageIds));
+        $assignments = $this->findInWorkspace(self::ASSIGNMENT_TABLE, 'parent_page', $pageIds, ['sorting', 'uid']);
         $fragments = $this->findFragmentsByUid(array_map(static fn(array $row): int => (int)$row['fragment'], $assignments));
 
         $countByPage = [];
@@ -197,7 +197,7 @@ class PagePromptFragmentRepository
     public function findAssignmentsForPage(int $pageId): array
     {
         // The module reviews and activates hidden assignments, so it has to see them, unlike PagePromptResolver.
-        $assignments = $this->sortAssignments($this->findInWorkspace(self::ASSIGNMENT_TABLE, 'parent_page', [$pageId]));
+        $assignments = $this->findInWorkspace(self::ASSIGNMENT_TABLE, 'parent_page', [$pageId], ['sorting', 'uid']);
         $fragments = $this->findFragmentsByUid(array_map(static fn(array $row): int => (int)$row['fragment'], $assignments));
 
         $result = [];
@@ -254,25 +254,34 @@ class PagePromptFragmentRepository
      */
     public function countAllAssignments(): array
     {
-        if ($this->getWorkspaceId() === 0) {
-            return [
-                'total' => $this->countLiveAssignments(false),
-                'inherited' => $this->countLiveAssignments(true),
-            ];
-        }
-        $assignments = $this->findAllInWorkspace(self::ASSIGNMENT_TABLE, ['inherit_to_subpages']);
         return [
-            'total' => count($assignments),
-            'inherited' => count(array_filter($assignments, static fn(array $row): bool => (bool)$row['inherit_to_subpages'])),
+            'total' => $this->countAssignmentsInWorkspace(false),
+            'inherited' => $this->countAssignmentsInWorkspace(true),
         ];
     }
 
-    private function countLiveAssignments(bool $inheritedOnly): int
+    /**
+     * Counts each assignment once, by its version in the current workspace
+     * where it has one, without the ones deleted there.
+     */
+    private function countAssignmentsInWorkspace(bool $inheritedOnly): int
     {
-        $queryBuilder = $this->getQueryBuilderInWorkspace(self::ASSIGNMENT_TABLE, false);
+        $queryBuilder = $this->getQueryBuilderInWorkspace(self::ASSIGNMENT_TABLE, true);
         $queryBuilder->count('uid')->from(self::ASSIGNMENT_TABLE);
         if ($inheritedOnly) {
             $queryBuilder->where($queryBuilder->expr()->eq('inherit_to_subpages', $queryBuilder->createNamedParameter(1, Connection::PARAM_INT)));
+        }
+        $workspaceId = $this->getWorkspaceId();
+        if ($workspaceId !== 0) {
+            $versions = $this->connectionPool->getQueryBuilderForTable(self::ASSIGNMENT_TABLE);
+            $versions->getRestrictions()->removeAll()->add(GeneralUtility::makeInstance(DeletedRestriction::class));
+            $versions->select('ws_version.t3ver_oid')
+                ->from(self::ASSIGNMENT_TABLE, 'ws_version')
+                ->where(
+                    $versions->expr()->eq('ws_version.t3ver_wsid', $workspaceId),
+                    $versions->expr()->gt('ws_version.t3ver_oid', 0),
+                );
+            $queryBuilder->andWhere($queryBuilder->expr()->notIn('uid', $versions->getSQL()));
         }
         return (int)$queryBuilder->executeQuery()->fetchOne();
     }
@@ -682,18 +691,12 @@ class PagePromptFragmentRepository
         if ($pageIds === []) {
             return [];
         }
-        $qb = $this->connectionPool->getQueryBuilderForTable(self::PAGES_TABLE);
-        $qb->getRestrictions()
-            ->removeAll()
-            ->add(GeneralUtility::makeInstance(DeletedRestriction::class))
-            ->add(GeneralUtility::makeInstance(WorkspaceRestriction::class, $this->getWorkspaceId()));
-        $rows = $qb->select('uid', 'pid', 'title', 'hidden', 'doktype', 'is_siteroot', 'starttime', 'endtime', 'nav_hide', 'fe_group', 'module', 'content_from_pid', 't3ver_oid', 't3ver_wsid', 't3ver_state')
-            ->from(self::PAGES_TABLE)
-            ->where($qb->expr()->in('uid', $qb->createNamedParameter(array_values(array_unique($pageIds)), Connection::PARAM_INT_ARRAY)))
-            ->executeQuery()
-            ->fetchAllAssociative();
-        $rows = $this->overlay(self::PAGES_TABLE, $rows);
-        usort($rows, static fn(array $a, array $b): int => [(string)$a['title'], (int)$a['uid']] <=> [(string)$b['title'], (int)$b['uid']]);
+        $rows = $this->findByUidInWorkspace(
+            self::PAGES_TABLE,
+            $pageIds,
+            ['uid', 'pid', 'title', 'hidden', 'doktype', 'is_siteroot', 'starttime', 'endtime', 'nav_hide', 'fe_group', 'module', 'content_from_pid'],
+            ['title', 'uid'],
+        );
 
         $pages = [];
         foreach ($rows as $row) {
@@ -799,13 +802,13 @@ class PagePromptFragmentRepository
      * workspace sees them: edited, moved, activated, deactivated, deleted
      * or created there. Hidden rows are included. A workspace version can
      * hold a value its live row does not, so the candidates are looked up
-     * across the versions as well, then read again as live or new rows,
-     * overlaid and checked once more.
+     * across the versions as well and checked again once resolved.
      *
      * @param list<int> $values
-     * @return list<array<string, mixed>> ordered by uid
+     * @param list<string> $orderBy
+     * @return list<array<string, mixed>>
      */
-    private function findInWorkspace(string $table, string $column, array $values): array
+    private function findInWorkspace(string $table, string $column, array $values, array $orderBy = ['uid']): array
     {
         $values = array_values(array_unique($values));
         if ($values === []) {
@@ -818,43 +821,59 @@ class PagePromptFragmentRepository
             ->where($candidateQueryBuilder->expr()->in($column, $candidateQueryBuilder->createNamedParameter($values, Connection::PARAM_INT_ARRAY)))
             ->executeQuery()
             ->fetchAllAssociative();
-        $uids = array_values(array_unique(array_map(
+        $uids = array_map(
             static fn(array $row): int => (int)$row['t3ver_oid'] > 0 ? (int)$row['t3ver_oid'] : (int)$row['uid'],
             $candidates,
-        )));
-        if ($uids === []) {
-            return [];
-        }
-
-        $queryBuilder = $this->getQueryBuilderInWorkspace($table, false);
-        $rows = $queryBuilder->select('*')
-            ->from($table)
-            ->where($queryBuilder->expr()->in('uid', $queryBuilder->createNamedParameter($uids, Connection::PARAM_INT_ARRAY)))
-            ->orderBy('uid')
-            ->executeQuery()
-            ->fetchAllAssociative();
+        );
 
         return array_values(array_filter(
-            $this->overlay($table, $rows),
+            $this->findByUidInWorkspace($table, $uids, ['*'], $orderBy),
             static fn(array $row): bool => in_array((int)$row[$column], $values, true),
         ));
     }
 
     /**
-     * @param list<string> $fields read next to the ones the overlay needs
-     * @return list<array<string, mixed>> ordered by uid
+     * Rows of $table with the given live or new uids as the current
+     * workspace sees them, in $orderBy order of that workspace. A version
+     * keeps the uid of its live record, as after versionOL(), and the ones
+     * deleted there are left out.
+     *
+     * @param list<int> $uids
+     * @param list<string> $fields
+     * @param list<string> $orderBy
+     * @return array<int, array<string, mixed>> keyed by uid
      */
-    private function findAllInWorkspace(string $table, array $fields): array
+    private function findByUidInWorkspace(string $table, array $uids, array $fields, array $orderBy): array
     {
-        $queryBuilder = $this->getQueryBuilderInWorkspace($table, false);
-        return $this->overlay(
-            $table,
-            $queryBuilder->select('uid', 'pid', 't3ver_oid', 't3ver_wsid', 't3ver_state', ...$fields)
-                ->from($table)
-                ->orderBy('uid')
-                ->executeQuery()
-                ->fetchAllAssociative(),
-        );
+        $uids = array_values(array_unique($uids));
+        $workspaceId = $this->getWorkspaceId();
+        if ($uids !== [] && $workspaceId !== 0) {
+            $resolver = GeneralUtility::makeInstance(PlainDataResolver::class, $table, $uids);
+            $resolver->setWorkspaceId($workspaceId);
+            $uids = array_values($resolver->get());
+        }
+        if ($uids === []) {
+            return [];
+        }
+
+        $queryBuilder = $this->connectionPool->getQueryBuilderForTable($table);
+        $queryBuilder->getRestrictions()->removeAll()->add(GeneralUtility::makeInstance(DeletedRestriction::class));
+        $queryBuilder->select(...array_unique([...$fields, 'uid', 't3ver_oid']))
+            ->from($table)
+            ->where($queryBuilder->expr()->in('uid', $queryBuilder->createNamedParameter($uids, Connection::PARAM_INT_ARRAY)));
+        foreach ($orderBy as $field) {
+            $queryBuilder->addOrderBy($field);
+        }
+
+        $rows = [];
+        foreach ($queryBuilder->executeQuery()->fetchAllAssociative() as $row) {
+            if ((int)$row['t3ver_oid'] > 0) {
+                $row['_ORIG_uid'] = (int)$row['uid'];
+                $row['uid'] = (int)$row['t3ver_oid'];
+            }
+            $rows[(int)$row['uid']] = $row;
+        }
+        return $rows;
     }
 
     /**
@@ -894,36 +913,32 @@ class PagePromptFragmentRepository
 
     /**
      * Overlays live and new rows with their version in the current
-     * workspace and drops the ones deleted there. A move pointer is
-     * skipped: the overlay of its live row already carries the move.
+     * workspace and drops the ones deleted there, keeping their order. A
+     * move pointer is skipped: the overlay of its live row carries the move.
      *
      * @param list<array<string, mixed>> $rows
      * @return list<array<string, mixed>>
      */
     private function overlay(string $table, array $rows): array
     {
-        $pageRepository = GeneralUtility::makeInstance(PageRepository::class, $this->context);
+        if ($rows === [] || $this->getWorkspaceId() === 0) {
+            return $rows;
+        }
+        $fields = array_keys($rows[0]);
+        $rows = array_filter($rows, static fn(array $row): bool => (int)$row['t3ver_oid'] === 0);
+        $resolved = $this->findByUidInWorkspace(
+            $table,
+            array_map(static fn(array $row): int => (int)$row['uid'], $rows),
+            $fields,
+            [],
+        );
         $overlaid = [];
         foreach ($rows as $row) {
-            if ((int)$row['t3ver_oid'] > 0) {
-                continue;
-            }
-            $pageRepository->versionOL($table, $row, false, true);
-            if (is_array($row)) {
-                $overlaid[] = $row;
+            if (isset($resolved[(int)$row['uid']])) {
+                $overlaid[] = $resolved[(int)$row['uid']];
             }
         }
         return $overlaid;
-    }
-
-    /**
-     * @param list<array<string, mixed>> $assignments
-     * @return list<array<string, mixed>>
-     */
-    private function sortAssignments(array $assignments): array
-    {
-        usort($assignments, static fn(array $a, array $b): int => [(int)$a['sorting'], (int)$a['uid']] <=> [(int)$b['sorting'], (int)$b['uid']]);
-        return $assignments;
     }
 
     private function getWorkspaceId(): int

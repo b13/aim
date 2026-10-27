@@ -327,7 +327,7 @@ class PagePromptResolver
         if ((int)$row['t3ver_oid'] > 0) {
             return null;
         }
-        $pageRepository->versionOL($table, $row);
+        $pageRepository->versionOL($table, $row, false, true);
         if (!is_array($row) || (int)$row['hidden'] === 1) {
             return null;
         }
