@@ -294,6 +294,176 @@ final class PagePromptResolverTest extends FunctionalTestCase
     }
 
     #[Test]
+    public function anAssignmentActivatedInAWorkspaceIsComposedOnlyWithinThatWorkspace(): void
+    {
+        $fragmentUid = $this->insertWorkspaceTestPage(20, 'Activated tone.');
+        $assignments = $this->getConnectionPool()->getConnectionForTable('tx_aim_page_prompt_fragment');
+        $assignments->insert('tx_aim_page_prompt_fragment', ['pid' => 20, 'parent_page' => 20, 'fragment' => $fragmentUid, 'hidden' => 1]);
+        $liveAssignmentUid = (int)$assignments->lastInsertId();
+        $assignments->insert('tx_aim_page_prompt_fragment', [
+            'pid' => 20,
+            'parent_page' => 20,
+            'fragment' => $fragmentUid,
+            'hidden' => 0,
+            't3ver_wsid' => 1,
+            't3ver_oid' => $liveAssignmentUid,
+        ]);
+
+        self::assertNull($this->get(PagePromptResolver::class)->resolve(20, PromptFragmentScope::All));
+        $this->get(Context::class)->setAspect('workspace', new WorkspaceAspect(1));
+        self::assertSame('Activated tone.', $this->get(PagePromptResolver::class)->resolve(20, PromptFragmentScope::All));
+    }
+
+    #[Test]
+    public function anAssignmentDeactivatedInAWorkspaceIsOnlyComposedInLive(): void
+    {
+        $fragmentUid = $this->insertWorkspaceTestPage(21, 'Deactivated tone.');
+        $assignments = $this->getConnectionPool()->getConnectionForTable('tx_aim_page_prompt_fragment');
+        $assignments->insert('tx_aim_page_prompt_fragment', ['pid' => 21, 'parent_page' => 21, 'fragment' => $fragmentUid]);
+        $liveAssignmentUid = (int)$assignments->lastInsertId();
+        $assignments->insert('tx_aim_page_prompt_fragment', [
+            'pid' => 21,
+            'parent_page' => 21,
+            'fragment' => $fragmentUid,
+            'hidden' => 1,
+            't3ver_wsid' => 1,
+            't3ver_oid' => $liveAssignmentUid,
+        ]);
+
+        self::assertSame('Deactivated tone.', $this->get(PagePromptResolver::class)->resolve(21, PromptFragmentScope::All));
+        $this->get(Context::class)->setAspect('workspace', new WorkspaceAspect(1));
+        self::assertNull($this->get(PagePromptResolver::class)->resolve(21, PromptFragmentScope::All));
+    }
+
+    #[Test]
+    public function aFragmentAndAssignmentCreatedInAWorkspaceAreComposedOnlyWithinThatWorkspace(): void
+    {
+        $this->getConnectionPool()->getConnectionForTable('pages')
+            ->insert('pages', ['uid' => 22, 'pid' => 0, 'title' => 'New in workspace siteroot', 'is_siteroot' => 1]);
+        $newInWorkspace = ['t3ver_wsid' => 1, 't3ver_oid' => 0, 't3ver_state' => 1];
+        $fragmentUid = $this->insertFragment(
+            $this->getConnectionPool()->getConnectionForTable('tx_aim_prompt_fragment'),
+            'Workspace-new fragment',
+            'Workspace-new tone.',
+            '',
+            PromptFragmentScope::All->value,
+            $newInWorkspace,
+        );
+        $this->getConnectionPool()->getConnectionForTable('tx_aim_page_prompt_fragment')
+            ->insert('tx_aim_page_prompt_fragment', ['pid' => 22, 'parent_page' => 22, 'fragment' => $fragmentUid, ...$newInWorkspace]);
+
+        self::assertNull($this->get(PagePromptResolver::class)->resolve(22, PromptFragmentScope::All));
+        $this->get(Context::class)->setAspect('workspace', new WorkspaceAspect(1));
+        self::assertSame('Workspace-new tone.', $this->get(PagePromptResolver::class)->resolve(22, PromptFragmentScope::All));
+    }
+
+    #[Test]
+    public function assignmentsReorderedInAWorkspaceAreComposedInThatWorkspacesOrder(): void
+    {
+        $firstUid = $this->insertWorkspaceTestPage(23, 'First tone.');
+        $secondUid = $this->insertFragment(
+            $this->getConnectionPool()->getConnectionForTable('tx_aim_prompt_fragment'),
+            'Second fragment',
+            'Second tone.',
+            '',
+            PromptFragmentScope::All->value,
+        );
+        $assignments = $this->getConnectionPool()->getConnectionForTable('tx_aim_page_prompt_fragment');
+        $assignments->insert('tx_aim_page_prompt_fragment', ['pid' => 23, 'parent_page' => 23, 'fragment' => $firstUid, 'sorting' => 1]);
+        $firstAssignmentUid = (int)$assignments->lastInsertId();
+        $assignments->insert('tx_aim_page_prompt_fragment', ['pid' => 23, 'parent_page' => 23, 'fragment' => $secondUid, 'sorting' => 2]);
+        $assignments->insert('tx_aim_page_prompt_fragment', [
+            'pid' => 23,
+            'parent_page' => 23,
+            'fragment' => $firstUid,
+            'sorting' => 3,
+            't3ver_wsid' => 1,
+            't3ver_oid' => $firstAssignmentUid,
+        ]);
+
+        self::assertSame("First tone.\n\nSecond tone.", $this->get(PagePromptResolver::class)->resolve(23, PromptFragmentScope::All));
+        $this->get(Context::class)->setAspect('workspace', new WorkspaceAspect(1));
+        self::assertSame("Second tone.\n\nFirst tone.", $this->get(PagePromptResolver::class)->resolve(23, PromptFragmentScope::All));
+    }
+
+    #[Test]
+    public function anAssignmentDeletedInAWorkspaceIsOnlyComposedInLive(): void
+    {
+        $fragmentUid = $this->insertWorkspaceTestPage(24, 'Deleted assignment tone.');
+        $assignments = $this->getConnectionPool()->getConnectionForTable('tx_aim_page_prompt_fragment');
+        $assignments->insert('tx_aim_page_prompt_fragment', ['pid' => 24, 'parent_page' => 24, 'fragment' => $fragmentUid]);
+        $liveAssignmentUid = (int)$assignments->lastInsertId();
+        $assignments->insert('tx_aim_page_prompt_fragment', [
+            'pid' => 24,
+            'parent_page' => 24,
+            'fragment' => $fragmentUid,
+            't3ver_wsid' => 1,
+            't3ver_oid' => $liveAssignmentUid,
+            't3ver_state' => 2,
+        ]);
+
+        self::assertSame('Deleted assignment tone.', $this->get(PagePromptResolver::class)->resolve(24, PromptFragmentScope::All));
+        $this->get(Context::class)->setAspect('workspace', new WorkspaceAspect(1));
+        self::assertNull($this->get(PagePromptResolver::class)->resolve(24, PromptFragmentScope::All));
+    }
+
+    #[Test]
+    public function aFragmentDeletedInAWorkspaceIsOnlyComposedInLive(): void
+    {
+        $fragmentUid = $this->insertWorkspaceTestPage(25, 'Deleted fragment tone.');
+        $fragments = $this->getConnectionPool()->getConnectionForTable('tx_aim_prompt_fragment');
+        $this->insertFragment($fragments, 'Workspace visibility fragment', 'Deleted fragment tone.', '', PromptFragmentScope::All->value, [
+            't3ver_wsid' => 1,
+            't3ver_oid' => $fragmentUid,
+            't3ver_state' => 2,
+        ]);
+        $this->insertAssignment($this->getConnectionPool()->getConnectionForTable('tx_aim_page_prompt_fragment'), 25, $fragmentUid, 1);
+
+        self::assertSame('Deleted fragment tone.', $this->get(PagePromptResolver::class)->resolve(25, PromptFragmentScope::All));
+        $this->get(Context::class)->setAspect('workspace', new WorkspaceAspect(1));
+        self::assertNull($this->get(PagePromptResolver::class)->resolve(25, PromptFragmentScope::All));
+    }
+
+    #[Test]
+    public function anAssignmentAndAFragmentMovedInAWorkspaceAreComposedOnce(): void
+    {
+        $fragmentUid = $this->insertWorkspaceTestPage(26, 'Moved tone.');
+        $this->insertFragment($this->getConnectionPool()->getConnectionForTable('tx_aim_prompt_fragment'), 'Workspace visibility fragment', 'Moved tone.', '', PromptFragmentScope::All->value, [
+            'pid' => 26,
+            't3ver_wsid' => 1,
+            't3ver_oid' => $fragmentUid,
+            't3ver_state' => 4,
+        ]);
+        $assignments = $this->getConnectionPool()->getConnectionForTable('tx_aim_page_prompt_fragment');
+        $assignments->insert('tx_aim_page_prompt_fragment', ['pid' => 26, 'parent_page' => 26, 'fragment' => $fragmentUid]);
+        $liveAssignmentUid = (int)$assignments->lastInsertId();
+        $assignments->insert('tx_aim_page_prompt_fragment', [
+            'pid' => 0,
+            'parent_page' => 26,
+            'fragment' => $fragmentUid,
+            't3ver_wsid' => 1,
+            't3ver_oid' => $liveAssignmentUid,
+            't3ver_state' => 4,
+        ]);
+
+        $this->get(Context::class)->setAspect('workspace', new WorkspaceAspect(1));
+        self::assertSame('Moved tone.', $this->get(PagePromptResolver::class)->resolve(26, PromptFragmentScope::All));
+    }
+
+    private function insertWorkspaceTestPage(int $pageId, string $prompt): int
+    {
+        $this->getConnectionPool()->getConnectionForTable('pages')
+            ->insert('pages', ['uid' => $pageId, 'pid' => 0, 'title' => 'Workspace visibility siteroot', 'is_siteroot' => 1]);
+        return $this->insertFragment(
+            $this->getConnectionPool()->getConnectionForTable('tx_aim_prompt_fragment'),
+            'Workspace visibility fragment',
+            $prompt,
+            '',
+            PromptFragmentScope::All->value,
+        );
+    }
+
+    #[Test]
     public function examplesAreAppendedAfterThatSameFragmentsPromptUnderAnExamplesHeading(): void
     {
         self::assertSame(

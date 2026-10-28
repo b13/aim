@@ -17,6 +17,7 @@ use TYPO3\CMS\Backend\Utility\BackendUtility;
 use TYPO3\CMS\Core\Context\Context;
 use TYPO3\CMS\Core\Database\Connection;
 use TYPO3\CMS\Core\Database\ConnectionPool;
+use TYPO3\CMS\Core\Database\Query\Restriction\HiddenRestriction;
 use TYPO3\CMS\Core\Database\Query\Restriction\WorkspaceRestriction;
 use TYPO3\CMS\Core\Domain\Repository\PageRepository;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
@@ -55,8 +56,9 @@ use TYPO3\CMS\Core\Utility\RootlineUtility;
  * boundaries; that's an established, technical-audience convention
  * (integrators can already use the `>` clear operator).
  *
- * DB fragments respect workspace overlays for edits to either the
- * assignment or the library fragment itself. Not translatable: neither
+ * DB fragments respect workspaces for either the assignment or the library
+ * fragment itself: an edit, an activation, a deactivation, a deletion and
+ * a record created within the current workspace. Not translatable: neither
  * TCA has language/transOrig configuration, since nothing in the
  * resolution pipeline is language-aware yet.
  *
@@ -98,8 +100,7 @@ class PagePromptResolver
         // can legitimately resolve differently per workspace; caching by
         // pageId+scope alone would let a live-workspace resolution leak into
         // a later draft-workspace one within the same instance's lifetime.
-        $workspaceId = (int)$this->context->getPropertyFromAspect('workspace', 'id');
-        $cacheKey = $pageId . ':' . $scope->value . ':' . $workspaceId;
+        $cacheKey = $pageId . ':' . $scope->value . ':' . $this->getWorkspaceId();
         if (array_key_exists($cacheKey, $this->cache)) {
             return $this->cache[$cacheKey];
         }
@@ -217,11 +218,12 @@ class PagePromptResolver
      * instead lets an invalid value be normalized to "all" with a logged
      * warning, the same treatment as the TSconfig/registry sources.
      *
-     * Restricted to the live workspace at the query level (a table with no
-     * such restriction would otherwise mix in every other workspace's
-     * versions too, not just the current one), then overlaid per-row with
-     * the current workspace's version via versionOL(), the standard core
-     * idiom for "show the workspace-draft edit of this record, if any."
+     * Restricted to live records plus the ones created new in the current
+     * workspace at the query level, then overlaid per-row with the current
+     * workspace's version via versionOL(), the standard core idiom for
+     * "show the workspace-draft edit of this record, if any." Hidden rows
+     * are only dropped after the overlay, so an assignment activated or
+     * deactivated within a workspace resolves the way that workspace sees it.
      *
      * @param list<int> $pageIds
      * @return array<int, list<array{prompt: string, examples: string, inheritToSubpages: bool}>> keyed by parent_page, ordered by sorting
@@ -229,8 +231,10 @@ class PagePromptResolver
     private function fetchFragmentsByPage(array $pageIds, PromptFragmentScope $scope): array
     {
         $assignmentQueryBuilder = $this->connectionPool->getQueryBuilderForTable(self::ASSIGNMENT_TABLE);
-        $assignmentQueryBuilder->getRestrictions()->add(GeneralUtility::makeInstance(WorkspaceRestriction::class, 0));
-        $assignmentRows = $assignmentQueryBuilder->select('uid', 'pid', 't3ver_oid', 't3ver_state', 'parent_page', 'fragment', 'inherit_to_subpages')
+        $assignmentQueryBuilder->getRestrictions()
+            ->removeByType(HiddenRestriction::class)
+            ->add(GeneralUtility::makeInstance(WorkspaceRestriction::class, $this->getWorkspaceId()));
+        $assignmentRows = $assignmentQueryBuilder->select('uid', 'pid', 't3ver_wsid', 't3ver_oid', 't3ver_state', 'hidden', 'sorting', 'parent_page', 'fragment', 'inherit_to_subpages')
             ->from(self::ASSIGNMENT_TABLE)
             ->where(
                 $assignmentQueryBuilder->expr()->in('parent_page', $assignmentQueryBuilder->createNamedParameter($pageIds, Connection::PARAM_INT_ARRAY)),
@@ -244,12 +248,13 @@ class PagePromptResolver
 
         $liveAssignments = [];
         foreach ($assignmentRows as $row) {
-            $pageRepository->versionOL(self::ASSIGNMENT_TABLE, $row);
-            if ($row === false) {
-                continue; // deleted within the current workspace
+            $row = $this->overlay(self::ASSIGNMENT_TABLE, $row, $pageRepository);
+            if ($row !== null) {
+                $liveAssignments[] = $row;
             }
-            $liveAssignments[] = $row;
         }
+        // The query sorted live rows; a workspace can reorder them.
+        usort($liveAssignments, static fn(array $a, array $b): int => [(int)$a['sorting'], (int)$a['uid']] <=> [(int)$b['sorting'], (int)$b['uid']]);
 
         $fragmentUids = array_values(array_unique(array_map(
             static fn(array $row): int => (int)$row['fragment'],
@@ -286,8 +291,10 @@ class PagePromptResolver
         }
 
         $queryBuilder = $this->connectionPool->getQueryBuilderForTable(self::FRAGMENT_TABLE);
-        $queryBuilder->getRestrictions()->add(GeneralUtility::makeInstance(WorkspaceRestriction::class, 0));
-        $rows = $queryBuilder->select('uid', 'pid', 't3ver_oid', 't3ver_state', 'prompt', 'examples', 'scope')
+        $queryBuilder->getRestrictions()
+            ->removeByType(HiddenRestriction::class)
+            ->add(GeneralUtility::makeInstance(WorkspaceRestriction::class, $this->getWorkspaceId()));
+        $rows = $queryBuilder->select('uid', 'pid', 't3ver_wsid', 't3ver_oid', 't3ver_state', 'hidden', 'prompt', 'examples', 'scope')
             ->from(self::FRAGMENT_TABLE)
             ->where(
                 $queryBuilder->expr()->in('uid', $queryBuilder->createNamedParameter($fragmentUids, Connection::PARAM_INT_ARRAY)),
@@ -297,9 +304,9 @@ class PagePromptResolver
 
         $byUid = [];
         foreach ($rows as $row) {
-            $pageRepository->versionOL(self::FRAGMENT_TABLE, $row);
-            if ($row === false) {
-                continue; // deleted within the current workspace
+            $row = $this->overlay(self::FRAGMENT_TABLE, $row, $pageRepository);
+            if ($row === null) {
+                continue;
             }
             $byUid[(int)$row['uid']] = [
                 'prompt' => trim((string)$row['prompt']),
@@ -308,5 +315,27 @@ class PagePromptResolver
             ];
         }
         return $byUid;
+    }
+
+    /**
+     * A move pointer is skipped: versionOL() of its live row already carries
+     * the move. Null for a row deleted or hidden as the current workspace
+     * sees it.
+     */
+    private function overlay(string $table, array $row, PageRepository $pageRepository): ?array
+    {
+        if ((int)$row['t3ver_oid'] > 0) {
+            return null;
+        }
+        $pageRepository->versionOL($table, $row, false, true);
+        if (!is_array($row) || (int)$row['hidden'] === 1) {
+            return null;
+        }
+        return $row;
+    }
+
+    private function getWorkspaceId(): int
+    {
+        return (int)$this->context->getPropertyFromAspect('workspace', 'id');
     }
 }

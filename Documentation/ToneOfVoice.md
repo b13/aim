@@ -87,7 +87,7 @@ A page can also check **"Disable inherited prompt fragments"** to skip every anc
 
 DB fragment inheritance stops at the nearest `is_siteroot` ancestor: in a nested-site install (one site's page tree living under another site's), a page's own assignments never leak into an unrelated site. Page TSconfig fragments deliberately don't get this treatment; `getPagesTSconfig()` has never respected site boundaries, and that's an established, technical-audience convention this extension doesn't override.
 
-DB fragments respect workspace overlays for edits to *either* the assignment or the library fragment's own content: an edit made in a workspace is visible when resolving within that workspace. A fragment or assignment created entirely new within a workspace (no live counterpart yet) won't appear until published.
+DB fragments respect workspaces for *either* the assignment or the library fragment's own content: an edit, an activation or deactivation, a deletion and a fragment or assignment created new within a workspace are visible when resolving within that workspace, and only there until published.
 
 To have a request resolve against a page, pass `pageId`:
 
@@ -156,6 +156,8 @@ Requests without a `pageId` (the default) use the `defaultSystemPrompt` Extensio
 `isActive` on both info objects is the thing to render: an inactive assignment exists but is never composed into a prompt, and a UI that does not show the difference will present a tone of voice as live when it is not.
 
 `saveAutoDetectedFragment()` writes **inactive by default** (`$hidden = true`). What it saves is machine-derived, usually from page copy nobody has vetted, and it would otherwise apply to every AI request in that tree the moment it is written. Pass `$hidden = false` only where a human has already approved the text. A re-run never re-hides an assignment somebody activated. `$source` identifies the calling feature and drives `findToneOfVoice()`'s `isCliCalibrated`; it is not derived from `$title`, which an editor stays free to rename.
+
+`saveAutoDetectedFragment()` writes live, without DataHandler, so it throws a `LogicException` when the backend user works in a workspace. Offer the action in the live workspace only.
 
 ### Robustness notes
 

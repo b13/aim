@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+- **Bugfix "Workspace versioning of prompt fragments"**: `tx_aim_prompt_fragment` and
+`tx_aim_page_prompt_fragment` set `versioningWS_alwaysAllowLiveEdit` next to `versioningWS`, so an edit made in
+a workspace went straight to live, unlike the workspace behaviour `Documentation/ToneOfVoice.md` describes.
+TYPO3 14.3.8 removes the option from workspace aware tables and logs a TCA migration deprecation for both
+tables, which made test suites with `failOnDeprecation` fail as soon as aim was loaded. The option is gone; on
+TYPO3 12.4, 13.4 and 14.0 to 14.3.7 a fragment or an assignment edited in a workspace is now versioned like on
+14.3.8 and later. The tone of voice resolved within a workspace now also follows an assignment activated,
+deactivated or created in that workspace. The Prompt Management module and `PromptManagementApi` show the
+fragments and assignments of the backend user's workspace instead of mixing live records and workspace versions;
+the paginated Pages and Library listings filter, sort and count live records plus the ones created in that
+workspace, like the core Records module, and leave out what is deleted there. `aim:calibrateVoice` and
+`PromptManagementApi::saveAutoDetectedFragment()` still write live and read live records only, but detach the
+auto-detected fragment into a new one when an assignment created or edited in any workspace reuses it, and a
+pending workspace version of the assignment follows that detach. `saveAutoDetectedFragment()` now throws a
+`LogicException` when called within a workspace, instead of writing live from there. A workspace version of the
+fragment itself still replaces what they refreshed in place once it is published. Within a workspace, the tone
+of voice follows the assignment order of that workspace, and the Library counts a fragment moved there once.
+
 - **Bugfix "Smart routing with dated model names"**: Smart routing never downgraded a request to OpenAI
 or Anthropic. The request log stores the model name a provider reports, a dated snapshot
 (`gpt-4o-mini-2024-07-18`) or the target of an alias (`claude-sonnet-4-20250514` for `claude-sonnet-4-0`),
