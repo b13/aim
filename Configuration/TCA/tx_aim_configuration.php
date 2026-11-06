@@ -30,6 +30,7 @@ return [
                 --palette--;;config,
                 --palette--;;tokenCosts,
                 --palette--;;cost,
+                --palette--;;footprint,
                 --div--;LLL:EXT:core/Resources/Private/Language/Form/locallang_tabs.xlf:access,
                 --palette--;;access,
                 --palette--;;governance,
@@ -50,6 +51,11 @@ return [
         'cost' => [
             'label' => 'LLL:EXT:aim/Resources/Private/Language/locallang_tca.xlf:tx_aim_configuration.palette.cost.label',
             'showitem' => 'total_cost, cost_currency',
+        ],
+        'footprint' => [
+            'label' => 'LLL:EXT:aim/Resources/Private/Language/locallang_tca.xlf:tx_aim_configuration.palette.footprint.label',
+            'description' => 'LLL:EXT:aim/Resources/Private/Language/locallang_tca.xlf:tx_aim_configuration.palette.footprint.description',
+            'showitem' => 'power_draw_watts, grid_intensity',
         ],
         'governance' => [
             'label' => 'LLL:EXT:aim/Resources/Private/Language/locallang_tca.xlf:tx_aim_configuration.palette.governance.label',
@@ -178,6 +184,26 @@ return [
                 'type' => 'number',
                 'format' => 'decimal',
                 'readOnly' => true,
+            ],
+        ],
+        'power_draw_watts' => [
+            'label' => 'LLL:EXT:aim/Resources/Private/Language/locallang_tca.xlf:tx_aim_configuration.columns.power_draw_watts.label',
+            'description' => 'LLL:EXT:aim/Resources/Private/Language/locallang_tca.xlf:tx_aim_configuration.columns.power_draw_watts.description',
+            'config' => [
+                'type' => 'number',
+                'format' => 'decimal',
+                'nullable' => true,
+                'range' => ['lower' => 0, 'upper' => 999999.99],
+            ],
+        ],
+        'grid_intensity' => [
+            'label' => 'LLL:EXT:aim/Resources/Private/Language/locallang_tca.xlf:tx_aim_configuration.columns.grid_intensity.label',
+            'description' => 'LLL:EXT:aim/Resources/Private/Language/locallang_tca.xlf:tx_aim_configuration.columns.grid_intensity.description',
+            'config' => [
+                'type' => 'number',
+                'format' => 'decimal',
+                'nullable' => true,
+                'range' => ['lower' => 0, 'upper' => 999999.99],
             ],
         ],
         'cost_currency' => [

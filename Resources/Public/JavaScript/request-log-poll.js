@@ -119,6 +119,9 @@ class RequestLogPoll {
       total_tokens: () => Number(stats.total_tokens).toLocaleString(),
       success_rate: () => stats.success_rate + '%',
       avg_duration_ms: () => Number(stats.avg_duration_ms).toLocaleString() + ' ms',
+      footprint_display: () => stats.footprint_display,
+      footprint_coverage: () => stats.footprint_coverage,
+      footprint_routing: () => stats.footprint_routing,
     };
     for (const [key, format] of Object.entries(formatters)) {
       const el = document.querySelector(`[data-stat="${key}"]`);
@@ -173,6 +176,7 @@ class RequestLogPoll {
       this.#tdHtml(this.#renderModel(e)),
       this.#tdHtml(this.#renderTokens(e)),
       this.#td(e.cost),
+      this.#tdTitled(e.footprint, e.footprint_title),
       this.#td(e.duration_ms + ' ms'),
       this.#tdHtml(this.#renderGrade(e)),
       this.#tdHtml(this.#renderStatus(e)),
@@ -203,6 +207,13 @@ class RequestLogPoll {
   #td(text) {
     const td = document.createElement('td');
     td.textContent = text ?? '';
+    return td;
+  }
+
+  #tdTitled(text, title) {
+    const td = this.#td(text);
+    td.className = 'text-nowrap';
+    td.title = title ?? '';
     return td;
   }
 

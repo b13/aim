@@ -86,6 +86,37 @@
                         <td>{entry.duration_ms -> f:format.number(decimals: 0, thousandsSeparator: ',')} ms</td>
                     </tr>
                     <tr>
+                        <th><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:footprint.label" /></th>
+                        <td>
+                            <f:if condition="{footprint.available}">
+                                <f:then>
+                                    <strong>{footprint.co2}</strong>
+                                    <span class="text-body-secondary">({footprint.energy})</span>
+                                    <span class="aim-chip" data-tone="info"><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:footprint.estimated" /> · <f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:footprint.method.{footprint.method}" /></span>
+                                    <dl class="row text-body-secondary mt-2 mb-0">
+                                        <f:for each="{footprint.facts}" as="value" key="fact">
+                                            <dt class="col-sm-4 fw-normal"><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:footprint.fact.{fact}" /></dt>
+                                            <dd class="col-sm-8 mb-0">{value}</dd>
+                                        </f:for>
+                                    </dl>
+                                    <f:if condition="{footprint.warnings}">
+                                        <p class="text-warning mt-1 mb-0">
+                                            <f:for each="{footprint.warnings}" as="warning" iteration="i"><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:footprint.warning.{warning}" default="{warning}" /><f:if condition="{i.isLast}"><f:else> · </f:else></f:if></f:for>
+                                        </p>
+                                    </f:if>
+                                    <p class="text-body-tertiary mt-1 mb-0">
+                                        <f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:footprint.method.{footprint.method}.description" />
+                                        <f:if condition="{footprint.dataVersion}"> (EcoLogits {footprint.dataVersion})</f:if>
+                                    </p>
+                                </f:then>
+                                <f:else>
+                                    <span class="aim-chip" data-tone="neutral"><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:footprint.noData" /></span>
+                                    <span class="text-body-secondary"><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:footprint.unavailable.{footprint.reason}" default="{footprint.reason}" /></span>
+                                </f:else>
+                            </f:if>
+                        </td>
+                    </tr>
+                    <tr>
                         <th><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.column.status" /></th>
                         <td>
                             <f:if condition="{entry.rerouted}">

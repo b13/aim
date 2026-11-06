@@ -24,6 +24,7 @@ use B13\Aim\Domain\Model\ProviderConfiguration;
 use B13\Aim\Domain\Repository\ProviderConfigurationDemand;
 use B13\Aim\Domain\Repository\ProviderConfigurationRepository;
 use B13\Aim\Domain\Repository\RequestLogRepository;
+use B13\Aim\Footprint\Format;
 use B13\Aim\Pagination\DemandedArrayPaginator;
 use B13\Aim\Provider\CredentialRedactor;
 use B13\Aim\Provider\EndpointCredential;
@@ -136,8 +137,12 @@ class ProviderController
         $configurations = $this->configurationRepository->findByDemand($demand);
         $totalCount = $this->configurationRepository->countByDemand($demand);
 
-        $rows = array_map(function (ProviderConfiguration $configuration): array {
+        $footprints = $this->requestLogRepository->getFootprintPerConfiguration();
+        $rows = array_map(function (ProviderConfiguration $configuration) use ($footprints): array {
             $row = $configuration->row;
+            $row['footprint'] = Format::summary($footprints[$configuration->uid] ?? [
+                'requests' => 0, 'estimated_requests' => 0, 'co2_min' => 0.0, 'co2_max' => 0.0, 'energy_min' => 0.0, 'energy_max' => 0.0,
+            ]);
             unset($row['api_key']);
             $row['endpoint'] = EndpointCredential::forDisplay($configuration->endpoint);
             $row['modelDisabled'] = $this->disabledModelRegistry->isDisabled(

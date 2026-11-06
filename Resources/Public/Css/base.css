@@ -456,6 +456,16 @@ aim-calibrate-voice-trigger .btn,
     text-shadow: 0 0 calc(14px * var(--aim-glow-op)) var(--rail-glow);
 }
 
+.aim-stat__value--compact {
+    font-size: 18px;
+}
+
+.aim-stat__sub {
+    margin: 4px 0 0;
+    font-size: 11px;
+    color: var(--typo3-text-color-secondary);
+}
+
 .aim-stat[data-level="good"] { --rail-color: var(--aim-good); --rail-glow: var(--aim-good-glow); }
 .aim-stat[data-level="warn"] { --rail-color: var(--aim-gold); --rail-glow: var(--aim-gold-glow); }
 .aim-stat[data-level="critical"] { --rail-color: var(--aim-critical); --rail-glow: var(--aim-critical-glow); }
@@ -477,6 +487,8 @@ aim-calibrate-voice-trigger .btn,
     display: inline-block;
     font-family: var(--typo3-font-family-monospace);
     font-size: 10px;
+    line-height: 1.4;
+    vertical-align: middle;
     letter-spacing: 0.04em;
     text-transform: uppercase;
     font-weight: 700;

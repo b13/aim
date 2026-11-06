@@ -174,6 +174,14 @@ class RequestLogRepository
             'total_tokens' => (int)($result['total_tokens'] ?? 0),
             'avg_duration_ms' => (int)($result['avg_duration_ms'] ?? 0),
             'success_rate' => $totalRequests > 0 ? round($successfulRequests / $totalRequests * 100, 1) : 0,
+            'footprint_estimated_requests' => (int)($result['footprint_estimated_requests'] ?? 0),
+            'footprint_co2_min' => (float)($result['footprint_co2_min'] ?? 0),
+            'footprint_co2_max' => (float)($result['footprint_co2_max'] ?? 0),
+            'footprint_energy_min' => (float)($result['footprint_energy_min'] ?? 0),
+            'footprint_energy_max' => (float)($result['footprint_energy_max'] ?? 0),
+            'footprint_routing_estimated_requests' => (int)($result['footprint_routing_estimated_requests'] ?? 0),
+            'footprint_avoided_min' => (float)($result['footprint_avoided_min'] ?? 0),
+            'footprint_avoided_max' => (float)($result['footprint_avoided_max'] ?? 0),
         ];
     }
 
@@ -190,7 +198,86 @@ class RequestLogRepository
             'SUM(total_tokens) AS total_tokens',
             'AVG(duration_ms) AS avg_duration_ms',
             'SUM(success) AS successful_requests',
+            'COUNT(co2_g_avoided_min) AS footprint_routing_estimated_requests',
+            'SUM(co2_g_avoided_min) AS footprint_avoided_min',
+            'SUM(co2_g_avoided_max) AS footprint_avoided_max',
+            ...self::footprintSelects(),
         );
+    }
+
+    /**
+     * Footprint totals per provider configuration. Rows without an estimate
+     * count as requests but not as estimated ones, so callers can show coverage.
+     *
+     * @return array<int, array{requests: int, estimated_requests: int, co2_min: float, co2_max: float, energy_min: float, energy_max: float}>
+     */
+    public function getFootprintPerConfiguration(): array
+    {
+        $qb = $this->getQueryBuilder();
+        $rows = $qb
+            ->selectLiteral('configuration_uid', $qb->expr()->count('*', 'total_requests'), ...self::footprintSelects())
+            ->where($qb->expr()->gt('configuration_uid', $qb->createNamedParameter(0, Connection::PARAM_INT)))
+            ->groupBy('configuration_uid')
+            ->executeQuery()
+            ->fetchAllAssociative();
+
+        $result = [];
+        foreach ($rows as $row) {
+            $result[(int)$row['configuration_uid']] = self::mapFootprintRow($row);
+        }
+        return $result;
+    }
+
+    /**
+     * @return list<array{provider_identifier: string, requests: int, estimated_requests: int, co2_min: float, co2_max: float, energy_min: float, energy_max: float}>
+     */
+    public function getFootprintByProvider(): array
+    {
+        $qb = $this->getQueryBuilder();
+        $rows = $qb
+            ->selectLiteral('provider_identifier', $qb->expr()->count('*', 'total_requests'), ...self::footprintSelects())
+            ->groupBy('provider_identifier')
+            ->executeQuery()
+            ->fetchAllAssociative();
+        // In PHP: SUM() over only NULLs is NULL, which PostgreSQL sorts first
+        usort($rows, static fn(array $a, array $b): int => (float)$b['footprint_co2_max'] <=> (float)$a['footprint_co2_max']);
+
+        return array_map(
+            static fn(array $row): array => ['provider_identifier' => (string)$row['provider_identifier']] + self::mapFootprintRow($row),
+            $rows,
+        );
+    }
+
+    /**
+     * SQL aggregates skip NULL, which is what keeps unestimated requests out of the sums.
+     *
+     * @return list<string>
+     */
+    private static function footprintSelects(): array
+    {
+        return [
+            'COUNT(co2_g_min) AS footprint_estimated_requests',
+            'SUM(co2_g_min) AS footprint_co2_min',
+            'SUM(co2_g_max) AS footprint_co2_max',
+            'SUM(energy_wh_min) AS footprint_energy_min',
+            'SUM(energy_wh_max) AS footprint_energy_max',
+        ];
+    }
+
+    /**
+     * @param array<string, mixed> $row
+     * @return array{requests: int, estimated_requests: int, co2_min: float, co2_max: float, energy_min: float, energy_max: float}
+     */
+    private static function mapFootprintRow(array $row): array
+    {
+        return [
+            'requests' => (int)($row['total_requests'] ?? 0),
+            'estimated_requests' => (int)($row['footprint_estimated_requests'] ?? 0),
+            'co2_min' => (float)($row['footprint_co2_min'] ?? 0),
+            'co2_max' => (float)($row['footprint_co2_max'] ?? 0),
+            'energy_min' => (float)($row['footprint_energy_min'] ?? 0),
+            'energy_max' => (float)($row['footprint_energy_max'] ?? 0),
+        ];
     }
 
     public function getStatisticsByProvider(): array
@@ -370,6 +457,12 @@ class RequestLogRepository
                 $qb->orderBy('be_users.username', $demand->getOrderDirection())
                     ->addOrderBy(self::TABLE . '.uid', 'desc');
             }
+        } elseif ($withOrdering && $demand->getOrderField() === 'co2_g_max') {
+            // Rows without an estimate last in either direction, as every DBMS
+            // has its own default for NULL
+            $qb->getConcreteQueryBuilder()->orderBy(sprintf('CASE WHEN %s IS NULL THEN 1 ELSE 0 END', $qb->quoteIdentifier('co2_g_max')));
+            $qb->addOrderBy('co2_g_max', $demand->getOrderDirection())
+                ->addOrderBy('uid', 'desc');
         } elseif ($withOrdering) {
             $qb->orderBy($demand->getOrderField(), $demand->getOrderDirection());
             if ($demand->getOrderField() !== 'uid') {

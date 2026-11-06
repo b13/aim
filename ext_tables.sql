@@ -44,7 +44,9 @@ CREATE TABLE tx_aim_configuration (
     grading_enabled tinyint(1) unsigned DEFAULT '0' NOT NULL,
     judge_configuration_uid int(11) unsigned DEFAULT '0' NOT NULL,
     grading_rubric text,
-    system_prompt_addition text
+    system_prompt_addition text,
+    power_draw_watts decimal(8,2) DEFAULT NULL,
+    grid_intensity decimal(8,2) DEFAULT NULL
 );
 
 CREATE TABLE tx_aim_usage_budget (
@@ -78,6 +80,14 @@ CREATE TABLE tx_aim_request_log (
 	total_tokens int(11) unsigned DEFAULT '0' NOT NULL,
 	cost decimal(10,6) DEFAULT '0.000000' NOT NULL,
 	duration_ms int(11) unsigned DEFAULT '0' NOT NULL,
+	energy_wh_min decimal(20,10) DEFAULT NULL,
+	energy_wh_max decimal(20,10) DEFAULT NULL,
+	co2_g_min decimal(20,10) DEFAULT NULL,
+	co2_g_max decimal(20,10) DEFAULT NULL,
+	co2_g_avoided_min decimal(20,10) DEFAULT NULL,
+	co2_g_avoided_max decimal(20,10) DEFAULT NULL,
+	impact_method varchar(32) DEFAULT '' NOT NULL,
+	impact_details text,
 	system_fingerprint varchar(255) DEFAULT '' NOT NULL,
 	error_message text,
 	metadata text,

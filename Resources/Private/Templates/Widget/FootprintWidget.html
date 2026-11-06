@@ -1,0 +1,63 @@
+<html xmlns:f="http://typo3.org/ns/TYPO3/CMS/Fluid/ViewHelpers"
+      data-namespace-typo3-fluid="true">
+<f:layout name="Widget/Widget" />
+<f:section name="main">
+
+    <f:if condition="{footprint.total.hasData}">
+        <f:then>
+            <div class="mb-3">
+                <p class="h3 mb-1">{footprint.total.co2}</p>
+                <p class="mb-1 text-body-secondary">
+                    {footprint.total.energy} ·
+                    <f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:footprint.pageViews" arguments="{0: footprint.total.pageViews}" />
+                </p>
+                <p class="mb-0">
+                    <f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:footprint.coverage" arguments="{0: footprint.total.estimatedRequests, 1: footprint.total.requests}" />
+                </p>
+                <f:if condition="{footprint.routing}">
+                    <f:variable name="routingClass" value="" />
+                    <f:if condition="{footprint.routing.key} == 'avoided'"><f:variable name="routingClass" value=" text-success" /></f:if>
+                    <p class="mb-0 mt-1{routingClass}">
+                        <f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:footprint.routing.{footprint.routing.key}" arguments="{footprint.routing.arguments}" />
+                    </p>
+                </f:if>
+            </div>
+            <div class="widget-table-wrapper">
+                <table class="widget-table table table-striped">
+                    <thead>
+                        <tr>
+                            <th><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.column.provider" /></th>
+                            <th><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:footprint.label" /></th>
+                            <th><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:footprint.coverageColumn" /></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <f:for each="{footprint.providers}" as="provider">
+                            <tr>
+                                <td>{provider.identifier}</td>
+                                <td class="text-nowrap">
+                                    <f:if condition="{provider.hasData}">
+                                        <f:then><span title="{provider.energy}">{provider.co2}</span></f:then>
+                                        <f:else><span class="text-body-secondary"><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:footprint.noData" /></span></f:else>
+                                    </f:if>
+                                </td>
+                                <td>{provider.estimatedRequests} / {provider.requests}</td>
+                            </tr>
+                        </f:for>
+                    </tbody>
+                </table>
+            </div>
+            <p class="small text-body-tertiary mt-3 mb-0">
+                <f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:widgets.footprint.note" />
+            </p>
+        </f:then>
+        <f:else>
+            <p class="text-body-secondary"><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:widgets.footprint.empty" /></p>
+        </f:else>
+    </f:if>
+
+</f:section>
+<f:section name="footer">
+    <f:render partial="Widget/Button" arguments="{button: button}" />
+</f:section>
+</html>

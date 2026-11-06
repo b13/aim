@@ -61,6 +61,7 @@
         </f:if>
     </td>
     <td>{entry.cost -> f:format.number(decimals: 6)}</td>
+    <td class="text-nowrap" title="{entry.footprint_title}">{entry.footprint}</td>
     <td>{entry.duration_ms -> f:format.number(decimals: 0, thousandsSeparator: ',')} ms</td>
     <td>
         <f:switch expression="{entry.grade_status}">

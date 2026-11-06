@@ -12,6 +12,24 @@
             <trans-unit id="tx_aim_configuration.palette.cost.label" resname="tx_aim_configuration.palette.cost.label">
                 <source>Cost Tracking</source>
             </trans-unit>
+            <trans-unit id="tx_aim_configuration.palette.footprint.label" resname="tx_aim_configuration.palette.footprint.label">
+                <source>Environmental Footprint</source>
+            </trans-unit>
+            <trans-unit id="tx_aim_configuration.palette.footprint.description" resname="tx_aim_configuration.palette.footprint.description">
+                <source>Requests to OpenAI, Anthropic, Gemini and Mistral are estimated from the EcoLogits model data and need nothing here. For a model on your own hardware, such as Ollama or an OpenAI-compatible local server, set the measured power draw; without it, a local provider's requests show "No data".</source>
+            </trans-unit>
+            <trans-unit id="tx_aim_configuration.columns.power_draw_watts.label" resname="tx_aim_configuration.columns.power_draw_watts.label">
+                <source>Power Draw During Inference (W)</source>
+            </trans-unit>
+            <trans-unit id="tx_aim_configuration.columns.power_draw_watts.description" resname="tx_aim_configuration.columns.power_draw_watts.description">
+                <source>Extra power the machine running the model draws while generating, idle draw subtracted. Measure it, e.g. with powermetrics on macOS; the value is used as entered. Needed for a model on your own hardware: EcoLogits has no data for local providers, so without it their requests show "No data". Leave it empty for OpenAI, Anthropic, Gemini and Mistral; when set, it replaces their EcoLogits estimate.</source>
+            </trans-unit>
+            <trans-unit id="tx_aim_configuration.columns.grid_intensity.label" resname="tx_aim_configuration.columns.grid_intensity.label">
+                <source>Grid Carbon Intensity (gCO₂e/kWh)</source>
+            </trans-unit>
+            <trans-unit id="tx_aim_configuration.columns.grid_intensity.description" resname="tx_aim_configuration.columns.grid_intensity.description">
+                <source>Carbon intensity of the electricity the model runs on. Empty uses the EcoLogits electricity data: the data center country for OpenAI, Anthropic, Gemini and Mistral, the world average for a configuration with a power draw. For a local model, set the value of your grid; the world average is rarely right. 0 counts as a value.</source>
+            </trans-unit>
             <trans-unit id="tx_aim_configuration.palette.tokenCosts.label" resname="tx_aim_configuration.palette.tokenCosts.label">
                 <source>Token Costs</source>
             </trans-unit>

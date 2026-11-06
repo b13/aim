@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+- **Feature "Environmental footprint"**: Every text-generating request is logged with an estimated
+energy use and CO₂e footprint, shown on the request detail, next to the cost in the Request Log list
+(sortable), as a card in the Request Log statistics, per configuration in the Providers overview,
+and in the new *AI Footprint* dashboard widget. Requests to OpenAI, Anthropic, Gemini and Mistral
+are estimated with the EcoLogits methodology and model data, as a min–max range; requests to local
+models such as Ollama use the inference time and a power draw set on the provider configuration.
+Requests that cannot be estimated show "No data" and its reason, never zero, and every total says
+how many requests it covers. When smart routing answers a simple prompt with a cheaper model, the
+requested model's estimate for the same answer is kept too, and the statistics card and the widget
+show what smart routing avoided, or added. See `Documentation/EnvironmentalImpact.md`. Run the database
+analyzer for the new columns of `tx_aim_request_log` and `tx_aim_configuration`.
+
 - **Bugfix "Workspace versioning of prompt fragments"**: `tx_aim_prompt_fragment` and
 `tx_aim_page_prompt_fragment` set `versioningWS_alwaysAllowLiveEdit` next to `versioningWS`, so an edit made in
 a workspace went straight to live, unlike the workspace behaviour `Documentation/ToneOfVoice.md` describes.

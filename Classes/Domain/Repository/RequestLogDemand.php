@@ -25,7 +25,7 @@ class RequestLogDemand implements SortableDemandInterface
      * implements via a join. Sorting by the raw user_id instead would be poor UX
      * since the column displays the resolved username, not the ID.
      */
-    protected const ORDER_FIELDS = ['crdate', 'cost', 'duration_ms', 'request_type', 'extension_key', 'total_tokens', 'provider_identifier', 'username'];
+    protected const ORDER_FIELDS = ['crdate', 'cost', 'co2_g_max', 'duration_ms', 'request_type', 'extension_key', 'total_tokens', 'provider_identifier', 'username'];
 
     protected int $limit = 25;
 

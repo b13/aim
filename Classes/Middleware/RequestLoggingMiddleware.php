@@ -14,7 +14,12 @@ namespace B13\Aim\Middleware;
 
 use B13\Aim\Attribute\AsAiMiddleware;
 use B13\Aim\Domain\Model\ProviderConfiguration;
+use B13\Aim\Domain\Model\ProviderConfigurationFactory;
 use B13\Aim\Domain\Repository\RequestLogRepository;
+use B13\Aim\Footprint\Avoided;
+use B13\Aim\Footprint\Estimate;
+use B13\Aim\Footprint\Estimator;
+use B13\Aim\Footprint\Unavailable;
 use B13\Aim\Governance\PrivacyLevel;
 use B13\Aim\Provider\AiProviderInterface;
 use B13\Aim\Request\AiRequestInterface;
@@ -47,6 +52,7 @@ final class RequestLoggingMiddleware implements AiMiddlewareInterface
     public function __construct(
         private readonly RequestLogRepository $repository,
         private readonly LoggerInterface $logger,
+        private readonly Estimator $footprintEstimator,
     ) {}
 
     public function process(
@@ -119,7 +125,7 @@ final class RequestLoggingMiddleware implements AiMiddlewareInterface
     ): void {
         $resolved = $this->resolveStreamedResponse($response, $streamIterator);
         $durationMs = (int)((hrtime(true) - $start) / 1_000_000);
-        $this->logRequest($request, $resolved, $configuration, $durationMs, null, $context);
+        $this->logRequest($request, $resolved, $configuration, $durationMs, null, $context, true);
     }
 
     /**
@@ -147,6 +153,7 @@ final class RequestLoggingMiddleware implements AiMiddlewareInterface
         int $durationMs,
         ?\Throwable $error,
         RequestContext $context,
+        bool $streamed = false,
     ): void {
         // Determine effective privacy level
         $privacyLevel = $this->resolvePrivacyLevel($configuration, $request, $context);
@@ -234,6 +241,42 @@ final class RequestLoggingMiddleware implements AiMiddlewareInterface
             $data['reroute_reason'] = (string)($context->fallbackInfo['reason'] ?? '');
         }
 
+        // Before redaction: local estimates read the provider timings from raw usage.
+        try {
+            $footprint = $this->footprintEstimator->estimate($request, $response, $configuration, $durationMs, $streamed);
+        } catch (\Throwable $estimateError) {
+            // Must not cost the caller an already-paid response
+            $this->logger->warning('AiM footprint estimate failed: ' . $estimateError::class . ': ' . $estimateError->getMessage(), [
+                'request_type' => $data['request_type'],
+                'provider_identifier' => $data['provider_identifier'],
+            ]);
+            $footprint = Unavailable::EstimationFailed;
+        }
+        if ($footprint instanceof Estimate) {
+            $data['energy_wh_min'] = $footprint->energyWhMin;
+            $data['energy_wh_max'] = $footprint->energyWhMax;
+            $data['co2_g_min'] = $footprint->co2GramsMin;
+            $data['co2_g_max'] = $footprint->co2GramsMax;
+            $data['impact_method'] = $footprint->method->value;
+            $details = $footprint->details;
+            $avoided = $this->estimateAvoided($request, $response, $configuration);
+            if ($avoided !== null) {
+                $requested = $avoided->requested;
+                $data['co2_g_avoided_min'] = $avoided->co2GramsMin;
+                $data['co2_g_avoided_max'] = $avoided->co2GramsMax;
+                $details['requestedModel'] = [
+                    'provider' => $requested->details['provider'] ?? '',
+                    'model' => $requested->details['model'] ?? '',
+                    'co2Grams' => ['min' => $requested->co2GramsMin, 'max' => $requested->co2GramsMax],
+                    'energyWh' => ['min' => $requested->energyWhMin, 'max' => $requested->energyWhMax],
+                    'avoidedCo2Grams' => ['min' => $avoided->co2GramsMin, 'max' => $avoided->co2GramsMax],
+                ];
+            }
+            $data['impact_details'] = self::encodeJson($details);
+        } else {
+            $data['impact_details'] = self::encodeJson(['unavailable' => $footprint->value]);
+        }
+
         // Redact content for reduced privacy. A provider's own error text and
         // the reroute reason routinely quote the input that was refused, and
         // raw_usage is provider-shaped, so none of them can be assumed
@@ -265,6 +308,28 @@ final class RequestLoggingMiddleware implements AiMiddlewareInterface
                 'provider_identifier' => $data['provider_identifier'],
                 'configuration_uid' => $data['configuration_uid'],
             ]);
+        }
+    }
+
+    /**
+     * What smart routing avoided, if it routed this request.
+     */
+    private function estimateAvoided(
+        AiRequestInterface $request,
+        ?TextResponse $response,
+        ProviderConfiguration $configuration,
+    ): ?Avoided {
+        $requested = ProviderConfigurationFactory::routedFrom($configuration);
+        if ($requested === null) {
+            return null;
+        }
+        try {
+            return $this->footprintEstimator->estimateAvoided($request, $response, $configuration, $requested);
+        } catch (\Throwable $estimateError) {
+            $this->logger->warning('AiM avoided footprint estimate failed: ' . $estimateError::class . ': ' . $estimateError->getMessage(), [
+                'provider_identifier' => $configuration->providerIdentifier,
+            ]);
+            return null;
         }
     }
 
