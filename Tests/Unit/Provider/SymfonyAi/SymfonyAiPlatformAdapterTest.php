@@ -12,6 +12,7 @@ declare(strict_types=1);
 
 namespace B13\Aim\Tests\Unit\Provider\SymfonyAi;
 
+use B13\Aim\Domain\Model\ProviderConfiguration;
 use B13\Aim\Provider\SymfonyAi\SymfonyAiPlatformAdapter;
 use B13\Aim\Request\Message\AssistantMessage;
 use B13\Aim\Request\Message\ToolMessage;
@@ -31,6 +32,7 @@ use Symfony\AI\Platform\Result\DeferredResult;
 use Symfony\AI\Platform\Result\InMemoryRawResult;
 use Symfony\AI\Platform\Result\TextResult;
 use Symfony\AI\Platform\ResultConverterInterface;
+use Symfony\AI\Platform\TokenUsage\TokenUsage;
 
 final class SymfonyAiPlatformAdapterTest extends TestCase
 {
@@ -232,6 +234,45 @@ final class SymfonyAiPlatformAdapterTest extends TestCase
         self::assertInstanceOf(SymfonyAssistantMessage::class, $assistant);
         self::assertFalse($assistant->hasToolCalls());
         self::assertNotInstanceOf(ToolCallMessage::class, $messages[2]);
+    }
+
+    #[Test]
+    public function extractUsageKeepsOllamaTimingsAsRawUsage(): void
+    {
+        $result = new TextResult('A red bicycle.');
+        $result->getMetadata()->add('token_usage', new TokenUsage(promptTokens: 30, completionTokens: 12));
+        $result->setRawResult(new InMemoryRawResult([
+            'model' => 'gemma3:4b',
+            'message' => ['role' => 'assistant', 'content' => 'A red bicycle.'],
+            'total_duration' => 2_400_000_000,
+            'load_duration' => 400_000_000,
+            'prompt_eval_duration' => 300_000_000,
+            'eval_duration' => 1_600_000_000,
+            'eval_count' => 12,
+        ]));
+
+        $adapter = new SymfonyAiPlatformAdapter('Symfony\\AI\\Platform\\Bridge\\Ollama\\PlatformFactory');
+        $usage = (new \ReflectionMethod($adapter, 'extractUsage'))->invoke($adapter, $result, new ProviderConfiguration([]));
+
+        self::assertSame([
+            'total_duration' => 2_400_000_000,
+            'load_duration' => 400_000_000,
+            'prompt_eval_duration' => 300_000_000,
+            'eval_duration' => 1_600_000_000,
+        ], $usage->rawUsage);
+    }
+
+    #[Test]
+    public function extractUsageKeepsTheUsageObjectNextToTimings(): void
+    {
+        $result = new TextResult('Hi');
+        $result->getMetadata()->add('token_usage', new TokenUsage(promptTokens: 3, completionTokens: 1));
+        $result->setRawResult(new InMemoryRawResult(['usage' => ['input_tokens' => 3, 'output_tokens' => 1], 'total_duration' => 5]));
+
+        $adapter = new SymfonyAiPlatformAdapter('Symfony\\AI\\Platform\\Bridge\\Anthropic\\PlatformFactory');
+        $usage = (new \ReflectionMethod($adapter, 'extractUsage'))->invoke($adapter, $result, new ProviderConfiguration([]));
+
+        self::assertSame(['input_tokens' => 3, 'output_tokens' => 1, 'total_duration' => 5], $usage->rawUsage);
     }
 
     /**

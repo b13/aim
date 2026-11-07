@@ -16,6 +16,7 @@ use B13\Aim\Backend\ConsoleStylesheetProvider;
 use B13\Aim\Backend\SortUrlBuilder;
 use B13\Aim\Domain\Repository\RequestLogDemand;
 use B13\Aim\Domain\Repository\RequestLogRepository;
+use B13\Aim\Footprint\Display;
 use B13\Aim\Pagination\DemandedArrayPaginator;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -50,6 +51,7 @@ class RequestLogController
         private readonly SortUrlBuilder $sortUrlBuilder,
         private readonly ConsoleStylesheetProvider $consoleStylesheetProvider,
         private readonly ModuleProvider $moduleProvider,
+        private readonly Display $footprintDisplay,
     ) {}
 
     public function logAction(ServerRequestInterface $request): ResponseInterface
@@ -79,7 +81,7 @@ class RequestLogController
         $buttonBar->addButton($shortcutButton, ButtonBar::BUTTON_POSITION_RIGHT, 3);
 
         $demand = RequestLogDemand::fromRequest($request);
-        $logEntries = array_map($this->withModelRequestedDiffers(...), $this->logRepository->findByDemand($demand));
+        $logEntries = array_map($this->withFootprintCell(...), array_map($this->withModelRequestedDiffers(...), $this->logRepository->findByDemand($demand)));
         $totalCount = $this->logRepository->countByDemand($demand);
 
         $paginator = new DemandedArrayPaginator(
@@ -90,7 +92,7 @@ class RequestLogController
         );
         $pagination = new SimplePagination($paginator);
 
-        $statistics = $this->logRepository->getStatistics();
+        $statistics = $this->withFootprintSummary($this->logRepository->getStatistics());
         $statistics['pending_grades'] = $this->logRepository->countPendingGradesOlderThan(3600);
 
         // Build pagination base URL with demand filters (append &page=N in template)
@@ -169,7 +171,7 @@ class RequestLogController
     }
 
     /**
-     * @return array{entry: array<string, mixed>|null, username?: string, extensionIcon?: string|null}
+     * @return array{entry: array<string, mixed>|null, footprint?: array<string, mixed>, username?: string, extensionIcon?: string|null}
      */
     private function resolveShowViewData(int $uid): array
     {
@@ -192,6 +194,7 @@ class RequestLogController
 
         return [
             'entry' => $entry,
+            'footprint' => $this->footprintDisplay->entry($entry),
             'username' => $userMap[$userId] ?? '',
             'extensionIcon' => ($entry['extension_key'] ?? '') !== '' ? ($this->resolveExtensionIcons([$entry['extension_key']])[$entry['extension_key']] ?? null) : null,
         ];
@@ -206,7 +209,7 @@ class RequestLogController
         $demand = RequestLogDemand::fromRequest($request);
         $logEntries = array_map($this->withModelRequestedDiffers(...), $this->logRepository->findByDemand($demand));
         $totalCount = $this->logRepository->countByDemand($demand);
-        $statistics = $this->logRepository->getStatistics();
+        $statistics = $this->withFootprintSummary($this->logRepository->getStatistics());
 
         $requestLogReturnUrl = $this->buildRequestLogUrl($demand);
 
@@ -223,7 +226,7 @@ class RequestLogController
         $extensionIcons = $this->resolveExtensionIcons($extensionKeys);
 
         $rows = [];
-        foreach ($logEntries as $entry) {
+        foreach (array_map($this->withFootprintCell(...), $logEntries) as $entry) {
             $configurationUid = (int)($entry['configuration_uid'] ?? 0);
             $userId = (int)($entry['user_id'] ?? 0);
             $rows[] = [
@@ -257,6 +260,8 @@ class RequestLogController
                 'cached_tokens' => (int)($entry['cached_tokens'] ?? 0),
                 'reasoning_tokens' => (int)($entry['reasoning_tokens'] ?? 0),
                 'cost' => number_format((float)($entry['cost'] ?? 0), 6),
+                'footprint' => $entry['footprint'],
+                'footprint_title' => $entry['footprint_title'],
                 'duration_ms' => number_format((int)($entry['duration_ms'] ?? 0), 0, '.', ','),
                 'success' => (bool)($entry['success'] ?? false),
                 'rerouted' => (bool)($entry['rerouted'] ?? false),
@@ -358,6 +363,24 @@ class RequestLogController
             }
         }
         return $icons;
+    }
+
+    /**
+     * @param array<string, mixed> $statistics
+     * @return array<string, mixed>
+     */
+    private function withFootprintSummary(array $statistics): array
+    {
+        return [...$statistics, ...$this->footprintDisplay->statistics($statistics)];
+    }
+
+    /**
+     * @param array<string, mixed> $entry
+     * @return array<string, mixed>
+     */
+    private function withFootprintCell(array $entry): array
+    {
+        return [...$entry, ...$this->footprintDisplay->cell($entry)];
     }
 
     private function getLanguageService(): LanguageService

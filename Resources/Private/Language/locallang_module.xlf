@@ -463,6 +463,9 @@
             <trans-unit id="requestLog.column.cost" resname="requestLog.column.cost">
                 <source>Cost</source>
             </trans-unit>
+            <trans-unit id="requestLog.column.footprint" resname="requestLog.column.footprint">
+                <source>CO₂e (est.)</source>
+            </trans-unit>
             <trans-unit id="requestLog.column.duration" resname="requestLog.column.duration">
                 <source>Duration</source>
             </trans-unit>
@@ -651,6 +654,168 @@
             </trans-unit>
             <trans-unit id="commands.calibrateVoice.fragmentTitle" resname="commands.calibrateVoice.fragmentTitle">
                 <source>Voice (auto-calibrated)</source>
+            </trans-unit>
+            <trans-unit id="footprint.label" resname="footprint.label">
+                <source>Footprint</source>
+            </trans-unit>
+            <trans-unit id="footprint.estimated" resname="footprint.estimated">
+                <source>Estimated</source>
+            </trans-unit>
+            <trans-unit id="footprint.method.model_estimate" resname="footprint.method.model_estimate">
+                <source>EcoLogits model</source>
+            </trans-unit>
+            <trans-unit id="footprint.method.model_estimate.description" resname="footprint.method.model_estimate.description">
+                <source>Usage-phase estimate from output tokens and model size, EcoLogits methodology. Not included: input tokens and image processing, and the hardware manufacturing share listed above. The range only reflects the assumed model size, it is not a confidence interval.</source>
+            </trans-unit>
+            <trans-unit id="footprint.method.duration_calibrated" resname="footprint.method.duration_calibrated">
+                <source>Configured power draw</source>
+            </trans-unit>
+            <trans-unit id="footprint.method.duration_calibrated.description" resname="footprint.method.duration_calibrated.description">
+                <source>Inference time multiplied by the power draw entered on the provider configuration, a single value without range. As exact as that value: typically chip power under load minus idle, without display, storage and power supply.</source>
+            </trans-unit>
+            <trans-unit id="footprint.fact.activeParameters" resname="footprint.fact.activeParameters">
+                <source>Active parameters</source>
+            </trans-unit>
+            <trans-unit id="footprint.fact.gpus" resname="footprint.fact.gpus">
+                <source>GPUs</source>
+            </trans-unit>
+            <trans-unit id="footprint.fact.pue" resname="footprint.fact.pue">
+                <source>PUE</source>
+            </trans-unit>
+            <trans-unit id="footprint.fact.outputTokens" resname="footprint.fact.outputTokens">
+                <source>Output tokens</source>
+            </trans-unit>
+            <trans-unit id="footprint.fact.generationSeconds" resname="footprint.fact.generationSeconds">
+                <source>Generation time</source>
+            </trans-unit>
+            <trans-unit id="footprint.fact.powerDrawWatts" resname="footprint.fact.powerDrawWatts">
+                <source>Power draw</source>
+            </trans-unit>
+            <trans-unit id="footprint.fact.inferenceSeconds" resname="footprint.fact.inferenceSeconds">
+                <source>Inference time</source>
+            </trans-unit>
+            <trans-unit id="footprint.fact.durationSource" resname="footprint.fact.durationSource">
+                <source>Time source</source>
+            </trans-unit>
+            <trans-unit id="footprint.fact.gridIntensity" resname="footprint.fact.gridIntensity">
+                <source>Grid carbon intensity</source>
+            </trans-unit>
+            <trans-unit id="footprint.durationSource.provider_timings" resname="footprint.durationSource.provider_timings">
+                <source>Provider timings, model loading excluded</source>
+            </trans-unit>
+            <trans-unit id="footprint.durationSource.request_duration" resname="footprint.durationSource.request_duration">
+                <source>Measured request duration</source>
+            </trans-unit>
+            <trans-unit id="footprint.warning.model-arch-not-released" resname="footprint.warning.model-arch-not-released">
+                <source>Model architecture not published, size is an assumption</source>
+            </trans-unit>
+            <trans-unit id="footprint.warning.model-arch-multimodal" resname="footprint.warning.model-arch-multimodal">
+                <source>Multimodal model, lower precision</source>
+            </trans-unit>
+            <trans-unit id="footprint.noData" resname="footprint.noData">
+                <source>No data</source>
+            </trans-unit>
+            <trans-unit id="footprint.noData.configuration" resname="footprint.noData.configuration">
+                <source>No request through this configuration could be estimated yet.</source>
+            </trans-unit>
+            <trans-unit id="footprint.unavailable.request_failed" resname="footprint.unavailable.request_failed">
+                <source>The request failed.</source>
+            </trans-unit>
+            <trans-unit id="footprint.unavailable.unsupported_request_type" resname="footprint.unavailable.unsupported_request_type">
+                <source>Only text-generating requests are estimated.</source>
+            </trans-unit>
+            <trans-unit id="footprint.unavailable.no_output_tokens" resname="footprint.unavailable.no_output_tokens">
+                <source>The provider reported no output tokens.</source>
+            </trans-unit>
+            <trans-unit id="footprint.unavailable.no_data_source" resname="footprint.unavailable.no_data_source">
+                <source>No model data for this provider and no power draw configured.</source>
+            </trans-unit>
+            <trans-unit id="footprint.unavailable.unknown_model" resname="footprint.unavailable.unknown_model">
+                <source>The model is not in the EcoLogits model data.</source>
+            </trans-unit>
+            <trans-unit id="footprint.unavailable.streamed_local_request" resname="footprint.unavailable.streamed_local_request">
+                <source>Streamed requests are not estimated from a configured power draw yet.</source>
+            </trans-unit>
+            <trans-unit id="footprint.unavailable.no_duration" resname="footprint.unavailable.no_duration">
+                <source>No inference time available.</source>
+            </trans-unit>
+            <trans-unit id="footprint.unavailable.not_recorded" resname="footprint.unavailable.not_recorded">
+                <source>Logged before footprint estimation was available.</source>
+            </trans-unit>
+            <trans-unit id="footprint.coverage" resname="footprint.coverage">
+                <source>%1$s of %2$s requests estimated</source>
+            </trans-unit>
+            <trans-unit id="footprint.coverageColumn" resname="footprint.coverageColumn">
+                <source>Estimated</source>
+            </trans-unit>
+            <trans-unit id="footprint.pageViews" resname="footprint.pageViews">
+                <source>≈ %s average page views</source>
+            </trans-unit>
+            <trans-unit id="requestLog.stats.footprint" resname="requestLog.stats.footprint">
+                <source>Footprint (est.)</source>
+            </trans-unit>
+            <trans-unit id="requestLog.stats.footprint.info" resname="requestLog.stats.footprint.info">
+                <source>Estimated usage-phase CO₂e of the requests that could be estimated, as a range. Requests without an estimate are left out, never counted as zero, so the total is a lower bound; see the coverage below. Hosted and local estimates use different methods.</source>
+            </trans-unit>
+            <trans-unit id="overview.configurations.footprint" resname="overview.configurations.footprint">
+                <source>Footprint (est., usage)</source>
+            </trans-unit>
+            <trans-unit id="widgets.footprint.title" resname="widgets.footprint.title">
+                <source>AI Footprint</source>
+            </trans-unit>
+            <trans-unit id="widgets.footprint.description" resname="widgets.footprint.description">
+                <source>Estimated usage-phase energy and CO₂e of the AI requests that could be estimated, per provider.</source>
+            </trans-unit>
+            <trans-unit id="widgets.footprint.note" resname="widgets.footprint.note">
+                <source>Estimates, not measurements, and a lower bound: requests without an estimate are left out. Usage phase only; hosted and local figures use different methods. A page view is 0.36 g CO₂e (Sustainable Web Design Model v4), which also includes devices, network and hardware manufacturing, so the comparison is a sense of scale only.</source>
+            </trans-unit>
+            <trans-unit id="widgets.footprint.empty" resname="widgets.footprint.empty">
+                <source>No request has been estimated yet.</source>
+            </trans-unit>
+            <trans-unit id="footprint.fact.embodiedCo2Grams" resname="footprint.fact.embodiedCo2Grams">
+                <source>Hardware manufacturing share</source>
+            </trans-unit>
+            <trans-unit id="footprint.gridSource.configuration" resname="footprint.gridSource.configuration">
+                <source>set on the provider configuration</source>
+            </trans-unit>
+            <trans-unit id="footprint.gridSource.USA" resname="footprint.gridSource.USA">
+                <source>USA, EcoLogits electricity mix</source>
+            </trans-unit>
+            <trans-unit id="footprint.gridSource.SWE" resname="footprint.gridSource.SWE">
+                <source>Sweden, EcoLogits electricity mix</source>
+            </trans-unit>
+            <trans-unit id="footprint.gridSource.WOR" resname="footprint.gridSource.WOR">
+                <source>world average, EcoLogits electricity mix</source>
+            </trans-unit>
+            <trans-unit id="footprint.unavailable.estimation_failed" resname="footprint.unavailable.estimation_failed">
+                <source>The estimate could not be computed; see the TYPO3 log.</source>
+            </trans-unit>
+            <trans-unit id="footprint.fact.totalParameters" resname="footprint.fact.totalParameters">
+                <source>Total parameters</source>
+            </trans-unit>
+            <trans-unit id="footprint.routing.avoided" resname="footprint.routing.avoided">
+                <source>Avoided by smart routing: ≈ %1$s · routed requests with an estimate: %2$s</source>
+            </trans-unit>
+            <trans-unit id="footprint.routing.added" resname="footprint.routing.added">
+                <source>Added by smart routing: ≈ %1$s · routed requests with an estimate: %2$s</source>
+            </trans-unit>
+            <trans-unit id="footprint.routing.mixed" resname="footprint.routing.mixed">
+                <source>Smart routing: between %1$s added and %2$s avoided · routed requests with an estimate: %3$s</source>
+            </trans-unit>
+            <trans-unit id="footprint.fact.routingChange" resname="footprint.fact.routingChange">
+                <source>Smart routing</source>
+            </trans-unit>
+            <trans-unit id="footprint.routingChange.avoided" resname="footprint.routingChange.avoided">
+                <source>%1$s avoided</source>
+            </trans-unit>
+            <trans-unit id="footprint.routingChange.added" resname="footprint.routingChange.added">
+                <source>%1$s added</source>
+            </trans-unit>
+            <trans-unit id="footprint.routingChange.mixed" resname="footprint.routingChange.mixed">
+                <source>between %1$s added and %2$s avoided</source>
+            </trans-unit>
+            <trans-unit id="footprint.fact.requestedModel" resname="footprint.fact.requestedModel">
+                <source>Requested model, without smart routing</source>
             </trans-unit>
         </body>
     </file>

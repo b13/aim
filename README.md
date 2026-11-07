@@ -124,6 +124,7 @@ below, beautifully rendered rather than raw.
 | [Governance and access control](Documentation/Governance.md) | Credential storage, provider and capability restrictions, budgets, rate limits, privacy levels, and rerouting protection. |
 | [Tone of voice](Documentation/ToneOfVoice.md) | How the prompt is composed, page-tree fragments and their inheritance, the fragment library, and voice calibration. |
 | [The request pipeline](Documentation/Pipeline.md) | Smart routing, LLM grading, the eleven stages, and writing middleware of your own. |
+| [Environmental footprint](Documentation/EnvironmentalImpact.md) | How the energy and CO₂e estimate of each request is computed, how to calibrate local models, and what it leaves out. |
 | [Backend modules](Documentation/BackendModules.md) | Providers, Request Log and Prompt Management, the dashboard widgets, and the database tables. |
 | [Development](Documentation/Development.md) | Running the tests, static analysis and coding standards on every supported TYPO3 and PHP version. |
 
@@ -138,6 +139,8 @@ below, beautifully rendered rather than raw.
 ## License
 
 GPL-2.0-or-later
+
+The environmental footprint estimate ports parts of [EcoLogits](https://github.com/genai-impact/ecologits) by GenAI Impact and ships a subset of its data, under MPL-2.0; see [Environmental footprint](Documentation/EnvironmentalImpact.md).
 
 ## Credits
 

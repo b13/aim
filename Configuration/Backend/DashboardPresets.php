@@ -11,6 +11,7 @@ return [
             'aim_model_usage',
             'aim_success_rate',
             'aim_extension_usage',
+            'aim_footprint',
         ],
         'showInWizard' => true,
     ],

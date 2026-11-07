@@ -7,7 +7,9 @@ use B13\Aim\Attribute\AsAiProvider;
 use B13\Aim\DependencyInjection\AiMiddlewareCompilerPass;
 use B13\Aim\DependencyInjection\AiProviderCompilerPass;
 use B13\Aim\DependencyInjection\SymfonyAiCompilerPass;
+use B13\Aim\Widgets\FootprintWidget;
 use B13\Aim\Widgets\Provider\ExtensionUsageDataProvider;
+use B13\Aim\Widgets\Provider\FootprintDataProvider;
 use B13\Aim\Widgets\Provider\ModelUsageDataProvider;
 use B13\Aim\Widgets\Provider\ProviderUsageDataProvider;
 use B13\Aim\Widgets\Provider\RecentRequestsDataProvider;
@@ -64,6 +66,7 @@ return static function (ContainerConfigurator $container, ContainerBuilder $cont
         $services->set(ModelUsageDataProvider::class)->public()->autowire();
         $services->set(SuccessRateDataProvider::class)->public()->autowire();
         $services->set(ExtensionUsageDataProvider::class)->public()->autowire();
+        $services->set(FootprintDataProvider::class)->public()->autowire();
 
         $services->set('dashboard.buttons.aim_request_log')
             ->class(RequestLogButtonProvider::class)
@@ -82,6 +85,22 @@ return static function (ContainerConfigurator $container, ContainerBuilder $cont
                 'description' => 'LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:widgets.recentRequests.description',
                 'iconIdentifier' => 'tx-aim',
                 'height' => 'medium',
+                'width' => 'medium',
+            ]);
+
+        $services->set('dashboard.widget.aim_footprint')
+            ->class(FootprintWidget::class)
+            ->arg('$dataProvider', new Reference(FootprintDataProvider::class))
+            ->arg('$backendViewFactory', new Reference(BackendViewFactory::class))
+            ->arg('$buttonProvider', new Reference('dashboard.buttons.aim_request_log'))
+            ->arg('$options', ['refreshAvailable' => true])
+            ->tag('dashboard.widget', [
+                'identifier' => 'aim_footprint',
+                'groupNames' => 'aim',
+                'title' => 'LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:widgets.footprint.title',
+                'description' => 'LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:widgets.footprint.description',
+                'iconIdentifier' => 'tx-aim',
+                'height' => 'large',
                 'width' => 'medium',
             ]);
 

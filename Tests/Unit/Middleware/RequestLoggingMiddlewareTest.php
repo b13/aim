@@ -14,6 +14,8 @@ namespace B13\Aim\Tests\Unit\Middleware;
 
 use B13\Aim\Domain\Model\ProviderConfiguration;
 use B13\Aim\Domain\Repository\RequestLogRepository;
+use B13\Aim\Footprint\EcoLogitsData;
+use B13\Aim\Footprint\Estimator;
 use B13\Aim\Middleware\AiMiddlewareHandler;
 use B13\Aim\Middleware\RequestContext;
 use B13\Aim\Middleware\RequestLoggingMiddleware;
@@ -52,7 +54,7 @@ final class RequestLoggingMiddlewareTest extends TestCase
         $repository = $this->createMock(RequestLogRepository::class);
         $repository->expects(self::once())->method('log')->willReturn(42);
 
-        $middleware = new RequestLoggingMiddleware($repository, new NullLogger());
+        $middleware = new RequestLoggingMiddleware($repository, new NullLogger(), new Estimator(new EcoLogitsData()));
         $config = $this->createConfig();
         $request = new TextGenerationRequest(configuration: $config, prompt: 'Hi');
         $next = new AiMiddlewareHandler(static fn() => new TextResponse('hello'));
@@ -72,7 +74,7 @@ final class RequestLoggingMiddlewareTest extends TestCase
         $repository = $this->createMock(RequestLogRepository::class);
         $repository->expects(self::never())->method('log');
 
-        $middleware = new RequestLoggingMiddleware($repository, new NullLogger());
+        $middleware = new RequestLoggingMiddleware($repository, new NullLogger(), new Estimator(new EcoLogitsData()));
         $config = $this->createConfig();
         $request = new ConversationRequest(
             configuration: $config,
@@ -116,7 +118,7 @@ final class RequestLoggingMiddlewareTest extends TestCase
 
         $response = new ConversationResponse('', streamIterator: $streamIterator);
 
-        $middleware = new RequestLoggingMiddleware($this->createMock(RequestLogRepository::class), new NullLogger());
+        $middleware = new RequestLoggingMiddleware($this->createMock(RequestLogRepository::class), new NullLogger(), new Estimator(new EcoLogitsData()));
         $resolved = (new \ReflectionMethod($middleware, 'resolveStreamedResponse'))->invoke($middleware, $response, $streamIterator);
 
         self::assertInstanceOf(ConversationResponse::class, $resolved);
@@ -139,7 +141,7 @@ final class RequestLoggingMiddlewareTest extends TestCase
 
         $response = new ToolCallingResponse('', streamIterator: $streamIterator);
 
-        $middleware = new RequestLoggingMiddleware($this->createMock(RequestLogRepository::class), new NullLogger());
+        $middleware = new RequestLoggingMiddleware($this->createMock(RequestLogRepository::class), new NullLogger(), new Estimator(new EcoLogitsData()));
         $resolved = (new \ReflectionMethod($middleware, 'resolveStreamedResponse'))->invoke($middleware, $response, $streamIterator);
 
         self::assertInstanceOf(ToolCallingResponse::class, $resolved);
@@ -174,7 +176,7 @@ final class RequestLoggingMiddlewareTest extends TestCase
                 && $data['success'] === 1))
             ->willReturn(7);
 
-        $middleware = new RequestLoggingMiddleware($repository, new NullLogger());
+        $middleware = new RequestLoggingMiddleware($repository, new NullLogger(), new Estimator(new EcoLogitsData()));
         $context = new RequestContext();
         (new \ReflectionMethod($middleware, 'applyStreamedLog'))->invoke(
             $middleware,

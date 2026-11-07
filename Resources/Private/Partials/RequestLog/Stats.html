@@ -65,6 +65,20 @@
             </div>
             <p class="aim-stat__value" data-stat="avg_duration_ms">{statistics.avg_duration_ms -> f:format.number(decimals: 0, thousandsSeparator: ',')} ms</p>
         </div>
+
+        <div class="aim-stat" style="--rail-color: var(--aim-good); --rail-glow: var(--aim-good-glow);">
+            <div class="aim-stat__head">
+                <core:icon identifier="actions-bolt" size="small" />
+                <f:variable name="statLabel"><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.stats.footprint" /></f:variable>
+                <span class="aim-stat__label">{statLabel}</span>
+                <button type="button" class="aim-stat__info" style="border: 0; background: none; padding: 0;" aria-label="{f:translate(key:'LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.stats.info', arguments: '{0: statLabel}')}" data-bs-toggle="popover" data-bs-placement="auto" data-bs-trigger="hover focus" data-bs-content="{f:translate(key:'LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:requestLog.stats.footprint.info')}">
+                    <core:icon identifier="actions-info-circle" size="small" />
+                </button>
+            </div>
+            <p class="aim-stat__value aim-stat__value--compact" data-stat="footprint_display">{statistics.footprint_display}</p>
+            <p class="aim-stat__sub" data-stat="footprint_coverage">{statistics.footprint_coverage}</p>
+            <p class="aim-stat__sub" data-stat="footprint_routing">{statistics.footprint_routing}</p>
+        </div>
     </div>
 </div>
 

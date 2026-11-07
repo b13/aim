@@ -163,6 +163,7 @@ final class SmartRoutingMiddleware implements AiMiddlewareInterface
                     $cheaperResult['configuration'],
                     $configuration->model,
                     sprintf('smart routing: simple prompt (%.2f), %s', $classification['score'], $measured),
+                    $configuration,
                 );
 
                 // The privacy level is read from the configuration of the attempt that gets logged,

@@ -36,6 +36,7 @@
                                         <f:render partial="SortableHeader" arguments="{sortUrls: sortUrls, field: 'endpoint', labelKey: 'LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:overview.configurations.endpoint'}" />
                                         <f:render partial="SortableHeader" arguments="{sortUrls: sortUrls, field: 'model', labelKey: 'LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:overview.configurations.model'}" />
                                         <f:render partial="SortableHeader" arguments="{sortUrls: sortUrls, field: 'total_cost', labelKey: 'LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:overview.configurations.totalCost'}" />
+                                        <th><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:overview.configurations.footprint" /></th>
                                         <th><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:overview.configurations.lastUsed" /></th>
                                         <th><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:overview.configurations.status" /></th>
                                         <th class="col-control"><span class="visually-hidden"><f:translate key="LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels._CONTROL_" /></span></th>
@@ -92,6 +93,17 @@
                                                 </f:if>
                                             </td>
                                             <td>{config.total_cost -> f:format.number(decimals: 2)} {config.cost_currency}</td>
+                                            <td>
+                                                <f:if condition="{config.footprint.hasData}">
+                                                    <f:then>
+                                                        <span class="text-nowrap" title="{config.footprint.energy}">{config.footprint.co2}</span>
+                                                        <br /><small class="text-body-secondary"><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:footprint.coverage" arguments="{0: config.footprint.estimatedRequests, 1: config.footprint.requests}" /></small>
+                                                    </f:then>
+                                                    <f:else>
+                                                        <small class="text-body-secondary" title="{f:translate(key: 'LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:footprint.noData.configuration')}"><f:translate key="LLL:EXT:aim/Resources/Private/Language/locallang_module.xlf:footprint.noData" /></small>
+                                                    </f:else>
+                                                </f:if>
+                                            </td>
                                             <td>
                                                 <f:if condition="{lastUsed.{config.uid}}">
                                                     <f:then>

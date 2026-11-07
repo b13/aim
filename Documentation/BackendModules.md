@@ -74,7 +74,7 @@ A fragment assigned to multiple pages is still one Library row; editing it from 
 
 ## Dashboard Widgets
 
-When `typo3/cms-dashboard` is installed, AiM registers five widgets and a pre-configured dashboard preset ("AiM: AI Analytics"):
+When `typo3/cms-dashboard` is installed, AiM registers six widgets and a pre-configured dashboard preset ("AiM: AI Analytics"):
 
 | Widget | Type | Shows |
 |---|---|---|
@@ -83,6 +83,7 @@ When `typo3/cms-dashboard` is installed, AiM registers five widgets and a pre-co
 | Model Usage | Bar chart | Request count per model |
 | Success Rate | Doughnut chart | Successful vs failed requests |
 | Extension Usage | Doughnut chart | Which extensions generate the most requests |
+| AI Footprint | Summary and table | Estimated energy and CO₂e of all requests, per provider, with coverage; see [Environmental footprint](EnvironmentalImpact.md) |
 
 All widgets are refreshable and grouped under "AiM" in the widget picker. The recent requests widget includes a button to open the full request log module.
 

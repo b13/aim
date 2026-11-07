@@ -76,12 +76,35 @@ final class ProviderConfigurationFactory
         ProviderConfiguration $config,
         string $fromModel,
         string $reason,
+        ?ProviderConfiguration $from = null,
     ): ProviderConfiguration {
         return new ProviderConfiguration(array_merge($config->row, [
             '_auto_model_switch' => true,
             '_auto_model_switch_from' => $fromModel,
             '_auto_model_switch_reason' => $reason,
+            '_smart_routing_from_provider' => $from->providerIdentifier ?? '',
+            '_smart_routing_from_grid_intensity' => $from?->get('grid_intensity'),
+            '_smart_routing_from_power_draw_watts' => $from?->get('power_draw_watts'),
         ]));
+    }
+
+    /**
+     * The configuration a smart-routing downgrade routed away from, as far as
+     * markedAsDowngrade() carries it, or null for any other configuration.
+     */
+    public static function routedFrom(ProviderConfiguration $config): ?ProviderConfiguration
+    {
+        $provider = (string)$config->get('_smart_routing_from_provider', '');
+        $model = (string)$config->get('_auto_model_switch_from', '');
+        if ($provider === '' || $model === '') {
+            return null;
+        }
+        return new ProviderConfiguration([
+            'ai_provider' => $provider,
+            'model' => $model,
+            'grid_intensity' => $config->get('_smart_routing_from_grid_intensity'),
+            'power_draw_watts' => $config->get('_smart_routing_from_power_draw_watts'),
+        ]);
     }
 
     /**

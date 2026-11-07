@@ -199,6 +199,18 @@ parameters:
 			path: Tests/Functional/Controller/RequestLogControllerPollTest.php
 
 		-
+			rawMessage: Access to internal constant TYPO3\CMS\Core\Core\SystemEnvironmentBuilder::REQUESTTYPE_BE from outside its root namespace TYPO3.
+			identifier: classConstant.internal
+			count: 1
+			path: Tests/Functional/Controller/RequestLogFootprintTest.php
+
+		-
+			rawMessage: Access to internal constant TYPO3\CMS\Core\Core\SystemEnvironmentBuilder::REQUESTTYPE_BE from outside its root namespace TYPO3.
+			identifier: classConstant.internal
+			count: 1
+			path: Tests/Functional/Widgets/FootprintWidgetTest.php
+
+		-
 			rawMessage: 'Call to an undefined method PHPUnit\Framework\MockObject\Builder\InvocationStubber::with().'
 			identifier: method.notFound
 			count: 2

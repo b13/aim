@@ -474,6 +474,7 @@ class SymfonyAiPlatformAdapter implements
      *   TokenUsage::getCachedTokens()     -> cachedTokens
      *   Raw API response 'model'          -> modelUsed
      *   Raw API response 'usage'          -> rawUsage
+     *   Raw API response '*_duration'     -> rawUsage (Ollama's native API reports timings at the top level)
      */
     private function extractUsage(object $result, ProviderConfiguration $config): AiUsageStatistics
     {
@@ -505,8 +506,24 @@ class SymfonyAiPlatformAdapter implements
             reasoningTokens: $reasoningTokens,
             modelUsed: (string)($rawResponse['model'] ?? ''),
             systemFingerprint: (string)($rawResponse['system_fingerprint'] ?? ''),
-            rawUsage: $rawResponse['usage'] ?? [],
+            rawUsage: ($rawResponse['usage'] ?? []) + self::extractTimings($rawResponse),
         );
+    }
+
+    /**
+     * Ollama reports its timings (nanoseconds) at the top level of the response.
+     *
+     * @return array<string, int>
+     */
+    private static function extractTimings(array $rawResponse): array
+    {
+        $timings = [];
+        foreach (['total_duration', 'load_duration', 'prompt_eval_duration', 'eval_duration'] as $key) {
+            if (is_int($rawResponse[$key] ?? null)) {
+                $timings[$key] = $rawResponse[$key];
+            }
+        }
+        return $timings;
     }
 
     private function extractUsageFromRawResponse(object $result, ProviderConfiguration $config): AiUsageStatistics

@@ -14,6 +14,8 @@ namespace B13\Aim\Tests\Functional\Governance;
 
 use B13\Aim\Domain\Model\ProviderConfiguration;
 use B13\Aim\Domain\Repository\RequestLogRepository;
+use B13\Aim\Footprint\EcoLogitsData;
+use B13\Aim\Footprint\Estimator;
 use B13\Aim\Governance\PrivacyLevel;
 use B13\Aim\Middleware\AiMiddlewareHandler;
 use B13\Aim\Middleware\RequestLoggingMiddleware;
@@ -39,6 +41,7 @@ final class PrivacyLoggingTest extends FunctionalTestCase
         return new RequestLoggingMiddleware(
             $this->get(RequestLogRepository::class),
             new NullLogger(),
+            new Estimator(new EcoLogitsData()),
         );
     }
 
