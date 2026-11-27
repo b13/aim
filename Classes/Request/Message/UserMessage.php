@@ -14,7 +14,9 @@ namespace B13\Aim\Request\Message;
 
 /**
  * A message from the user. Content can be a string or an array
- * for multimodal input (e.g. text + image for vision requests).
+ * for multimodal input (e.g. text + image for vision requests):
+ * a list of parts, each ['type' => 'text', 'text' => '...'] or
+ * ['type' => 'image', 'mimeType' => 'image/png', 'data' => '<base64>'].
  */
 final class UserMessage extends AbstractMessage
 {

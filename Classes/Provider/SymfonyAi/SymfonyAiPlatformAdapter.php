@@ -47,6 +47,7 @@ use B13\Aim\Response\ToolCallingResponse;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Symfony\AI\Platform\Exception\BadRequestException;
 use Symfony\AI\Platform\Message\Content\Image;
+use Symfony\AI\Platform\Message\Content\Text;
 use Symfony\AI\Platform\Message\Message;
 use Symfony\AI\Platform\Message\MessageBag;
 use Symfony\AI\Platform\ProviderInterface;
@@ -653,6 +654,25 @@ class SymfonyAiPlatformAdapter implements
     }
 
     /**
+     * Multimodal user content (see UserMessage) as Symfony AI content parts.
+     *
+     * @param list<array{type: string, text?: string, mimeType?: string, data?: string}> $parts
+     * @return list<Text|Image>
+     */
+    private function toUserContent(array $parts): array
+    {
+        $content = [];
+        foreach ($parts as $part) {
+            if (($part['type'] ?? '') === 'image' && ($part['data'] ?? '') !== '') {
+                $content[] = Image::fromDataUrl('data:' . ($part['mimeType'] ?? 'image/png') . ';base64,' . $part['data']);
+            } elseif (($part['text'] ?? '') !== '') {
+                $content[] = new Text($part['text']);
+            }
+        }
+        return $content;
+    }
+
+    /**
      * Convert AiM messages to a Symfony AI MessageBag.
      *
      * With $nativeToolProtocol enabled, assistant messages carrying tool calls
@@ -704,6 +724,10 @@ class SymfonyAiPlatformAdapter implements
                     $seenToolCalls[$msg->toolCallId] ?? new SymfonyToolCall($msg->toolCallId, ''),
                     $content,
                 );
+                continue;
+            }
+            if ($msg->role === 'user' && is_array($msg->content)) {
+                $messages[] = Message::ofUser(...$this->toUserContent($msg->content));
                 continue;
             }
             $messages[] = match ($msg->role) {
