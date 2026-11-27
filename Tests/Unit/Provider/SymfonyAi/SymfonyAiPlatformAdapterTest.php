@@ -24,6 +24,9 @@ use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Symfony\AI\Platform\Exception\BadRequestException;
 use Symfony\AI\Platform\Message\AssistantMessage as SymfonyAssistantMessage;
+use Symfony\AI\Platform\Message\Content\Image;
+use Symfony\AI\Platform\Message\Content\Text;
+use Symfony\AI\Platform\Message\UserMessage as SymfonyUserMessage;
 use Symfony\AI\Platform\Message\Message;
 use Symfony\AI\Platform\Message\MessageBag;
 use Symfony\AI\Platform\Message\ToolCallMessage;
@@ -170,6 +173,26 @@ final class SymfonyAiPlatformAdapterTest extends TestCase
         self::assertSame('call_1', $toolCall->getId());
         self::assertSame('get_weather', $toolCall->getName());
         self::assertSame(['city' => 'Berlin'], $toolCall->getArguments());
+    }
+
+    #[Test]
+    public function buildMessageBagPassesTextAndImagePartsOfAUserMessage(): void
+    {
+        $bag = $this->buildMessageBag([
+            new UserMessage([
+                ['type' => 'text', 'text' => 'Rebuild this element'],
+                ['type' => 'image', 'mimeType' => 'image/png', 'data' => base64_encode('png-bytes')],
+            ]),
+        ]);
+
+        $user = $bag->getMessages()[0];
+        self::assertInstanceOf(SymfonyUserMessage::class, $user);
+        $content = $user->getContent();
+        self::assertCount(2, $content);
+        self::assertInstanceOf(Text::class, $content[0]);
+        self::assertSame('Rebuild this element', $content[0]->getText());
+        self::assertInstanceOf(Image::class, $content[1]);
+        self::assertSame('png-bytes', $content[1]->asBinary());
     }
 
     #[Test]
